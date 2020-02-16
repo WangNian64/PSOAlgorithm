@@ -21,6 +21,12 @@
     <ClCompile Include="PSO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Pareto.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Archive.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PSO.h">
@@ -30,6 +36,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ProblemParas.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Tools.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Pareto.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Archive.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -5,31 +5,35 @@
 #include "ProblemParas.h"
 
 // 适应度是越大越好还是越小越好
-//#define MINIMIZE_FITNESS
-#define MAXIMIZE_FITNESS
+#define MINIMIZE_FITNESS
+//#define MAXIMIZE_FITNESS
 
 struct PSOPara
 {
 	int dim_;									// 参数维度（position和velocity的维度）
+	int fitness_count_;							// 适应度数目
 	int particle_num_;							// 粒子个数
 	int max_iter_num_;							// 最大迭代次数
 
+	int mesh_div_count;
 	double* dt_ = nullptr;						// 时间步长
 	double* wstart_ = nullptr;					// 初始权重
 	double* wend_ = nullptr;					// 终止权重
 	double* C1_ = nullptr;						// 加速度因子1
 	double* C2_ = nullptr;						// 加速度因子2
 
-	double* upper_bound_ = nullptr;				// position搜索范围上限
 	double* lower_bound_ = nullptr;				// position搜索范围下限
+	double* upper_bound_ = nullptr;				// position搜索范围上限
 	double* range_interval_ = nullptr;			// position搜索区间长度
 
 	int results_dim_ = 0;						// results的维度
 
-	ProblemParas problemParas;					//和粒子对应的其他参数
+	int archive_max_count;						// pareto最优解数组的最大值
+	ProblemParas problemParas;					//和粒子对应的设备布局参数
+
 	PSOPara() {}
 
-	PSOPara(int dim, bool hasBound = false)
+	PSOPara(int dim)
 	{
 		dim_ = dim;
 
@@ -38,20 +42,19 @@ struct PSOPara
 		wend_ = new double[dim_];
 		C1_ = new double[dim_];
 		C2_ = new double[dim_];
-		if (hasBound)
-		{
-			upper_bound_ = new double[dim_];
-			lower_bound_ = new double[dim_];
-			range_interval_ = new double[dim_];
-		}
+
+		lower_bound_ = new double[dim_];
+		upper_bound_ = new double[dim_];
+		range_interval_ = new double[dim_];
+
 		ProblemParas problemParas();
 	}
 
 	// 析构函数：释放堆内存
 	~PSOPara()
 	{
-		if (upper_bound_) { delete[]upper_bound_; }
 		if (lower_bound_) { delete[]lower_bound_; }
+		if (upper_bound_) { delete[]upper_bound_; }
 		if (range_interval_) { delete[]range_interval_; }
 		if (dt_) { delete[]dt_; }
 		if (wstart_) { delete[]wstart_; }
@@ -100,60 +103,83 @@ struct PSOPara
 		}
 	}
 
-	// 设置low_bound_
-	void SetLowBound(double lowBound) {
+	// 设置low_bound
+	void SetLowBound(double lowBoundX, double lowBoundY) {
 		for (int i = 0; i < dim_; i++) {
-			lower_bound_[i] = lowBound;
+			if (i % 2 == 0)
+				lower_bound_[i] = lowBoundX + problemParas.DeviceSizeArray[i / 2].x * 0.5;
+			else
+				lower_bound_[i] = lowBoundY + problemParas.DeviceSizeArray[i / 2].y * 0.5;
 		}
 	}
 
-	// 设置upper_bound_
-	void SetUpBound(double upBound) {
+	// 设置upper_bound
+	void SetUpBound(double upBoundX, double upBoundY) {
 		for (int i = 0; i < dim_; i++) {
-			upper_bound_[i] = upBound;
+			if (i % 2 == 0)
+				upper_bound_[i] = upBoundX - problemParas.DeviceSizeArray[i / 2].x * 0.5;
+			else
+				upper_bound_[i] = upBoundY - problemParas.DeviceSizeArray[i / 2].y * 0.5;
 		}
 	}
 };
-
 
 //粒子结构体
 struct Particle
 {
 	int dim_;							// 参数维度（position和velocity的维度）
-	double fitness_;
-	double* position_ = nullptr;
-	double* velocity_ = nullptr;
 
-	double* best_position_ = nullptr;
-	double best_fitness_;
-	double* results_ = nullptr;			// 一些需要保存出的结果
-	int results_dim_ = 0;				// results_的维度
+	int fitnessCount;					//适应度的个数
+	double* fitness_ = nullptr;					//适应度数组
+	double* position_ = nullptr;		//粒子位置数组
+	double* velocity_ = nullptr;		//粒子速度数组
+
+	double* best_position_ = nullptr;	//粒子的个体最优位置数组
+	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
 
 	Particle() {}
+	Particle(const Particle& particle)//拷贝构造函数
+	{
+		this->dim_ = particle.dim_;
+		this->fitnessCount = particle.fitnessCount;
+		this->position_ = new double[this->dim_];
+		this->velocity_ = new double[this->dim_];
+		this->best_position_ = new double[this->dim_];
 
+		this->fitness_ = new double[this->fitnessCount];
+		this->best_fitness_ = new double[this->fitnessCount];
+		for (int i = 0; i < this->fitnessCount; i++)
+		{
+			this->fitness_[i] = particle.fitness_[i];
+			this->best_fitness_[i] = particle.best_fitness_[i];
+		}
+		for (int i = 0; i < this->dim_; i++)
+		{
+			this->position_[i] = particle.position_[i];
+			this->velocity_[i] = particle.velocity_[i];
+			this->best_position_[i] = particle.best_position_[i];
+		}
+	}
 	~Particle()
 	{
-		if (position_) { delete[]position_; }
-		if (velocity_) { delete[]velocity_; }
-		if (best_position_) { delete[]best_position_; }
-		if (results_) { delete[]results_; }
 	}
 
-	Particle(int dim, double* position, double* velocity, double* best_position, double best_fitness);
+	//Particle(int dim, double* position, double* velocity/*, double* best_position, double best_fitness*/);
 };
 
-typedef double(*ComputeFitness)(Particle& particle, ProblemParas proParas);
+typedef void (*ComputeFitness)(Particle& particle, ProblemParas proParas);
 
 class PSOOptimizer
 {
 public:
-	int particle_num_;					// 粒子个数
-	int max_iter_num_;					// 最大迭代次数
-	int curr_iter_;						// 当前迭代次数
+	int particle_num_;								// 粒子个数
+	int max_iter_num_;								// 最大迭代次数
+	int curr_iter_;									// 当前迭代次数
 
-	int dim_;							// 参数维度（position和velocity的维度）
-
-	Particle* particles_ = nullptr;		// 所有粒子
+	int dim_;										// 参数维度（position和velocity的维度）
+	int fitness_count;								// 适应度数目
+	int meshDivCount;								// 网格等分因子（默认为10）
+	Particle* particles_ = nullptr;					// 所有粒子
 
 	double* upper_bound_ = nullptr;					// position搜索范围上限
 	double* lower_bound_ = nullptr;					// position搜索范围下限
@@ -166,14 +192,16 @@ public:
 	double* C1_ = nullptr;							// 加速度因子
 	double* C2_ = nullptr;							// 加速度因子
 
-	double all_best_fitness_;						// 全局最优粒子的适应度值
-	double* all_best_position_ = nullptr;			// 全局最优粒子的poistion
-	double* results_ = nullptr;						// 一些需要保存出的结果
-	int results_dim_ = 0;							// results的维度
+	double** all_best_fitness_ = nullptr;			// 全局最优粒子的适应度数组 100x2
+	double** all_best_position_ = nullptr;			// 全局最优粒子的position 100x12
 
 	ProblemParas problemParas;						// 布局问题参数
 
 	ComputeFitness fitness_fun_ = nullptr;			// 适应度函数
+
+	//MOPSO相关参数
+	vector<Particle> archive_list;					// 存放pareto非劣解的数组
+	int archiveMaxCount;							// archive数组的最大数目
 
 public:
 	// 默认构造函数
@@ -187,15 +215,22 @@ public:
 
 	// 初始化所有粒子参数
 	void InitialAllParticles();
-
 	// 初始化第i个粒子参数
 	void InitialParticle(int i);
+
+	// 初始化Archive数组
+	void InitialArchiveList();
+	// 更新Archive数组
+	void UpdateArchiveList();
+
+	// 初始化全局最优
+	void InitGbest();
 
 	// 获取双精度随机数（默认精度为0.0001）
 	double GetDoubleRand(int N = 9999);
 
 	// 计算该粒子的适应度值
-	double GetFitness(Particle& particle);
+	void GetFitness(Particle& particle);
 
 	// 更新所有粒子参数
 	void UpdateAllParticles();
@@ -203,6 +238,12 @@ public:
 	// 更新第i个粒子
 	void UpdateParticle(int i);
 
+	// 更新Pbest
+	void UpdatePbest();
+	// 更新Gbest
+	void UpdateGbest();
+	// 比较两个粒子的适应度，判断是否完全支配，从而计算出pbest
+	bool ComparePbest(double* fitness, double* pbestFitness);
 	// 获取当前迭代的权重
 	void GetInertialWeight();
 
