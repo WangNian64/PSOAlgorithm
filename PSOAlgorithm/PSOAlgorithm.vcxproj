@@ -130,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Archive.h" />
+    <ClInclude Include="DevicePara.h" />
     <ClInclude Include="FitnessFunction.h" />
     <ClInclude Include="Pareto.h" />
     <ClInclude Include="ProblemParas.h" />
