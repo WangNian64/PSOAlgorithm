@@ -35,13 +35,13 @@ int main()
 
 
 
-	#pragma region PSO参数
+	#pragma region 设置PSO参数
 	int dim = deviceNum * 2;				// 总维度=设备数*2
 	PSOPara psopara(dim);					// dim是变量维度
 	psopara.mesh_div_count = 4;				// 网格划分数目
 	psopara.problemParas = proParas;		// 布局问题的参数
 	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 1000;			// 最大迭代次数
+	psopara.max_iter_num_ = 2000;			// 最大迭代次数
 	psopara.fitness_count_ = 2;				// 适应度数目
 	psopara.archive_max_count = 200;		// archive数组的最大数目
 	psopara.SetDt(1.0);						// 时间步长
@@ -74,11 +74,6 @@ int main()
 	OutFile.open("../archiveList.txt");
 	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 	{
-		//cout << psooptimizer.archive_list.size() << endl;
-		//for (int i = 0; i < psooptimizer.archive_list.size(); i++)
-		//{
-		//	cout << psooptimizer.archive_list[i].fitness_[0] << "," << psooptimizer.archive_list[i].fitness_[1] << endl;
-		//}
 		psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
 		psooptimizer.UpdatePbest();//更新pbest
 		psooptimizer.UpdateArchiveList();//更新外部存档集合
