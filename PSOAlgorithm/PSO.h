@@ -107,9 +107,9 @@ struct PSOPara
 	void SetLowBound(double lowBoundX, double lowBoundY) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 2 == 0)
-				lower_bound_[i] = lowBoundX + problemParas.DeviceSizeArray[i / 2].x * 0.5;
+				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 2].size.x * 0.5;
 			else
-				lower_bound_[i] = lowBoundY + problemParas.DeviceSizeArray[i / 2].y * 0.5;
+				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 2].size.y * 0.5;
 		}
 	}
 
@@ -117,9 +117,9 @@ struct PSOPara
 	void SetUpBound(double upBoundX, double upBoundY) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 2 == 0)
-				upper_bound_[i] = upBoundX - problemParas.DeviceSizeArray[i / 2].x * 0.5;
+				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 2].size.x * 0.5;
 			else
-				upper_bound_[i] = upBoundY - problemParas.DeviceSizeArray[i / 2].y * 0.5;
+				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 2].size.y * 0.5;
 		}
 	}
 };
@@ -137,6 +137,9 @@ struct Particle
 	double* best_position_ = nullptr;	//粒子的个体最优位置数组
 	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
 
+
+	PointLink* pointLinks = nullptr;
+	int pointLinkSum = 0;
 	Particle() {}
 	Particle(const Particle& particle)//拷贝构造函数
 	{
@@ -158,6 +161,12 @@ struct Particle
 			this->position_[i] = particle.position_[i];
 			this->velocity_[i] = particle.velocity_[i];
 			this->best_position_[i] = particle.best_position_[i];
+		}
+		this->pointLinkSum = particle.pointLinkSum;
+		this->pointLinks = new PointLink[particle.pointLinkSum];
+		for (int i = 0; i < particle.pointLinkSum; i++)
+		{
+			this->pointLinks[i] = particle.pointLinks[i];
 		}
 	}
 	~Particle()

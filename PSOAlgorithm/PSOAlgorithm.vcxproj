@@ -132,6 +132,7 @@
     <ClInclude Include="Archive.h" />
     <ClInclude Include="DevicePara.h" />
     <ClInclude Include="FitnessFunction.h" />
+    <ClInclude Include="Graph.h" />
     <ClInclude Include="Pareto.h" />
     <ClInclude Include="ProblemParas.h" />
     <ClInclude Include="PSO.h" />

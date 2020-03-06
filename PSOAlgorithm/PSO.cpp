@@ -92,8 +92,6 @@ void PSOOptimizer::InitialAllParticles()
 void PSOOptimizer::InitialArchiveList()
 {
 	vector<Particle> particleList(this->particles_, this->particles_ + this->particle_num_);
-	particleList[0].fitness_[0] = 1000;
-	cout << particles_[0].fitness_[0] << endl;
 	Pareto initPareto(particleList);
 	this->archive_list = initPareto.GetPareto();
 }
@@ -285,17 +283,17 @@ bool PSOOptimizer::ComparePbest(double* fitness, double* pbestFitness)
 	{
 		return false;
 	}
-	//如果互不支配，随机选择
+	//如果互不支配，随机选择（适应度1的概率高点）
 	else
 	{
 		double randomProb = rand() % 1000 / (double)1000;//产生随机小数
-		if (randomProb > 0.5)
+		if (fitness[0] < pbestFitness[0])
 		{
-			return true;
-		}
-		else 
+			return randomProb < 0.75 ? true : false;
+		} 
+		else
 		{
-			return false;
+			return randomProb > 0.5 ? true : false;
 		}
 	}
 }

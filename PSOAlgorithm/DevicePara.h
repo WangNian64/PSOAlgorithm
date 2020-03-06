@@ -8,6 +8,12 @@ struct Vector2
 public:
 	double x;
 	double y;
+	Vector2(){}
+	Vector2(double x, double y)
+	{
+		this->x = x;
+		this->y = y;
+	}
 };
 //设备种类（暂时）
 enum DeviceTypeEnum
@@ -46,21 +52,26 @@ enum InoutType
 {
 	In,			//入口
 	Out,		//出口
-	Inout		//出入口
 };
 //邻接点结构
 struct AdjPoint
 {
+	int index;//下标
 	InoutType inoutType;//出入口类型
-	Vector2 pos;//出入口的位置
+	Vector2 pos;		//出入口的位置
 };
-//设备朝向
+//设备朝向（顺时针转，分为默认/90/180/270）
 enum DeviceDirect
 {
-	Up,			//上
-	Down,		//下
-	Left,		//左
-	Right		//右
+	Default,
+	Rotate90,
+	Rotate180,
+	Rotate270
+};
+//设备相关性(从0到5依次增大）
+enum DeviceRelation
+{
+	X,U,O,I,E,A
 };
 //单个设备的参数
 class DevicePara
@@ -68,16 +79,42 @@ class DevicePara
 public:
 	int ID;				//设备ID
 	//DeviceType type;	//设备种类相关参数 
-	double workSpeed;	//输送/操作效率（xx秒，运输或者加工一个单位物料）
-	double length;		//设备长度
-	double width;		//设备宽度
+	double workSpeed;	//加工/处理1单位物料的时间
+	Vector2 size;		//设备尺寸（分别是x轴和y轴的长度）
 	Vector2 axis;		//设备坐标
 	DeviceDirect direct;//设备朝向
 
-	//四个方向的出入口数组（会影响输送线的布局）
-	vector<AdjPoint> leftAdjPoints;
-	vector<AdjPoint> rightAdjPoints;
-	vector<AdjPoint> upAdjPoints;
-	vector<AdjPoint> downAdjPoints;
-
+	//出入口点的数组（会影响输送线的布局）
+	vector<AdjPoint> adjPointsIn;//入口
+	vector<AdjPoint> adjPointsOut;//出口
+	vector<AdjPoint> usableAdjPointsIn;
+	vector<AdjPoint> usableAdjPointsOut;
+	DevicePara() {}
 };
+//出入口相连的数据结构
+struct PointLink
+{
+public:
+	int device1Index;
+	int device1PointIndex;
+	int device2Index;
+	int device2PointIndex;
+	PointLink() {}
+	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex)
+	{
+		this->device1Index = device1Index;
+		this->device1PointIndex = device1PointIndex;
+		this->device2Index = device2Index;
+		this->device2PointIndex = device2PointIndex;
+	}
+};
+
+//物料信息
+struct CargoType
+{
+	string cargoName;	//物料名
+	int deviceSum;		//经过的设备总数
+	int* deviceList;	//设备队列
+	double totalVolume;	//一段时间的总物流量
+};
+
