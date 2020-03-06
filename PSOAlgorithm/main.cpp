@@ -28,12 +28,11 @@
 //}
 int main()
 {
-	//布局相关参数
+	#pragma region 设置PSO参数
 	int deviceNum = 6;	
 	int cargoTypeNum = 3;
 	ProblemParas proParas(deviceNum, cargoTypeNum);//初始化所有设备相关参数
 
-	#pragma region 设置PSO参数
 	int dim = deviceNum * 2;				// 总维度=设备数*2
 	PSOPara psopara(dim);					// dim是变量维度
 	psopara.mesh_div_count = 5;				// 网格划分数目
@@ -66,9 +65,8 @@ int main()
 
 	#pragma endregion
 
-	//迭代更新粒子
+	#pragma region 迭代更新粒子&存每一次的适应度值
 	ofstream OutFile;
-	//存每一次的适应度值
 	OutFile.open("../../archiveList.txt");
 	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 	{
@@ -87,20 +85,43 @@ int main()
 		OutFile << "\n";
 	}
 	OutFile.close();
-	//保存最终的布局结果&连线点的坐标
+	#pragma endregion
+	
+	#pragma region 保存最终的布局结果&连线点的坐标
 	OutFile.open("../../FinalResult.txt");
-	for (int i = 0; i < dim; i+=2)
+	int resultIndex = 0;
+	int minConveyValue = INTMAX_MAX;
+	int minAreaVaule = INTMAX_MAX;
+	//优先选运输效率最高的
+	for (int i = 0; i < psooptimizer.archive_list.size(); i++)
 	{
-		string line = to_string(psooptimizer.archive_list[0].position_[i]) + 
-			"," + to_string(psooptimizer.archive_list[0].position_[i + 1]) + "\n";
+		if (psooptimizer.archive_list[i].fitness_[0] < minConveyValue)
+		{
+			minConveyValue = psooptimizer.archive_list[i].fitness_[0];
+			resultIndex = i;
+		}
+	}
+	//优先选面积最小的
+	//for (int i = 0; i < psooptimizer.archive_list.size(); i++)
+	//{
+	//	if (psooptimizer.archive_list[i].fitness_[1] < minConveyValue)
+	//	{
+	//		minAreaVaule = psooptimizer.archive_list[i].fitness_[1];
+	//		resultIndex = i;
+	//	}
+	//}
+	for (int i = 0; i < dim; i += 2)
+	{
+		string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
+			"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
 		OutFile << line;
 	}
-	PointLink* p = psooptimizer.archive_list[0].pointLinks;
-	for (int i = 0; i < psooptimizer.archive_list[0].pointLinkSum; i++)
+	PointLink* p = psooptimizer.archive_list[resultIndex].pointLinks;
+	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
 	{
-		cout << psooptimizer.archive_list[0].pointLinks[i].device1Index << endl;
+		cout << psooptimizer.archive_list[resultIndex].pointLinks[i].device1Index << endl;
 	}
-	for (int i = 0; i < psooptimizer.archive_list[0].pointLinkSum; i++)
+	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
 	{
 		string s, s1, s2;
 		DevicePara device1, device2;
@@ -108,9 +129,9 @@ int main()
 			to_string(p[i].device2Index);
 		if (p[i].device1Index == -1)//说明是入口
 		{
-			s1 = to_string(psooptimizer.problemParas.entrancePos.x) + "," + 
+			s1 = to_string(psooptimizer.problemParas.entrancePos.x) + "," +
 				to_string(psooptimizer.problemParas.entrancePos.y);
-		} 
+		}
 		else //非入口
 		{
 			device1 = psooptimizer.problemParas.deviceParaList[p[i].device1Index];
@@ -124,6 +145,9 @@ int main()
 		string line = s + " " + s1 + " " + s2 + "\n";
 		OutFile << line;
 	}
+	OutFile.close();
+	#pragma endregion
+	
 	//最后的结果存到txt中(布局结果和每一次迭代的适应度值）
 	//SaveLayoutResults(psooptimizer, result);
 
