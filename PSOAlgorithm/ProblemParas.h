@@ -105,9 +105,7 @@ struct ProblemParas
 				deviceParaList[i].size.x = atof(sizeStr[0].c_str());
 				deviceParaList[i].size.y = atof(sizeStr[1].c_str());
 				//设备周围的包边（为了实现距离约束）
-				double spaceLength = atof(strSplit[3].c_str());
-				deviceParaList[i].size.x += spaceLength * 2;
-				deviceParaList[i].size.y += spaceLength * 2;
+				deviceParaList[i].spaceLength = atof(strSplit[3].c_str());
 				//邻接点的位置
 				//格式说明：1,2,0|2,4,0（0,1,2,代表这是入口、出口，2,0是点的坐标）
 				if (strSplit[4] != "null")
@@ -119,9 +117,10 @@ struct ProblemParas
 					{
 						vector<string> adjStr = split(adjStrList[k], ",");//再次分离
 						AdjPoint adjPoint;
-						adjPoint.inoutType = (InoutType)(atoi(adjStr[0].c_str()) - 1);
-						adjPoint.pos.x = atof(adjStr[1].c_str());
-						adjPoint.pos.y = atof(adjStr[2].c_str());
+						adjPoint.direct = adjPoint.GetDirect(adjStr[0]);
+						adjPoint.inoutType = (InoutType)(atoi(adjStr[1].c_str()) - 1);
+						adjPoint.pos.x = atof(adjStr[2].c_str());
+						adjPoint.pos.y = atof(adjStr[3].c_str());
 						if (adjPoint.inoutType == 0) {
 							adjPoint.index = InIndex++;
 							deviceParaList[i].adjPointsIn.push_back(adjPoint);

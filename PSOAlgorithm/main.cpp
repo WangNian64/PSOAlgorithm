@@ -38,7 +38,7 @@ int main()
 	psopara.mesh_div_count = 5;				// 网格划分数目
 	psopara.problemParas = proParas;		// 布局问题的参数
 	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 1000;			// 最大迭代次数
+	psopara.max_iter_num_ = 200;			// 最大迭代次数
 	psopara.fitness_count_ = 2;				// 适应度数目
 	psopara.archive_max_count = 200;		// archive数组的最大数目
 	psopara.SetDt(1.0);						// 时间步长
@@ -116,6 +116,7 @@ int main()
 			"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
 		OutFile << line;
 	}
+
 	PointLink* p = psooptimizer.archive_list[resultIndex].pointLinks;
 	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
 	{
@@ -123,26 +124,19 @@ int main()
 	}
 	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
 	{
-		string s, s1, s2;
+		string s1, s2;
 		DevicePara device1, device2;
-		s = to_string(p[i].device1Index) + " " +
-			to_string(p[i].device2Index);
-		if (p[i].device1Index == -1)//说明是入口
+		s1 = to_string(p[i].device1Index) + " " + to_string(p[i].device2Index);
+		//计算s2
+		for (int j = 0; j < p[i].points.size(); j++)
 		{
-			s1 = to_string(psooptimizer.problemParas.entrancePos.x) + "," +
-				to_string(psooptimizer.problemParas.entrancePos.y);
+			s2 += to_string(p[i].points[j].x) + "," + to_string(p[i].points[j].y);
+			if (j != p[i].points.size() - 1)
+			{
+				s2 += "|";
+			}
 		}
-		else //非入口
-		{
-			device1 = psooptimizer.problemParas.deviceParaList[p[i].device1Index];
-			s1 = to_string(device1.adjPointsOut[p[i].device1PointIndex].pos.x) + "," +
-				to_string(device1.adjPointsOut[p[i].device1PointIndex].pos.y);
-		}
-		device2 = psooptimizer.problemParas.deviceParaList[p[i].device2Index];
-		s2 = to_string(device2.adjPointsIn[p[i].device2PointIndex].pos.x) + "," +
-			to_string(device2.adjPointsIn[p[i].device2PointIndex].pos.y);
-
-		string line = s + " " + s1 + " " + s2 + "\n";
+		string line = s1 + " " + s2 + "\n";
 		OutFile << line;
 	}
 	OutFile.close();

@@ -124,12 +124,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Archive.cpp" />
+    <ClCompile Include="AStar.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Pareto.cpp" />
     <ClCompile Include="PSO.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Archive.h" />
+    <ClInclude Include="AStar.h" />
     <ClInclude Include="DevicePara.h" />
     <ClInclude Include="FitnessFunction.h" />
     <ClInclude Include="Graph.h" />

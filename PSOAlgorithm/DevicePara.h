@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include "AStar.h"
 using namespace std;
 //表示一个坐标
 struct Vector2
@@ -53,12 +54,33 @@ enum InoutType
 	In,			//入口
 	Out,		//出口
 };
+
+//出入口点的朝向
+enum PointDirect
+{
+	Up = 1, Down = 2, Left = 3, Right = 4
+};
 //邻接点结构
 struct AdjPoint
 {
+public:
 	int index;//下标
 	InoutType inoutType;//出入口类型
 	Vector2 pos;		//出入口的位置
+	PointDirect direct;//出入点的方向
+	PointDirect GetDirect(string str)
+	{
+		PointDirect PD;
+		if (str == "UP")
+			PD = (PointDirect)1;
+		if (str == "DOWN")
+			PD = (PointDirect)2;
+		if (str == "LEFT")
+			PD = (PointDirect)3;
+		if (str == "RIGHT")
+			PD = (PointDirect)4;
+		return PD;
+	}
 };
 //设备朝向（顺时针转，分为默认/90/180/270）
 enum DeviceDirect
@@ -83,7 +105,7 @@ public:
 	Vector2 size;		//设备尺寸（分别是x轴和y轴的长度）
 	Vector2 axis;		//设备坐标
 	DeviceDirect direct;//设备朝向
-
+	double spaceLength;//空隙（为了实现距离约束）
 	//出入口点的数组（会影响输送线的布局）
 	vector<AdjPoint> adjPointsIn;//入口
 	vector<AdjPoint> adjPointsOut;//出口
@@ -99,13 +121,15 @@ public:
 	int device1PointIndex;
 	int device2Index;
 	int device2PointIndex;
+	vector<Vector2> points;
 	PointLink() {}
-	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex)
+	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, vector<Vector2> points)
 	{
 		this->device1Index = device1Index;
 		this->device1PointIndex = device1PointIndex;
 		this->device2Index = device2Index;
 		this->device2PointIndex = device2PointIndex;
+		this->points = points;
 	}
 };
 
