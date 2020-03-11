@@ -111,9 +111,13 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 		//仓库入口也要考虑
 		horizonAxisList.push_back(proParas.entrancePos.x);
 		verticalAxisList.push_back(proParas.entrancePos.y);
+		//存下每个设备坐标的四个范围
+		double* DeviceLowXList = new double[proParas.DeviceSum];
+		double* DeviceHighXList = new double[proParas.DeviceSum];
+		double* DeviceLowYList = new double[proParas.DeviceSum];
+		double* DeviceHighYList = new double[proParas.DeviceSum];
 		//对设备的坐标代表的点进行分类
 		for (int i = 0; i < particle.dim_; i += 2) {
-
 			outSizeLength = 0.5 * proParas.deviceParaList[i / 2].size.x/* + proParas.deviceParaList[i / 2].spaceLength*/;
 			outSizeWidth = 0.5 * proParas.deviceParaList[i / 2].size.y/* + proParas.deviceParaList[i / 2].spaceLength*/;
 			double LowX = particle.position_[i] - outSizeLength;
@@ -126,12 +130,23 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 			horizonAxisList.push_back(LowX);
 			horizonAxisList.push_back(HighX);
 
-			//horizonAxisList.push_back(particle.position_[i]);
-			//verticalAxisList.push_back(particle.position_[i + 1]);
+			//防止路径进入设备内部
+			horizonAxisList.push_back(particle.position_[i]);
+			verticalAxisList.push_back(particle.position_[i + 1]);
+
+			//每个设备的四个范围
+			DeviceLowXList[i / 2] = LowX;
+			DeviceHighXList[i / 2] = HighX;
+			DeviceLowYList[i / 2] = LowY;
+			DeviceHighYList[i / 2] = HighY;
 		}
 		//对这些点的坐标按照从小到大排序
 		sort(verticalAxisList.begin(), verticalAxisList.end());
 		sort(horizonAxisList.begin(), horizonAxisList.end());
+
+		//存下所有的障碍点的下标
+		vector<int> barrierRowIndexs;
+		vector<int> barrierColIndexs;
 		//用这些坐标去组成路径点map
 		for (int i = 0; i < verticalAxisList.size(); i++)
 		{
@@ -141,6 +156,19 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 				APoint* p = new APoint();
 				p->x = horizonAxisList[j];
 				p->y = verticalAxisList[i];
+				for (int k = 0; k < proParas.DeviceSum; k++)
+				{
+					//if ((p->x > DeviceLowXList[k] && p->x < DeviceHighXList[k])
+					//	&& (p->y > DeviceLowYList[k] && p->y < DeviceHighYList[k]))
+					if (p->x - DeviceLowXList[k] >= 0.00001 && DeviceHighXList[k] - p->x >= 0.00001
+						&& p->y - DeviceLowYList[k] >= 0.00001 && DeviceHighYList[k] - p->y >= 0.00001)
+					{
+						p->type = AType::ATYPE_BARRIER;
+						//障碍点在图中的下标
+						barrierRowIndexs.push_back(i);
+						barrierColIndexs.push_back(j);
+					}
+				}
 				p->rowIndex = i;
 				p->colIndex = j;
 				tmp.push_back(p);
@@ -160,7 +188,7 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 
 		
 		double totalTime = 0.0;
-		particle.pointLinks = new PointLink[100];
+		particle.pointLinks = new PointLink[50];
 		particle.pointLinkSum = 0;
 
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
@@ -224,6 +252,11 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 				totalTime += curCargoType.totalVolume * deviceDistance * proParas.conveySpeed;
 
 				star->resetAStar();
+				//给障碍点重新标记
+				for (int i = 0; i < barrierRowIndexs.size(); i++)
+				{
+					star->_allPoints[barrierRowIndexs[i]][barrierColIndexs[i]]->type = AType::ATYPE_BARRIER;
+				}
 				//计算设备处理时间(物料总量 * 处理效率)
 				//totalTime += curCargoType.totalVolume * curDevice.workSpeed;
 			}
@@ -238,8 +271,25 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 		//		<< copyDeviceParas[i].usableAdjPointsOut.size() << endl;
 		//}
 		//cout << endl;
+		delete[] copyDeviceParas;
+		delete[] DeviceLowXList;
+		delete[] DeviceHighXList;
+		delete[] DeviceLowYList;
+		delete[] DeviceHighYList;
+		vector<int>().swap(barrierRowIndexs);
+		vector<int>().swap(barrierColIndexs);
+		vector< vector<APoint*> >().swap(pathPointMap);//这样释放内存是不够的
+		for (int i = 0; i < pathPointMap.size(); i++)
+		{
+			for (int j = 0; j < pathPointMap[i].size(); j++)
+			{
+				delete pathPointMap[i][j];
+			}
+		}
+
+		vector<double>().swap(horizonAxisList);
+		vector<double>().swap(verticalAxisList);
 	}
-	
 	return;
 }
 int FindAxisIndex(double axis, const vector<double>& axisList)

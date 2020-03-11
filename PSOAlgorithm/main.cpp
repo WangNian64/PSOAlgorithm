@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <iomanip>
+#include <ctime>
 #include "PSO.h"
 #include "FitnessFunction.h"
 //保存结果到txt
@@ -38,7 +39,7 @@ int main()
 	psopara.mesh_div_count = 5;				// 网格划分数目
 	psopara.problemParas = proParas;		// 布局问题的参数
 	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 200;			// 最大迭代次数
+	psopara.max_iter_num_ = 400;			// 最大迭代次数
 	psopara.fitness_count_ = 2;				// 适应度数目
 	psopara.archive_max_count = 200;		// archive数组的最大数目
 	psopara.SetDt(1.0);						// 时间步长
@@ -51,7 +52,9 @@ int main()
 	#pragma endregion
 
 	#pragma region 调用PSO算法，并输出结果
-
+	
+	clock_t startTime, endTime;//记录调用时间
+	startTime = clock();//计时开始
 	#pragma region 初始化
 
 	PSOOptimizer psooptimizer(&psopara, FitnessFunction);//构造函数
@@ -86,7 +89,8 @@ int main()
 	}
 	OutFile.close();
 	#pragma endregion
-	
+	endTime = clock();
+	cout << "迭代" << psopara.max_iter_num_ << "次的最终用时:" << static_cast<double>(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
 	#pragma region 保存最终的布局结果&连线点的坐标
 	OutFile.open("../../FinalResult.txt");
 	int resultIndex = 0;

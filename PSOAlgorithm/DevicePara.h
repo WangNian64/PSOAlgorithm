@@ -112,6 +112,12 @@ public:
 	vector<AdjPoint> usableAdjPointsIn;
 	vector<AdjPoint> usableAdjPointsOut;
 	DevicePara() {}
+	~DevicePara() {
+		vector<AdjPoint>().swap(adjPointsIn);
+		vector<AdjPoint>().swap(adjPointsOut);
+		vector<AdjPoint>().swap(usableAdjPointsIn);
+		vector<AdjPoint>().swap(usableAdjPointsOut);
+	}
 };
 //出入口相连的数据结构
 struct PointLink

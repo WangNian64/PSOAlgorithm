@@ -27,6 +27,7 @@ APoint::APoint() :x(0)
 }
 APoint::~APoint()
 {
+
 }
 
 
@@ -64,9 +65,9 @@ void CAstar::resetAStar()
             _allPoints[i][j]->resetAPoint();
         }
     }
-    _openList.clear();
-    _closeList.clear();
-    _neighbourList.clear();
+    vector<APoint*>().swap(_openList);
+    vector<APoint*>().swap(_closeList);
+    vector<APoint*>().swap(_neighbourList);
 }
 APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
