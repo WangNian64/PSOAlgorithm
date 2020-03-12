@@ -188,8 +188,7 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 
 		
 		double totalTime = 0.0;
-		particle.pointLinks = new PointLink[50];
-		particle.pointLinkSum = 0;
+		vector<PointLink>().swap(particle.pointLinks);
 
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
 		{
@@ -247,7 +246,7 @@ void FitnessFunction(Particle & particle, ProblemParas proParas)
 					path = path->parent;
 				}
 				PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
-				particle.pointLinks[particle.pointLinkSum++] = pointLink;
+				particle.pointLinks.push_back(pointLink);
 				//计算输送时间(物料总量 * 路线长度 * 输送效率)
 				totalTime += curCargoType.totalVolume * deviceDistance * proParas.conveySpeed;
 

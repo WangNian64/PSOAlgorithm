@@ -39,7 +39,7 @@ int main()
 	psopara.mesh_div_count = 5;				// 网格划分数目
 	psopara.problemParas = proParas;		// 布局问题的参数
 	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 400;			// 最大迭代次数
+	psopara.max_iter_num_ = 500;			// 最大迭代次数
 	psopara.fitness_count_ = 2;				// 适应度数目
 	psopara.archive_max_count = 200;		// archive数组的最大数目
 	psopara.SetDt(1.0);						// 时间步长
@@ -73,6 +73,7 @@ int main()
 	OutFile.open("../../archiveList.txt");
 	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 	{
+		cout << i << endl;
 		psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
 		psooptimizer.UpdatePbest();//更新pbest
 		psooptimizer.UpdateArchiveList();//更新外部存档集合
@@ -121,12 +122,12 @@ int main()
 		OutFile << line;
 	}
 
-	PointLink* p = psooptimizer.archive_list[resultIndex].pointLinks;
-	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
+	vector<PointLink> p = psooptimizer.archive_list[resultIndex].pointLinks;
+	for (int i = 0; i < p.size(); i++)
 	{
 		cout << psooptimizer.archive_list[resultIndex].pointLinks[i].device1Index << endl;
 	}
-	for (int i = 0; i < psooptimizer.archive_list[resultIndex].pointLinkSum; i++)
+	for (int i = 0; i < p.size(); i++)
 	{
 		string s1, s2;
 		DevicePara device1, device2;
