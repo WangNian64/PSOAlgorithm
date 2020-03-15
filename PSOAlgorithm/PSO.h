@@ -107,9 +107,9 @@ struct PSOPara
 	void SetLowBound(double lowBoundX, double lowBoundY) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 2 == 0)
-				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 2].size.x * 0.5;
+				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 2].size.x * 0.5 + problemParas.deviceParaList[i / 2].spaceLength;
 			else
-				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 2].size.y * 0.5;
+				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 2].size.y * 0.5 + problemParas.deviceParaList[i / 2].spaceLength;
 		}
 	}
 
@@ -117,9 +117,9 @@ struct PSOPara
 	void SetUpBound(double upBoundX, double upBoundY) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 2 == 0)
-				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 2].size.x * 0.5;
+				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 2].size.x * 0.5 - problemParas.deviceParaList[i / 2].spaceLength;
 			else
-				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 2].size.y * 0.5;
+				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 2].size.y * 0.5 - problemParas.deviceParaList[i / 2].spaceLength;
 		}
 	}
 };

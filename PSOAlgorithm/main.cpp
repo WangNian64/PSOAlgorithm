@@ -39,7 +39,7 @@ int main()
 	psopara.mesh_div_count = 5;				// 网格划分数目
 	psopara.problemParas = proParas;		// 布局问题的参数
 	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 500;			// 最大迭代次数
+	psopara.max_iter_num_ = 400;			// 最大迭代次数
 	psopara.fitness_count_ = 2;				// 适应度数目
 	psopara.archive_max_count = 200;		// archive数组的最大数目
 	psopara.SetDt(1.0);						// 时间步长
@@ -47,8 +47,8 @@ int main()
 	psopara.SetWend(0.4);					// 结束权重
 	psopara.SetC1(1.49445);					// 加速度因子1
 	psopara.SetC2(1.49445);					// 加速度因子2
-	psopara.SetLowBound(1, 1);				// position的搜索范围下限
-	psopara.SetUpBound(proParas.workShopLength - 1, proParas.workShopWidth - 1);// position的搜索范围上限
+	psopara.SetLowBound(0, 0);				// position的搜索范围下限
+	psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth);// position的搜索范围上限
 	#pragma endregion
 
 	#pragma region 调用PSO算法，并输出结果
