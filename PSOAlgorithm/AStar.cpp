@@ -114,9 +114,10 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             if (tmpoint->type != AType::ATYPE_OPENED)
             {
                 tmpoint->parent = _curPoint;
-                tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint);////////////
-                //计算H值
+                //计算GHF
+                tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
                 tmpoint->h = getH(tmpoint);
+                tmpoint->f = getF(tmpoint);
                 //添加到开放列表里
                 _openList.push_back(tmpoint);
                 tmpoint->type = AType::ATYPE_OPENED;
@@ -124,10 +125,20 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             else
             {
                 //已经在开放列表里
-                if (tmpoint->h < _curPoint->h)
+                if (tmpoint->f < _curPoint->f)
                 {
                     tmpoint->parent = _curPoint;
-                    tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint);////////////
+                    tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                    //更新方向
+                    if (tmpoint->x == _curPoint->x)
+                    {
+                        curPathDirect = PathDirection::Vertical;
+                    }
+                    if (tmpoint->y == _curPoint->y)
+                    {
+                        curPathDirect = PathDirection::Horizon;
+                    }
+                    tmpoint->f = getF(tmpoint);
                 }
             }
         }
@@ -141,18 +152,36 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
 
     return nullptr;
 }
-//得到F=G+H
-int CAstar::getF(APoint* point)
+//得到F=G+H+E(E是为了对路径进行微调，减少拐点）
+double CAstar::getF(APoint* point)
 {
     return (point->g + getH(point));
 }
 //估算H
-int CAstar::getH(APoint* point)
+double CAstar::getH(APoint* point)
 {
     //曼哈顿城市街区估算法
     return abs(_endPoint->y - point->y) + abs(_endPoint->x - point->x);
 }
+//计算E
+double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
+{
+    //第一个点或者是直线点（不是拐点），E=0
+    if (curPoint->parent == nullptr 
+        || (curPathDirect == PathDirection::Vertical && nextPoint->x == curPoint->x)
+        || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y))
+    {
+        return 0.0;
+    }
 
+    //拐向终点的点
+    if (nextPoint->x == endPoint->x || nextPoint->y == endPoint->y)
+    {
+        return 1.0;
+    }
+
+    return 2.0;
+}
 vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
 {
     _neighbourList.clear();

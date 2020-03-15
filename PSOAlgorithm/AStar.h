@@ -63,7 +63,11 @@ public:
         parent = nullptr;
     }
 };
-
+enum PathDirection
+{
+    Vertical,
+    Horizon
+};
 class CAstar
 {
 public:
@@ -73,6 +77,7 @@ public:
     APoint* _endPoint;
     APoint* _curPoint;
     vector< vector<APoint*> > _allPoints;
+    PathDirection curPathDirect;
     CAstar();
     ~CAstar();
     double CalcuPathLength(APoint* point);
@@ -80,8 +85,9 @@ public:
     void resetAStar();
     //    APoint* findWay(int beginX,int beginY,int endX,int endY);
 private:
-    int getF(APoint* point);
-    int getH(APoint* point);
+    double getF(APoint* point);
+    double getH(APoint* point);
+    double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint);
     vector<APoint*> getNeighboringPoint(APoint* point);
 };
 
