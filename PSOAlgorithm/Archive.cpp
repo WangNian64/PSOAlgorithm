@@ -1,3 +1,4 @@
+#pragma once
 #include "Archive.h"
 #include <cmath>
 #include <vector>

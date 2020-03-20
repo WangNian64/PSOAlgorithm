@@ -1,3 +1,4 @@
+#pragma once
 #include "PSO.h"
 #include "Pareto.h"
 #include "Tools.h"
@@ -142,9 +143,15 @@ double PSOOptimizer::GetDoubleRand(int N)
 	return temp;
 }
 
+//
+int PSOOptimizer::GetIntRand(int N)
+{
+	int temp = rand() % (N + 1);
+	return temp;
+}
 void PSOOptimizer::GetFitness(Particle& particle)
 {
-	return fitness_fun_(particle, problemParas);
+	return fitness_fun_(particle, problemParas, lower_bound_, upper_bound_);
 }
 
 void PSOOptimizer::UpdateAllParticles()
@@ -161,10 +168,9 @@ void PSOOptimizer::UpdateAllParticles()
 //更新i索引的粒子&计算适应度值数组
 void PSOOptimizer::UpdateParticle(int i)
 {
-	for (int j = 0; j < dim_; j++)
+	//先更新朝向，然后根据朝向调整粒子的范围
+	for (int j = 2; j < dim_; j += 3)
 	{
-		// 保存上一次迭代结果的position和velocity
-		//double last_velocity = particles_[i].velocity_[j];
 		double last_position = particles_[i].position_[j];
 
 		particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
@@ -209,6 +215,102 @@ void PSOOptimizer::UpdateParticle(int i)
 			}
 		}
 	}
+
+	//根据朝向修改设备上下界范围
+	for (int j = 2; j < dim_; j += 3)
+	{
+		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
+		//Rotate90或者Rotate270,修改上下限
+		DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
+		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
+		{
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+
+		}
+		else
+		{
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+
+		}
+
+		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
+		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
+	}
+
+
+	for (int j = 0; j < dim_; j++)
+	{
+		if (j % 3 != 2)
+		{
+			//保存上一次迭代结果的position和velocity
+			//double last_velocity = particles_[i].velocity_[j];
+			double last_position = particles_[i].position_[j];
+
+			particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
+				C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+				C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+			particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
+
+			// 如果搜索区间有上下限限制
+			if (upper_bound_ && lower_bound_)
+			{
+				if (particles_[i].position_[j] > upper_bound_[j])
+				{
+					double thre = GetDoubleRand(99);
+					if (last_position == upper_bound_[j])
+					{
+						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+					}
+					else if (thre < 0.5)
+					{
+						particles_[i].position_[j] = upper_bound_[j] - abs(upper_bound_[j] - last_position) * GetDoubleRand();
+					}
+					else
+					{
+						particles_[i].position_[j] = upper_bound_[j];
+					}
+				}
+				if (particles_[i].position_[j] < lower_bound_[j])
+				{
+					double thre = GetDoubleRand(99);
+					if (last_position == lower_bound_[j])
+					{
+						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+					}
+					else if (thre < 0.5)
+					{
+						particles_[i].position_[j] = lower_bound_[j] + abs(last_position - lower_bound_[j]) * GetDoubleRand();
+					}
+					else
+					{
+						particles_[i].position_[j] = lower_bound_[j];
+					}
+					if (particles_[i].position_[j] < lower_bound_[j])
+					{
+						cout << endl;
+					}
+				}
+			}
+		}
+		
+	}
+
+	//打印所有的设备坐标
+	//cout << "第" << i << "个" << endl;
+	//for (int j = 0; j < dim_; j++)
+	//{
+	//	cout << lower_bound_[j] << "," << particles_[i].position_[j] << "," << upper_bound_[j] << endl;
+	//}
 	//计算更新后粒子的适应度值数组
 	GetFitness(particles_[i]);
 }
@@ -375,16 +477,49 @@ void PSOOptimizer::InitialParticle(int i)
 	//}
 	#pragma endregion
 
-	for (int j = 0; j < dim_; j++) {
-		if (range_interval_)
+	//先随机朝向，然后根据朝向调整粒子的范围
+	for (int j = 2; j < dim_; j += 3)
+	{
+		particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+		particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+	}
+	//根据朝向修改设备上下界范围
+	for (int j = 2; j < dim_; j += 3)
+	{
+		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
+		//Rotate90或者Rotate270,修改上下限
+		DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
+		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
 		{
-			particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-			particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+
 		}
 		else
 		{
-			particles_[i].position_[j] = GetDoubleRand() * 2;
-			particles_[i].velocity_[j] = GetDoubleRand() * 0.5;
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+
+		}
+
+		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
+		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
+	}
+
+	for (int j = 0; j < dim_; j++) {
+		if (j % 3 != 2)
+		{
+			particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+			particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+
 		}
 	}
 	//计算自身的适应度值

@@ -104,22 +104,26 @@ struct PSOPara
 	}
 
 	// 设置low_bound
-	void SetLowBound(double lowBoundX, double lowBoundY) {
+	void SetLowBound(double lowBoundX, double lowBoundY, int lowBoundDirect) {
 		for (int i = 0; i < dim_; i++) {
-			if (i % 2 == 0)
-				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 2].size.x * 0.5 + problemParas.deviceParaList[i / 2].spaceLength;
+			if (i % 3 == 0)
+				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 3].size.x * 0.5 + problemParas.deviceParaList[i / 3].spaceLength;
+			else if (i % 3 == 1)
+				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 3].size.y * 0.5 + problemParas.deviceParaList[i / 3].spaceLength;
 			else
-				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 2].size.y * 0.5 + problemParas.deviceParaList[i / 2].spaceLength;
+				lower_bound_[i] = lowBoundDirect;
 		}
 	}
 
 	// 设置upper_bound
-	void SetUpBound(double upBoundX, double upBoundY) {
+	void SetUpBound(double upBoundX, double upBoundY, int upBoundDirect) {
 		for (int i = 0; i < dim_; i++) {
-			if (i % 2 == 0)
-				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 2].size.x * 0.5 - problemParas.deviceParaList[i / 2].spaceLength;
+			if (i % 3 == 0)
+				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 3].size.x * 0.5 - problemParas.deviceParaList[i / 3].spaceLength;
+			else if (i % 3 == 1)
+				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 3].size.y * 0.5 - problemParas.deviceParaList[i / 3].spaceLength;
 			else
-				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 2].size.y * 0.5 - problemParas.deviceParaList[i / 2].spaceLength;
+				upper_bound_[i] = upBoundDirect;
 		}
 	}
 };
@@ -130,13 +134,12 @@ struct Particle
 	int dim_;							// 参数维度（position和velocity的维度）
 
 	int fitnessCount;					//适应度的个数
-	double* fitness_ = nullptr;					//适应度数组
+	double* fitness_ = nullptr;			//适应度数组
 	double* position_ = nullptr;		//粒子位置数组
 	double* velocity_ = nullptr;		//粒子速度数组
 
 	double* best_position_ = nullptr;	//粒子的个体最优位置数组
 	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
-
 
 	vector<PointLink> pointLinks; //最终路径集合
 	//int pointLinkSum = 0;//路径的数目
@@ -163,12 +166,6 @@ struct Particle
 			this->best_position_[i] = particle.best_position_[i];
 		}
 		this->pointLinks = particle.pointLinks;
-		//this->pointLinkSum = particle.pointLinkSum;
-		//this->pointLinks = new PointLink[particle.pointLinkSum];
-		//for (int i = 0; i < particle.pointLinkSum; i++)
-		//{
-		//	this->pointLinks[i] = particle.pointLinks[i];
-		//}
 	}
 	~Particle()
 	{
@@ -177,7 +174,7 @@ struct Particle
 	//Particle(int dim, double* position, double* velocity/*, double* best_position, double best_fitness*/);
 };
 
-typedef void (*ComputeFitness)(Particle& particle, ProblemParas proParas);
+typedef void (*ComputeFitness)(Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
 
 class PSOOptimizer
 {
@@ -238,6 +235,9 @@ public:
 
 	// 获取双精度随机数（默认精度为0.0001）
 	double GetDoubleRand(int N = 9999);
+
+	//(返回一个0 - N包括N的int）
+	int GetIntRand(int N);
 
 	// 计算该粒子的适应度值
 	void GetFitness(Particle& particle);

@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -34,21 +35,22 @@ int main()
 	int cargoTypeNum = 3;
 	ProblemParas proParas(deviceNum, cargoTypeNum);//初始化所有设备相关参数
 
-	int dim = deviceNum * 2;				// 总维度=设备数*2
-	PSOPara psopara(dim);					// dim是变量维度
-	psopara.mesh_div_count = 5;				// 网格划分数目
-	psopara.problemParas = proParas;		// 布局问题的参数
-	psopara.particle_num_ = 100;			// 粒子个数
-	psopara.max_iter_num_ = 200;			// 最大迭代次数
-	psopara.fitness_count_ = 2;				// 适应度数目
-	psopara.archive_max_count = 200;		// archive数组的最大数目
-	psopara.SetDt(1.0);						// 时间步长
-	psopara.SetWstart(0.9);					// 初始权重
-	psopara.SetWend(0.4);					// 结束权重
-	psopara.SetC1(1.49445);					// 加速度因子1
-	psopara.SetC2(1.49445);					// 加速度因子2
-	psopara.SetLowBound(0, 0);				// position的搜索范围下限
-	psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth);// position的搜索范围上限
+	int dim = deviceNum * 3;						// 总维度=设备数*3(x,y,朝向)
+	PSOPara psopara(dim);							// dim是变量维度
+	psopara.mesh_div_count = 2;						// 网格划分数目
+	psopara.problemParas = proParas;				// 布局问题的参数
+	psopara.particle_num_ = 100;					// 粒子个数
+	psopara.max_iter_num_ = 400;					// 最大迭代次数
+	psopara.fitness_count_ = 2;						// 适应度数目
+	psopara.archive_max_count = 200;				// archive数组的最大数目
+	psopara.SetDt(1.0);								// 时间步长
+	psopara.SetWstart(0.9);							// 初始权重
+	psopara.SetWend(0.4);							// 结束权重
+	psopara.SetC1(1.49445);							// 加速度因子1
+	psopara.SetC2(1.49445);							// 加速度因子2
+	psopara.SetLowBound(0, 0, DeviceDirect::Default);				// position的搜索范围下限
+	psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270);// position的搜索范围上限
+	//
 	#pragma endregion
 
 	#pragma region 调用PSO算法，并输出结果
@@ -64,7 +66,7 @@ int main()
 
 	psooptimizer.InitialAllParticles();//初始化所有粒子
 	psooptimizer.InitialArchiveList();//初始化Archive存档
-	psooptimizer.InitGbest();//初始化全局最优
+	psooptimizer.InitGbest();//初始化全局最优 //这个地方要注意min和max
 
 	#pragma endregion
 
@@ -92,8 +94,11 @@ int main()
 	#pragma endregion
 	endTime = clock();
 	cout << "迭代" << psopara.max_iter_num_ << "次的最终用时:" << static_cast<double>(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
-	#pragma region 保存最终的布局结果&连线点的坐标
+	#pragma region 保存设备尺寸&最终布局结果&连线点的坐标
 	OutFile.open("../../FinalResult.txt");
+
+
+	#pragma region 记录最终布局结果
 	int resultIndex = 0;
 	int minConveyValue = INTMAX_MAX;
 	int minAreaVaule = INTMAX_MAX;
@@ -115,13 +120,33 @@ int main()
 	//		resultIndex = i;
 	//	}
 	//}
-	for (int i = 0; i < dim; i += 2)
+
+	for (int i = 0; i < dim; i += 3)
 	{
 		string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
 			"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
 		OutFile << line;
 	}
+	#pragma endregion
 
+
+	#pragma region 记录设备尺寸
+	for (int i = 2; i < dim; i += 3)
+	{
+		DeviceDirect direct = (DeviceDirect)(int)psooptimizer.archive_list[resultIndex].position_[i];
+		string line = "";
+		if (direct == DeviceDirect::Rotate90 || direct == DeviceDirect::Rotate270)
+		{
+			line = to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.y) + "," +
+				to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.x);
+		} else {
+			line = to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.x) + "," +
+				to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.y);
+		}
+		OutFile << line + "\n";
+	}
+	#pragma endregion
+	#pragma region 记录出入口路径
 	vector<PointLink> p = psooptimizer.archive_list[resultIndex].pointLinks;
 	for (int i = 0; i < p.size(); i++)
 	{
@@ -144,6 +169,8 @@ int main()
 		string line = s1 + " " + s2 + "\n";
 		OutFile << line;
 	}
+	#pragma endregion
+
 	OutFile.close();
 	#pragma endregion
 	

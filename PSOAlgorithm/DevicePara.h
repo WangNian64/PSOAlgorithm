@@ -58,7 +58,7 @@ enum InoutType
 //出入口点的朝向
 enum PointDirect
 {
-	Up = 1, Down = 2, Left = 3, Right = 4
+	Up = 1, Right = 2, Down = 3, Left = 4
 };
 //邻接点结构
 struct AdjPoint
@@ -73,11 +73,11 @@ public:
 		PointDirect PD;
 		if (str == "UP")
 			PD = (PointDirect)1;
-		if (str == "DOWN")
-			PD = (PointDirect)2;
-		if (str == "LEFT")
-			PD = (PointDirect)3;
 		if (str == "RIGHT")
+			PD = (PointDirect)2;
+		if (str == "DOWN")
+			PD = (PointDirect)3;
+		if (str == "LEFT")
 			PD = (PointDirect)4;
 		return PD;
 	}

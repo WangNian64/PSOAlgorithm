@@ -1,3 +1,4 @@
+#pragma once
 #include "Pareto.h"
 static bool Judge_ParetoOptimal(Particle curParticle, vector<Particle> particles, int cursor);
 

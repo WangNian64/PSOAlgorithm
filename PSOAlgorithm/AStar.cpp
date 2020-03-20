@@ -125,7 +125,9 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             else
             {
                 //已经在开放列表里
-                if (tmpoint->f < _curPoint->f)
+                if (tmpoint->g < _curPoint->g)
+                //if (tmpoint->g < _curPoint->g || tmpoint->f < _curPoint->f)
+                //if (tmpoint->h < _curPoint->h)
                 {
                     tmpoint->parent = _curPoint;
                     tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
