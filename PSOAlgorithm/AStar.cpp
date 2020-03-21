@@ -115,7 +115,7 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             {
                 tmpoint->parent = _curPoint;
                 //计算GHF
-                tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                tmpoint->g = _curPoint->g + 10 + getE(_curPoint, tmpoint, _endPoint);
                 tmpoint->h = getH(tmpoint);
                 tmpoint->f = getF(tmpoint);
                 //添加到开放列表里
@@ -125,12 +125,12 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             else
             {
                 //已经在开放列表里
+                //if (tmpoint->g < _curPoint->g)
                 if (tmpoint->g < _curPoint->g)
-                //if (tmpoint->g < _curPoint->g || tmpoint->f < _curPoint->f)
                 //if (tmpoint->h < _curPoint->h)
                 {
                     tmpoint->parent = _curPoint;
-                    tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                    tmpoint->g = _curPoint->g + 10 + getE(_curPoint, tmpoint, _endPoint);
                     //更新方向
                     if (tmpoint->x == _curPoint->x)
                     {

@@ -166,9 +166,12 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 			}
 		}
 		//cout << endl;
-		//仓库入口2个点
+		//仓库入口2个点&出口
 		horizonAxisList.push_back(proParas.entrancePos.x);
 		verticalAxisList.push_back(proParas.entrancePos.y);
+
+		horizonAxisList.push_back(proParas.exitPos.x);
+		verticalAxisList.push_back(proParas.exitPos.y);
 		//存下每个设备坐标的四个范围（作为后面障碍点的范围）
 		double* DeviceLowXList = new double[proParas.DeviceSum];
 		double* DeviceHighXList = new double[proParas.DeviceSum];
@@ -249,24 +252,26 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 		{
 			CargoType curCargoType = proParas.cargoTypeList[i];
 
-			for (int j = 0; j < proParas.cargoTypeList[i].deviceSum; j++)//遍历物料经过的设备列表
+			for (int j = 0; j < proParas.cargoTypeList[i].deviceSum - 1; j++)//遍历物料经过的设备列表
 			{
-				int forwardDeviceIndex, curDeviceIndex;
-				int forwardOutIndex, curInIndex;
-				double device1PosX, device1PosY, device2PosX, device2PosY;
-				double initDevice1PosX, initDevice1PosY, initDevice2PosX, initDevice2PosY;
-				//距离
-				double deviceDistance = 0.0;
-				if (j == 0)//入口
+				int forwardDeviceIndex, curDeviceIndex;//设备1和设备2ID(和数组位置差1)
+				int forwardOutIndex, curInIndex;//出入口的下标
+				double device1PosX, device1PosY, device2PosX, device2PosY;//设备周围的四个点
+				double initDevice1PosX, initDevice1PosY, initDevice2PosX, initDevice2PosY;//保存未增加包围边的坐标
+				
+				double deviceDistance = 0.0;//距离
+
+				forwardDeviceIndex = proParas.cargoTypeList[i].deviceList[j];
+				curDeviceIndex = proParas.cargoTypeList[i].deviceList[j + 1];
+				//cout << forwardDeviceIndex << ", " << curDeviceIndex << endl;
+				if (forwardDeviceIndex == 0)//说明是入口
 				{
-					//第一个设备的距离应该是和入口的距离
-					//入口+一个设备的入口点
-					curDeviceIndex = proParas.cargoTypeList[i].deviceList[j] - 1;
-					curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
-					forwardOutIndex = 0;
-					forwardDeviceIndex = -1;
+					forwardOutIndex = -1;
 					device1PosX = proParas.entrancePos.x;
 					device1PosY = proParas.entrancePos.y;
+
+					curDeviceIndex -= 1;
+					curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
 					device2PosX = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.x + particle.position_[curDeviceIndex * 3];
 					device2PosY = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.y + particle.position_[curDeviceIndex * 3 + 1];
 
@@ -291,10 +296,42 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 						break;
 					}
 				}
-				else
+				else if (curDeviceIndex == -1)//说明是出口
 				{
-					forwardDeviceIndex = proParas.cargoTypeList[i].deviceList[j - 1] - 1;
-					curDeviceIndex = proParas.cargoTypeList[i].deviceList[j] - 1;
+					forwardDeviceIndex -= 1;
+					forwardOutIndex = getRandomOutPoint(copyDeviceParas[forwardDeviceIndex]);
+					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
+					device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
+
+					curInIndex = -2;
+					device2PosX = proParas.exitPos.x;
+					device2PosY = proParas.exitPos.y;
+
+					initDevice1PosX = device1PosX;
+					initDevice1PosY = device1PosY;
+					initDevice2PosX = device2PosX;
+					initDevice2PosY = device2PosY;
+					//得到设备周围的点
+					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+					{
+					case PointDirect::Up:
+						device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Down:
+						device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Left:
+						device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Right:
+						device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					}
+				} 
+				else//普通
+				{
+					forwardDeviceIndex -= 1;
+					curDeviceIndex -= 1;
 					forwardOutIndex = getRandomOutPoint(copyDeviceParas[forwardDeviceIndex]);
 					curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
 
@@ -339,6 +376,86 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 						break;
 					}
 				}
+				//if (j == 0)//入口
+				//{
+				//	//第一个设备的距离应该是和入口的距离
+				//	//入口+一个设备的入口点
+				//	curDeviceIndex = proParas.cargoTypeList[i].deviceList[j] - 1;
+				//	curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
+				//	device1PosX = proParas.entrancePos.x;
+				//	device1PosY = proParas.entrancePos.y;
+				//	device2PosX = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.x + particle.position_[curDeviceIndex * 3];
+				//	device2PosY = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.y + particle.position_[curDeviceIndex * 3 + 1];
+
+				//	initDevice1PosX = device1PosX;
+				//	initDevice1PosY = device1PosY;
+				//	initDevice2PosX = device2PosX;
+				//	initDevice2PosY = device2PosY;
+				//	//得到设备周围的点
+				//	switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
+				//	{
+				//	case PointDirect::Up:
+				//		device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Down:
+				//		device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Left:
+				//		device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Right:
+				//		device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	}
+				//}
+				//else
+				//{
+				//	forwardDeviceIndex = proParas.cargoTypeList[i].deviceList[j - 1] - 1;
+				//	curDeviceIndex = proParas.cargoTypeList[i].deviceList[j] - 1;
+				//	forwardOutIndex = getRandomOutPoint(copyDeviceParas[forwardDeviceIndex]);
+				//	curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
+
+				//	device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
+				//	device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
+				//	device2PosX = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.x + particle.position_[curDeviceIndex * 3];
+				//	device2PosY = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.y + particle.position_[curDeviceIndex * 3 + 1];
+
+				//	initDevice1PosX = device1PosX;
+				//	initDevice1PosY = device1PosY;
+				//	initDevice2PosX = device2PosX;
+				//	initDevice2PosY = device2PosY;
+				//	//得到设备周围的点
+				//	switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+				//	{
+				//	case PointDirect::Up:
+				//		device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Down:
+				//		device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Left:
+				//		device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Right:
+				//		device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
+				//		break;
+				//	}
+				//	switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
+				//	{
+				//	case PointDirect::Up:
+				//		device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Down:
+				//		device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Left:
+				//		device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	case PointDirect::Right:
+				//		device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
+				//		break;
+				//	}
+				//}
 
 				//计算最短路径
 				beginRowIndex = FindAxisIndex(device1PosY, verticalAxisList);

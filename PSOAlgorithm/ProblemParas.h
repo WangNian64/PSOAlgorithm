@@ -27,7 +27,9 @@ struct ProblemParas
 	double workShopWidth;
 	
 	//仓库入口坐标
-	Vector2 entrancePos;			
+	Vector2 entrancePos;		
+	//仓库出口坐标
+	Vector2 exitPos;
 	CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
 
 	double** minDistArray;			//设备最小距离数组
@@ -87,9 +89,17 @@ struct ProblemParas
 			#pragma region 仓库入口坐标	
 			getline(fileIn, line);//空一行
 			getline(fileIn, line);
-			vector<string> posStr = split(line, ",");
-			entrancePos.x = atof(posStr[0].c_str());
-			entrancePos.y = atof(posStr[1].c_str());
+			vector<string> enterPosStr = split(line, ",");
+			entrancePos.x = atof(enterPosStr[0].c_str());
+			entrancePos.y = atof(enterPosStr[1].c_str());
+			#pragma endregion
+
+			#pragma region 仓库出口坐标	
+			getline(fileIn, line);//空一行
+			getline(fileIn, line);
+			vector<string> exitPosStr = split(line, ",");
+			exitPos.x = atof(exitPosStr[0].c_str());
+			exitPos.y = atof(exitPosStr[1].c_str());
 			#pragma endregion
 
 			#pragma region 设备相关参数
@@ -147,7 +157,18 @@ struct ProblemParas
 				cargoTypeList[i].deviceList = new int[cargoTypeList[i].deviceSum];
 				for (int j = 0; j < cargoTypeList[i].deviceSum; j++)
 				{
-					cargoTypeList[i].deviceList[j] = atoi(deviceStrList[j].c_str());
+					if (deviceStrList[j] == "ENTER")//说明是出口
+					{
+						cargoTypeList[i].deviceList[j] = 0;//入口的特殊表示
+					}
+					else if (deviceStrList[j] == "EXIT")//说明是出口
+					{
+						cargoTypeList[i].deviceList[j] = -1;//出口的特殊表示
+					}
+					else
+					{
+						cargoTypeList[i].deviceList[j] = atoi(deviceStrList[j].c_str());//普通设备
+					}
 					cout << cargoTypeList[i].deviceList[j] << ", " << endl;
 				}
 				cout << endl;

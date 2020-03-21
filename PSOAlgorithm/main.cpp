@@ -32,7 +32,7 @@ int main()
 {
 	#pragma region 设置PSO参数
 	int deviceNum = 6;	
-	int cargoTypeNum = 3;
+	int cargoTypeNum = 4;
 	ProblemParas proParas(deviceNum, cargoTypeNum);//初始化所有设备相关参数
 
 	int dim = deviceNum * 3;						// 总维度=设备数*3(x,y,朝向)
@@ -40,7 +40,7 @@ int main()
 	psopara.mesh_div_count = 2;						// 网格划分数目
 	psopara.problemParas = proParas;				// 布局问题的参数
 	psopara.particle_num_ = 100;					// 粒子个数
-	psopara.max_iter_num_ = 400;					// 最大迭代次数
+	psopara.max_iter_num_ = 200;					// 最大迭代次数
 	psopara.fitness_count_ = 2;						// 适应度数目
 	psopara.archive_max_count = 200;				// archive数组的最大数目
 	psopara.SetDt(1.0);								// 时间步长
