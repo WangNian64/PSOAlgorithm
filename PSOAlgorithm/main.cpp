@@ -6,28 +6,6 @@
 #include <ctime>
 #include "PSO.h"
 #include "FitnessFunction.h"
-//保存结果到txt
-//void SaveLayoutResults(PSOOptimizer psooptimizer, double* result) {
-//	ofstream OutFile;
-//	//存每一次的适应度值#include <time.h>
-//
-//
-//
-//	OutFile.open("../../IterateResult.txt");
-//	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
-//	{
-//		string line = to_string(1.0 / result[i]) + "\n";
-//		OutFile << line;
-//	}
-//	OutFile.close();
-//	//存最后的布局结果
-//	OutFile.open("../../LayoutResult.txt");
-//	for (int i = 0; i < psooptimizer.dim_; i += 2) {
-//		string line = to_string(psooptimizer.all_best_position_[i]) + "," + to_string(psooptimizer.all_best_position_[i + 1]) + "\n";
-//		OutFile << line;
-//	}
-//	OutFile.close();
-//}
 int main()
 {
 	#pragma region 设置PSO参数
@@ -75,7 +53,7 @@ int main()
 	OutFile.open("../../archiveList.txt");
 	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 	{
-		cout << i << endl;
+		cout << (i + 1) << endl;
 		psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
 		psooptimizer.UpdatePbest();//更新pbest
 		psooptimizer.UpdateArchiveList();//更新外部存档集合
@@ -147,11 +125,19 @@ int main()
 	}
 	#pragma endregion
 	#pragma region 记录出入口路径
-	vector<PointLink> p = psooptimizer.archive_list[resultIndex].pointLinks;
-	for (int i = 0; i < p.size(); i++)
+	//先存每种货物的路径条数
+	string line = "";
+	for (int i = 0; i < proParas.CargoTypeNum; i++)
 	{
-		cout << psooptimizer.archive_list[resultIndex].pointLinks[i].device1Index << endl;
+		line += to_string(proParas.cargoTypeList[i].deviceSum - 1);
+		if (i != proParas.CargoTypeNum - 1)
+		{
+			line += " ";
+		}
 	}
+	OutFile << line << "\n";
+
+	vector<PointLink> p = psooptimizer.archive_list[resultIndex].pointLinks;
 	for (int i = 0; i < p.size(); i++)
 	{
 		string s1, s2;
@@ -174,8 +160,6 @@ int main()
 	OutFile.close();
 	#pragma endregion
 	
-	//最后的结果存到txt中(布局结果和每一次迭代的适应度值）
-	//SaveLayoutResults(psooptimizer, result);
 
 	#pragma endregion
 
