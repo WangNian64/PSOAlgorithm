@@ -69,8 +69,9 @@ void CAstar::resetAStar()
     vector<APoint*>().swap(_closeList);
     vector<APoint*>().swap(_neighbourList);
 }
-APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
+APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
+    curPathDirect = beginDirect;
     _endPoint = _allPoints[endRowIndex][endColIndex];
     APoint* beginPoint = _allPoints[beginRowIndex][beginColIndex];
     if (_endPoint->type == AType::ATYPE_BARRIER)
@@ -115,7 +116,16 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             {
                 tmpoint->parent = _curPoint;
                 //计算GHF
-                tmpoint->g = _curPoint->g + 10 + getE(_curPoint, tmpoint, _endPoint);
+                tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                ////更新方向
+                //if (tmpoint->x == _curPoint->x)
+                //{
+                //    curPathDirect = PathDirection::Vertical;
+                //}
+                //if (tmpoint->y == _curPoint->y)
+                //{
+                //    curPathDirect = PathDirection::Horizon;
+                //}
                 tmpoint->h = getH(tmpoint);
                 tmpoint->f = getF(tmpoint);
                 //添加到开放列表里
@@ -125,11 +135,13 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
             else
             {
                 //已经在开放列表里
-                if (tmpoint->g < _curPoint->g)
-                //if (tmpoint->h < _curPoint->h)
+                //if (tmpoint->g < _curPoint->g)
+                //if (tmpoint->f < _curPoint->f)
+                double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                if (tempG < tmpoint->g)
                 {
                     tmpoint->parent = _curPoint;
-                    tmpoint->g = _curPoint->g + 10 + getE(_curPoint, tmpoint, _endPoint);
+                    tmpoint->g = tempG;
                     //更新方向
                     if (tmpoint->x == _curPoint->x)
                     {
@@ -153,6 +165,11 @@ APoint* CAstar::findWay(int beginRowIndex, int beginColIndex, int endRowIndex, i
 
     return nullptr;
 }
+bool CAstar::SameDirect(APoint* curPoint, APoint* nextPoint)
+{
+    return (curPathDirect == PathDirection::Vertical && nextPoint->x == curPoint->x)//维持原方向
+        || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y);
+}
 //得到F=G+H+E(E是为了对路径进行微调，减少拐点）
 double CAstar::getF(APoint* point)
 {
@@ -168,8 +185,7 @@ double CAstar::getH(APoint* point)
 double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
 {
     //第一个点或者是直线点（不是拐点），E=0
-    if (curPoint->parent == nullptr 
-        || (curPathDirect == PathDirection::Vertical && nextPoint->x == curPoint->x)
+    if ((curPathDirect == PathDirection::Vertical && nextPoint->x == curPoint->x)//维持原方向
         || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y))
     {
         return 0.0;
@@ -186,32 +202,68 @@ double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
 vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
 {
     _neighbourList.clear();
-    if (point->rowIndex < _allPoints.size() - 1)
+    //可以选择根据当前方向调整点的添加顺序
+    if (curPathDirect == PathDirection::Vertical)//水平方向，先检查水平方向的节点
     {
-        if (_allPoints[point->rowIndex + 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+
+        if (point->rowIndex < _allPoints.size() - 1)
         {
-            _neighbourList.push_back(_allPoints[point->rowIndex + 1][point->colIndex]);
+            if (_allPoints[point->rowIndex + 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex + 1][point->colIndex]);
+            }
         }
-    }
-    if (point->rowIndex > 0)
-    {
-        if (_allPoints[point->rowIndex - 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+        if (point->rowIndex > 0)
         {
-            _neighbourList.push_back(_allPoints[point->rowIndex - 1][point->colIndex]);
+            if (_allPoints[point->rowIndex - 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex - 1][point->colIndex]);
+            }
         }
-    }
-    if (point->colIndex < _allPoints[0].size() - 1)
-    {
-        if (_allPoints[point->rowIndex][point->colIndex + 1]->type != AType::ATYPE_BARRIER)
+        if (point->colIndex < _allPoints[0].size() - 1)
         {
-            _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex + 1]);
+            if (_allPoints[point->rowIndex][point->colIndex + 1]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex + 1]);
+            }
         }
-    }
-    if (point->colIndex > 0)
-    {
-        if (_allPoints[point->rowIndex][point->colIndex - 1]->type != AType::ATYPE_BARRIER)
+        if (point->colIndex > 0)
         {
-            _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
+            if (_allPoints[point->rowIndex][point->colIndex - 1]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
+            }
+        }
+    } 
+    else//路线方向垂直，先检查垂直方向
+    {
+        if (point->colIndex < _allPoints[0].size() - 1)
+        {
+            if (_allPoints[point->rowIndex][point->colIndex + 1]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex + 1]);
+            }
+        }
+        if (point->colIndex > 0)
+        {
+            if (_allPoints[point->rowIndex][point->colIndex - 1]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
+            }
+        }
+        if (point->rowIndex < _allPoints.size() - 1)
+        {
+            if (_allPoints[point->rowIndex + 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex + 1][point->colIndex]);
+            }
+        }
+        if (point->rowIndex > 0)
+        {
+            if (_allPoints[point->rowIndex - 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            {
+                _neighbourList.push_back(_allPoints[point->rowIndex - 1][point->colIndex]);
+            }
         }
     }
 

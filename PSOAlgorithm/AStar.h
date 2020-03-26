@@ -81,8 +81,9 @@ public:
     CAstar();
     ~CAstar();
     double CalcuPathLength(APoint* point);
-    APoint* findWay(int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
+    APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
     void resetAStar();
+    bool SameDirect(APoint* curPoint, APoint* nextPoint);
     //    APoint* findWay(int beginX,int beginY,int endX,int endY);
 private:
     double getF(APoint* point);

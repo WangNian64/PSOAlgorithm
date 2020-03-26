@@ -124,6 +124,28 @@ int main()
 		OutFile << line + "\n";
 	}
 	#pragma endregion
+
+
+	#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
+	vector<InoutPoint> ioPoints = psooptimizer.archive_list[resultIndex].inoutPoints;
+	OutFile << to_string(ioPoints.size()) + "\n";//出入口数目
+	for (int i = 0; i < ioPoints.size(); i++)
+	{
+		string line = "";
+		if (ioPoints[i].pointDirect == PointDirect::Up || ioPoints[i].pointDirect == PointDirect::Down)
+		{
+			line += "Vertical ";
+		}
+		else
+		{
+			line += "Horizon ";
+		}
+		line += to_string(ioPoints[i].pointAxis.x) + " " + to_string(ioPoints[i].pointAxis.y) + " \n";
+		OutFile << line;
+	}
+	#pragma endregion
+
+
 	#pragma region 记录出入口路径
 	//先存每种货物的路径条数
 	string line = "";
@@ -156,6 +178,7 @@ int main()
 		OutFile << line;
 	}
 	#pragma endregion
+
 
 	OutFile.close();
 	#pragma endregion

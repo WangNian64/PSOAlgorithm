@@ -138,7 +138,17 @@ public:
 		this->points = points;
 	}
 };
-
+struct InoutPoint
+{
+	int pointDirect;//0表示垂直，1表示水平
+	Vector2 pointAxis;//点坐标
+	InoutPoint() {}
+	InoutPoint(int pointDirect, Vector2 pointAxis)
+	{
+		this->pointAxis = pointAxis;
+		this->pointDirect = pointDirect;
+	}
+};
 //物料信息
 struct CargoType
 {

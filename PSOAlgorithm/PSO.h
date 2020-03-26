@@ -142,6 +142,7 @@ struct Particle
 	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
 
 	vector<PointLink> pointLinks; //最终路径集合
+	vector<InoutPoint> inoutPoints;//出入口集合
 	//int pointLinkSum = 0;//路径的数目
 	Particle() {}
 	Particle(const Particle& particle)//拷贝构造函数
@@ -166,6 +167,7 @@ struct Particle
 			this->best_position_[i] = particle.best_position_[i];
 		}
 		this->pointLinks = particle.pointLinks;
+		this->inoutPoints = particle.inoutPoints;
 	}
 	~Particle()
 	{

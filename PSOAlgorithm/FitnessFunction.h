@@ -134,7 +134,26 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 	if (IsWorkable == true)
 	{
 
-
+		vector<InoutPoint>().swap(particle.inoutPoints);
+		for (int i = 0; i < proParas.DeviceSum; i++)
+		{
+			for (AdjPoint point : copyDeviceParas[i].adjPointsIn)
+			{
+				InoutPoint ioPoint;
+				ioPoint.pointDirect = point.direct;
+				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
+				ioPoint.pointAxis = axis;
+				particle.inoutPoints.push_back(ioPoint);
+			}
+			for (AdjPoint point : copyDeviceParas[i].adjPointsOut)
+			{
+				InoutPoint ioPoint;
+				ioPoint.pointDirect = point.direct;
+				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
+				ioPoint.pointAxis = axis;
+				particle.inoutPoints.push_back(ioPoint);
+			}
+		}
 #pragma region 根据设备坐标和出入口坐标构造路径点图
 
 		vector< vector<APoint*> > pathPointMap;
@@ -179,8 +198,8 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 		double* DeviceHighYList = new double[proParas.DeviceSum];
 		//每个设备周围的4个点
 		for (int i = 0; i < particle.dim_; i += 3) {
-			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x /*+ copyDeviceParas[i / 3].spaceLength*/;
-			outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y /*+ copyDeviceParas[i / 3].spaceLength*/;
+			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
+			outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + copyDeviceParas[i / 3].spaceLength;
 			double LowX = particle.position_[i] - outSizeLength;
 			double HighX = particle.position_[i] + outSizeLength;
 			double LowY = particle.position_[i + 1] - outSizeWidth;
@@ -190,19 +209,26 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 			verticalAxisList.push_back(HighY);
 			horizonAxisList.push_back(LowX);
 			horizonAxisList.push_back(HighX);
-			//防止路径进入设备内部
-			horizonAxisList.push_back(particle.position_[i]);
-			verticalAxisList.push_back(particle.position_[i + 1]);
 
 			//每个设备的四个范围
 			DeviceLowXList[i / 3] = LowX;
 			DeviceHighXList[i / 3] = HighX;
 			DeviceLowYList[i / 3] = LowY;
 			DeviceHighYList[i / 3] = HighY;
+
+			//防止路径进入设备内部
+			horizonAxisList.push_back(particle.position_[i]);
+			verticalAxisList.push_back(particle.position_[i + 1]);
+
 		}
 		//对这些点的坐标按照从小到大排序
 		sort(verticalAxisList.begin(), verticalAxisList.end());
 		sort(horizonAxisList.begin(), horizonAxisList.end());
+		//只保留不重复的点
+		auto unique_end1 = unique(verticalAxisList.begin(), verticalAxisList.end());
+		verticalAxisList.erase(unique_end1, verticalAxisList.end());
+		auto unique_end2 = unique(horizonAxisList.begin(), horizonAxisList.end());
+		horizonAxisList.erase(unique_end2, horizonAxisList.end());
 
 		//存下所有的障碍点的下标
 		vector<int> barrierRowIndexs;
@@ -248,12 +274,15 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 		double totalTime = 0.0;
 		vector<PointLink>().swap(particle.pointLinks);
 
+
+
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
 		{
 			CargoType curCargoType = proParas.cargoTypeList[i];
 
 			for (int j = 0; j < proParas.cargoTypeList[i].deviceSum - 1; j++)//遍历物料经过的设备列表
 			{
+				PathDirection pathBeginDirect;
 				int forwardDeviceIndex, curDeviceIndex;//设备1和设备2ID(和数组位置差1)
 				int forwardOutIndex, curInIndex;//出入口的下标
 				double device1PosX, device1PosY, device2PosX, device2PosY;//设备周围的四个点
@@ -266,6 +295,7 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 				//cout << forwardDeviceIndex << ", " << curDeviceIndex << endl;
 				if (forwardDeviceIndex == -1)//说明是入口
 				{
+					pathBeginDirect = PathDirection::Vertical;
 					forwardOutIndex = 0;
 					device1PosX = proParas.entrancePos.x;
 					device1PosY = proParas.entrancePos.y;
@@ -279,24 +309,25 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 					initDevice2PosX = device2PosX;
 					initDevice2PosY = device2PosY;
 					//得到设备周围的点
-					//switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
-					//{
-					//case PointDirect::Up:
-					//	device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Down:
-					//	device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Left:
-					//	device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Right:
-					//	device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//}
+					switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
+					{
+					case PointDirect::Up:
+						device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Down:
+						device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Left:
+						device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Right:
+						device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					}
 				}
 				else if (curDeviceIndex == -2)//说明是出口
 				{
+					pathBeginDirect = PathDirection::Vertical;
 					forwardOutIndex = getRandomOutPoint(copyDeviceParas[forwardDeviceIndex]);
 					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
 					device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
@@ -310,67 +341,80 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 					initDevice2PosX = device2PosX;
 					initDevice2PosY = device2PosY;
 					//得到设备周围的点
-					//switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
-					//{
-					//case PointDirect::Up:
-					//	device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Down:
-					//	device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Left:
-					//	device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Right:
-					//	device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//}
+					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+					{
+					case PointDirect::Up:
+						device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Down:
+						device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Left:
+						device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Right:
+						device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					}
 				} 
 				else//普通
 				{
+					
 					forwardOutIndex = getRandomOutPoint(copyDeviceParas[forwardDeviceIndex]);
 					curInIndex = getRandomInPoint(copyDeviceParas[curDeviceIndex]);
+					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+					{
+					case PointDirect::Up:
+						pathBeginDirect = PathDirection::Vertical;
+					case PointDirect::Down:
+						pathBeginDirect = PathDirection::Vertical;
+					case PointDirect::Left:
+						pathBeginDirect = PathDirection::Horizon;
+					case PointDirect::Right:
+						pathBeginDirect = PathDirection::Horizon;
+					}
 
 					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
 					device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
 					device2PosX = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.x + particle.position_[curDeviceIndex * 3];
 					device2PosY = copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].pos.y + particle.position_[curDeviceIndex * 3 + 1];
 
+
 					initDevice1PosX = device1PosX;
 					initDevice1PosY = device1PosY;
 					initDevice2PosX = device2PosX;
 					initDevice2PosY = device2PosY;
 					//得到设备周围的点
-					//switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
-					//{
-					//case PointDirect::Up:
-					//	device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Down:
-					//	device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Left:
-					//	device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Right:
-					//	device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
-					//	break;
-					//}
-					//switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
-					//{
-					//case PointDirect::Up:
-					//	device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Down:
-					//	device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Left:
-					//	device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//case PointDirect::Right:
-					//	device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
-					//	break;
-					//}
+					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+					{
+					case PointDirect::Up:
+						device1PosY += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Down:
+						device1PosY -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Left:
+						device1PosX -= copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Right:
+						device1PosX += copyDeviceParas[forwardDeviceIndex].spaceLength;
+						break;
+					}
+					switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
+					{
+					case PointDirect::Up:
+						device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Down:
+						device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Left:
+						device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					case PointDirect::Right:
+						device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
+						break;
+					}
 				}
 				//if (j == 0)//入口
 				//{
@@ -458,8 +502,55 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 				beginColIndex = FindAxisIndex(device1PosX, horizonAxisList);
 				endRowIndex = FindAxisIndex(device2PosY, verticalAxisList);
 				endColIndex = FindAxisIndex(device2PosX, horizonAxisList);
+				//实际的index需要进一步计算
+				/*if (forwardDeviceIndex != -1)
+				{
+					根据出口点的方向，让初始点的index偏移一个单位
+					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
+					{
+					case PointDirect::Up:
+						if (beginRowIndex < verticalAxisList.size() - 1)
+							beginRowIndex++;
+						break;
+					case PointDirect::Down:
+						if (beginRowIndex > 0)
+							beginRowIndex--;
+						break;
+					case PointDirect::Left:
+						if (beginColIndex > 0)
+							beginColIndex--;
+						break;
+					case PointDirect::Right:
+						if (beginColIndex < horizonAxisList.size() - 1)
+							beginColIndex++;
+						break;
+					}
+				}
+				if (curDeviceIndex != -2)
+				{
+					根据入口点的方向，让初始点的index偏移一个单位
+					switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
+					{
+					case PointDirect::Up:
+						if (endRowIndex < verticalAxisList.size() - 1)
+							endRowIndex++;
+						break;
+					case PointDirect::Down:
+						if (endRowIndex > 0)
+							endRowIndex--;
+						break;
+					case PointDirect::Left:
+						if (endColIndex > 0)
+							endColIndex--;
+						break;
+					case PointDirect::Right:
+						if (endColIndex < horizonAxisList.size() - 1)
+							endColIndex++;
+						break;
+					}
+				}*/
 				//得到路径，path是第一个节点
-				APoint* path = star->findWay(beginRowIndex, beginColIndex, endRowIndex, endColIndex);
+				APoint* path = star->findWay(pathBeginDirect, beginRowIndex, beginColIndex, endRowIndex, endColIndex);
 				if (path == nullptr)
 				{
 					cout << endl;
@@ -468,16 +559,17 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 				deviceDistance = star->CalcuPathLength(path);
 				//路径保存下来
 				vector<Vector2> points;
-				//Vector2 endP(initDevice2PosX, initDevice2PosY);
-				//points.push_back(endP);
+
+				Vector2 endP(initDevice2PosX, initDevice2PosY);
+				points.push_back(endP);
 				while (path)
 				{
 					Vector2 tempP(path->x, path->y);
 					points.push_back(tempP);
 					path = path->parent;
 				}
-				//Vector2 startP(initDevice1PosX, initDevice1PosY);
-				//points.push_back(startP);
+				Vector2 startP(initDevice1PosX, initDevice1PosY);
+				points.push_back(startP);
 
 				PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
 				particle.pointLinks.push_back(pointLink);
@@ -504,24 +596,24 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 		particle.fitness_[1] = 100;//在增加了出口之后，面积没有意义了
 
 #pragma region 析构
-		delete[] copyDeviceParas;
-		delete[] DeviceLowXList;
-		delete[] DeviceHighXList;
-		delete[] DeviceLowYList;
-		delete[] DeviceHighYList;
-		vector<int>().swap(barrierRowIndexs);
-		vector<int>().swap(barrierColIndexs);
-		vector< vector<APoint*> >().swap(pathPointMap);//这样释放内存是不够的
-		for (int i = 0; i < pathPointMap.size(); i++)
-		{
-			for (int j = 0; j < pathPointMap[i].size(); j++)
-			{
-				delete pathPointMap[i][j];
-			}
-		}
+		//delete[] copyDeviceParas;
+		//delete[] DeviceLowXList;
+		//delete[] DeviceHighXList;
+		//delete[] DeviceLowYList;
+		//delete[] DeviceHighYList;
+		//vector<int>().swap(barrierRowIndexs);
+		//vector<int>().swap(barrierColIndexs);
+		//vector< vector<APoint*> >().swap(pathPointMap);//这样释放内存是不够的
+		//for (int i = 0; i < pathPointMap.size(); i++)
+		//{
+		//	for (int j = 0; j < pathPointMap[i].size(); j++)
+		//	{
+		//		delete pathPointMap[i][j];
+		//	}
+		//}
 
-		vector<double>().swap(horizonAxisList);
-		vector<double>().swap(verticalAxisList);
+		//vector<double>().swap(horizonAxisList);
+		//vector<double>().swap(verticalAxisList);
 #pragma endregion
 
 	}
