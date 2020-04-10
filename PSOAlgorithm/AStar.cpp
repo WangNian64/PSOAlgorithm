@@ -107,6 +107,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
         for (int i = 0; i < neVec.size(); i++)
         {
             auto tmpoint = neVec[i];
+            double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
             if (tmpoint->type == AType::ATYPE_CLOSED)
             {
                 continue;
@@ -116,8 +117,8 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
             {
                 tmpoint->parent = _curPoint;
                 //计算GHF
-                tmpoint->g = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
-                ////更新方向
+                tmpoint->g = tempG;
+                //更新方向
                 //if (tmpoint->x == _curPoint->x)
                 //{
                 //    curPathDirect = PathDirection::Vertical;
@@ -136,8 +137,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
             {
                 //已经在开放列表里
                 //if (tmpoint->g < _curPoint->g)
-                //if (tmpoint->f < _curPoint->f)
-                double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+                //if (tmpoint->h < _curPoint->h)
                 if (tempG < tmpoint->g)
                 {
                     tmpoint->parent = _curPoint;
@@ -156,7 +156,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
             }
         }
         //排序 F值最小的排在前面
-        sort(_openList.begin(), _openList.end(), mySort);
+        stable_sort(_openList.begin(), _openList.end(), mySort);
 
     } while (_openList.size() > 0);
 
@@ -185,8 +185,19 @@ double CAstar::getH(APoint* point)
 double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
 {
     //第一个点或者是直线点（不是拐点），E=0
-    if ((curPathDirect == PathDirection::Vertical && nextPoint->x == curPoint->x)//维持原方向
-        || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y))
+    if (curPoint->parent == NULL)//第一个点
+    {
+        if (curPathDirect == PathDirection::Horizon)
+        {
+            return (nextPoint->y == curPoint->y) ? 0 : 2;
+        }
+        if (curPathDirect == PathDirection::Vertical)
+        {
+            return (nextPoint->x == curPoint->x) ? 0 : 2;
+        }
+    }
+    if (nextPoint->x == curPoint->parent->x
+        || nextPoint->y == curPoint->parent->y)//维持原方向
     {
         return 0.0;
     }
@@ -203,7 +214,7 @@ vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
 {
     _neighbourList.clear();
     //可以选择根据当前方向调整点的添加顺序
-    if (curPathDirect == PathDirection::Vertical)//水平方向，先检查水平方向的节点
+    if (curPathDirect == PathDirection::Vertical)//路线方向垂直，先检查垂直方向
     {
 
         if (point->rowIndex < _allPoints.size() - 1)
@@ -234,8 +245,8 @@ vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
                 _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
             }
         }
-    } 
-    else//路线方向垂直，先检查垂直方向
+    }  
+    else//水平方向，先检查水平方向的节点
     {
         if (point->colIndex < _allPoints[0].size() - 1)
         {

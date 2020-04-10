@@ -47,8 +47,6 @@ struct ProblemParas
 	ProblemParas(int deviceSum, int cargoTypeNum)
 	{
 		conveySpeed = 1;//运输单位距离单位物料的时间
-		spaceLength = 0.5;
-
 		#pragma region 分配空间
 		DeviceSum = deviceSum;
 		CargoTypeNum = cargoTypeNum;
@@ -114,7 +112,7 @@ struct ProblemParas
 				vector<string> sizeStr = split(strSplit[2], ",");
 				deviceParaList[i].size.x = atof(sizeStr[0].c_str());
 				deviceParaList[i].size.y = atof(sizeStr[1].c_str());
-				//设备周围的包边（为了实现距离约束）
+
 				deviceParaList[i].spaceLength = atof(strSplit[3].c_str());
 				//邻接点的位置
 				//格式说明：1,2,0|2,4,0（0,1,2,代表这是入口、出口，2,0是点的坐标）
@@ -142,6 +140,15 @@ struct ProblemParas
 						}
 					}
 				}
+			}
+			#pragma endregion
+
+			#pragma region 输送线到设备空隙
+			getline(fileIn, line);//空一行
+			for (int i = 0; i < DeviceSum; i++)
+			{
+				getline(fileIn, line);
+				spaceLength = atof(line.c_str());
 			}
 			#pragma endregion
 

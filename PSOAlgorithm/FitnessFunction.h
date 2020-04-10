@@ -198,8 +198,10 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 		double* DeviceHighYList = new double[proParas.DeviceSum];
 		//每个设备周围的4个点
 		for (int i = 0; i < particle.dim_; i += 3) {
-			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
-			outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + copyDeviceParas[i / 3].spaceLength;
+			//outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
+			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + proParas.spaceLength;
+			//outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + copyDeviceParas[i / 3].spaceLength;
+			outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + proParas.spaceLength;
 			double LowX = particle.position_[i] - outSizeLength;
 			double HighX = particle.position_[i] + outSizeLength;
 			double LowY = particle.position_[i + 1] - outSizeWidth;
@@ -246,8 +248,8 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 				{
 					//if ((p->x > DeviceLowXList[k] && p->x < DeviceHighXList[k])
 					//	&& (p->y > DeviceLowYList[k] && p->y < DeviceHighYList[k]))
-					if (p->x - DeviceLowXList[k] >= 0.0001 && DeviceHighXList[k] - p->x >= 0.0001
-						&& p->y - DeviceLowYList[k] >= 0.0001 && DeviceHighYList[k] - p->y >= 0.0001)
+					if (p->x - DeviceLowXList[k] >= 0.01 && DeviceHighXList[k] - p->x >= 0.01
+						&& p->y - DeviceLowYList[k] >= 0.01 && DeviceHighYList[k] - p->y >= 0.01)
 					{
 						p->type = AType::ATYPE_BARRIER;
 						//障碍点在图中的下标
@@ -366,12 +368,16 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 					{
 					case PointDirect::Up:
 						pathBeginDirect = PathDirection::Vertical;
+						break;
 					case PointDirect::Down:
 						pathBeginDirect = PathDirection::Vertical;
+						break;
 					case PointDirect::Left:
 						pathBeginDirect = PathDirection::Horizon;
+						break;
 					case PointDirect::Right:
 						pathBeginDirect = PathDirection::Horizon;
+						break;
 					}
 
 					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
@@ -592,8 +598,8 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 
 		//设置适应度值
 		particle.fitness_[0] = totalTime;
-		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
-		particle.fitness_[1] = 100;//在增加了出口之后，面积没有意义了
+		particle.fitness_[1] = CalcuTotalArea(particle, proParas);
+		//particle.fitness_[1] = 100;//在增加了出口之后，面积没有意义了
 
 #pragma region 析构
 		//delete[] copyDeviceParas;
