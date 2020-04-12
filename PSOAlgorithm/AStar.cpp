@@ -81,8 +81,9 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
     }
     if (*_endPoint == *beginPoint)
     {
-        cout << "起始点相同" << endl;
-        return nullptr;
+        _curPoint = beginPoint;
+        _curPoint->parent = _endPoint;
+        return _curPoint;
     }
 
     _openList.push_back(beginPoint);

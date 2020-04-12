@@ -145,11 +145,8 @@ struct ProblemParas
 
 			#pragma region 输送线到设备空隙
 			getline(fileIn, line);//空一行
-			for (int i = 0; i < DeviceSum; i++)
-			{
-				getline(fileIn, line);
-				spaceLength = atof(line.c_str());
-			}
+			getline(fileIn, line);
+			spaceLength = atof(line.c_str());
 			#pragma endregion
 
 			#pragma region 物料参数
@@ -216,9 +213,6 @@ struct ProblemParas
 				for (int j = 0; j < DeviceSum; j++)
 				{
 					minDistArray[i][j] = atof(strSplit[j].c_str());
-					if (i != j) {
-						minDistArray[i][j]++;
-					}
 				}
 			}
 			#pragma endregion

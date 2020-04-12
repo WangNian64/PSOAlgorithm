@@ -4,6 +4,7 @@
 #include <string>
 #include <iomanip>
 #include <ctime>
+#include <iomanip>
 #include "PSO.h"
 #include "FitnessFunction.h"
 int main()
@@ -18,7 +19,7 @@ int main()
 	psopara.mesh_div_count = 2;						// 网格划分数目
 	psopara.problemParas = proParas;				// 布局问题的参数
 	psopara.particle_num_ = 100;					// 粒子个数
-	psopara.max_iter_num_ = 200;					// 最大迭代次数
+	psopara.max_iter_num_ = 400;					// 最大迭代次数
 	psopara.fitness_count_ = 2;						// 适应度数目
 	psopara.archive_max_count = 200;				// archive数组的最大数目
 	psopara.SetDt(1.0);								// 时间步长
@@ -101,9 +102,13 @@ int main()
 
 	for (int i = 0; i < dim; i += 3)
 	{
-		string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
-			"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
-		OutFile << line;
+		OutFile << fixed << setprecision(1) << psooptimizer.archive_list[resultIndex].position_[i];
+		OutFile << ",";
+		OutFile << fixed << setprecision(1) << psooptimizer.archive_list[resultIndex].position_[i + 1];
+		//string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
+		//	"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
+		//OutFile << line;
+		OutFile << "\n";
 	}
 	#pragma endregion
 
@@ -131,17 +136,23 @@ int main()
 	OutFile << to_string(ioPoints.size()) + "\n";//出入口数目
 	for (int i = 0; i < ioPoints.size(); i++)
 	{
-		string line = "";
+		//string line = "";
 		if (ioPoints[i].pointDirect == PointDirect::Up || ioPoints[i].pointDirect == PointDirect::Down)
 		{
-			line += "Vertical ";
+			//line += "Vertical ";
+			OutFile << "Vertical ";
 		}
 		else
 		{
-			line += "Horizon ";
+			//line += "Horizon ";
+			OutFile << "Horizon ";
 		}
-		line += to_string(ioPoints[i].pointAxis.x) + " " + to_string(ioPoints[i].pointAxis.y) + " \n";
-		OutFile << line;
+		//line += to_string(ioPoints[i].pointAxis.x) + " " + to_string(ioPoints[i].pointAxis.y) + " \n";
+		//OutFile << line;
+		OutFile << fixed << setprecision(1) << ioPoints[i].pointAxis.x;
+		OutFile << ",";
+		OutFile << fixed << setprecision(1) << ioPoints[i].pointAxis.y;
+		OutFile << "\n";
 	}
 	#pragma endregion
 
@@ -164,18 +175,25 @@ int main()
 	{
 		string s1, s2;
 		DevicePara device1, device2;
-		s1 = to_string(p[i].device1Index) + " " + to_string(p[i].device2Index);
+
+		//s1 = to_string(p[i].device1Index) + " " + to_string(p[i].device2Index);
+		OutFile << to_string(p[i].device1Index) + " " + to_string(p[i].device2Index) + " ";
 		//计算s2
 		for (int j = 0; j < p[i].points.size(); j++)
 		{
-			s2 += to_string(p[i].points[j].x) + "," + to_string(p[i].points[j].y);
+			OutFile << fixed << setprecision(1) << p[i].points[j].x;
+			OutFile << ",";
+			OutFile << fixed << setprecision(1) << p[i].points[j].y;
+			//s2 += to_string(p[i].points[j].x) + "," + to_string(p[i].points[j].y);
 			if (j != p[i].points.size() - 1)
 			{
-				s2 += "|";
+				//s2 += "|";
+				OutFile << "|";
 			}
 		}
-		string line = s1 + " " + s2 + "\n";
-		OutFile << line;
+		OutFile << "\n";
+		//string line = s1 + " " + s2 + "\n";
+		//OutFile << line;
 	}
 	#pragma endregion
 
