@@ -176,7 +176,7 @@ struct Particle
 	//Particle(int dim, double* position, double* velocity/*, double* best_position, double best_fitness*/);
 };
 
-typedef void (*ComputeFitness)(Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
+typedef void (*ComputeFitness)(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
 
 class PSOOptimizer
 {
@@ -235,8 +235,8 @@ public:
 	// 初始化全局最优
 	void InitGbest();
 
-	// 获取双精度随机数（默认精度为0.0001）
-	double GetDoubleRand(int N = 9999);
+	// 获取双精度随机数（默认精度为0.1）
+	double GetDoubleRand(int N = 9);
 
 	//(返回一个0 - N包括N的int）
 	int GetIntRand(int N);

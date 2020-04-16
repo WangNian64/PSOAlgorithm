@@ -102,9 +102,9 @@ int main()
 
 	for (int i = 0; i < dim; i += 3)
 	{
-		OutFile << fixed << setprecision(1) << psooptimizer.archive_list[resultIndex].position_[i];
+		OutFile /*<< fixed << setprecision(1)*/ << psooptimizer.archive_list[resultIndex].position_[i];
 		OutFile << ",";
-		OutFile << fixed << setprecision(1) << psooptimizer.archive_list[resultIndex].position_[i + 1];
+		OutFile /*<< fixed << setprecision(1)*/ << psooptimizer.archive_list[resultIndex].position_[i + 1];
 		//string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
 		//	"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
 		//OutFile << line;
@@ -149,9 +149,9 @@ int main()
 		}
 		//line += to_string(ioPoints[i].pointAxis.x) + " " + to_string(ioPoints[i].pointAxis.y) + " \n";
 		//OutFile << line;
-		OutFile << fixed << setprecision(1) << ioPoints[i].pointAxis.x;
-		OutFile << ",";
-		OutFile << fixed << setprecision(1) << ioPoints[i].pointAxis.y;
+		OutFile /*<< fixed << setprecision(1)*/ << ioPoints[i].pointAxis.x;
+		OutFile << " ";
+		OutFile /*<< fixed << setprecision(1)*/ << ioPoints[i].pointAxis.y;
 		OutFile << "\n";
 	}
 	#pragma endregion
@@ -181,9 +181,9 @@ int main()
 		//¼ÆËãs2
 		for (int j = 0; j < p[i].points.size(); j++)
 		{
-			OutFile << fixed << setprecision(1) << p[i].points[j].x;
+			OutFile /*<< fixed << setprecision(1)*/ << p[i].points[j].x;
 			OutFile << ",";
-			OutFile << fixed << setprecision(1) << p[i].points[j].y;
+			OutFile /*<< fixed << setprecision(1)*/ << p[i].points[j].y;
 			//s2 += to_string(p[i].points[j].x) + "," + to_string(p[i].points[j].y);
 			if (j != p[i].points.size() - 1)
 			{

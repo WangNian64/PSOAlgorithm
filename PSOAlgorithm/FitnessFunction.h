@@ -9,7 +9,7 @@
 #define DOUBLE_MAX 1.7976931348623158e+308
 #define DOUBLE_MIN 2.2250738585072014e-308
 #define MAX_FITNESS 1000000.0
-void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
+void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
 double CalcuTotalArea(Particle& particle, ProblemParas proParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -20,7 +20,7 @@ int FindAxisIndex(double axis, const vector<double>& axisList);
 //顺时针旋转后的坐标
 Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
 //默认的适应度计算函数，可以替换
-void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds)
+void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds)
 {
 	bool IsWorkable = true;//解是否可行
 	double deviceDist = 0;
@@ -133,6 +133,42 @@ void FitnessFunction(Particle& particle, ProblemParas proParas, double* lowerBou
 
 	if (IsWorkable == true)
 	{
+		#pragma region 先进行对齐操作
+		//if (curIterNum == 199)
+		//{
+		for (int i = 0; i < proParas.DeviceSum; i++)
+		{
+			for (int j = 0; j < proParas.DeviceSum; j++)
+			{
+				if (i != j)
+				{
+					if (abs(particle.position_[3 * i] - particle.position_[3 * j]) <= 1)
+					{
+						particle.position_[3 * i] = particle.position_[3 * j]
+							= (particle.position_[3 * i] + particle.position_[3 * j]) * 0.5f;
+					}
+					if (abs(particle.position_[3 * i + 1] - particle.position_[3 * j + 1]) <= 1)
+					{
+						particle.position_[3 * i + 1] = particle.position_[3 * j + 1]
+							= (particle.position_[3 * i + 1] + particle.position_[3 * j + 1]) * 0.5f;
+					}
+				}
+			}
+		}
+		//对齐入口
+		for (int i = 0; i < proParas.DeviceSum; i++)
+		{
+			if (abs(particle.position_[3 * i] - proParas.entrancePos.x) <= 1)
+			{
+				particle.position_[3 * i] = proParas.entrancePos.x;
+			}
+			if (abs(particle.position_[3 * i + 1] - proParas.entrancePos.y) <= 1)
+			{
+				particle.position_[3 * i + 1] = proParas.entrancePos.y;
+			}
+		}
+		//}
+		#pragma endregion
 
 		vector<InoutPoint>().swap(particle.inoutPoints);
 		for (int i = 0; i < proParas.DeviceSum; i++)

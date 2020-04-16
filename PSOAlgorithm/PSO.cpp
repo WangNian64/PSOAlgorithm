@@ -151,7 +151,7 @@ int PSOOptimizer::GetIntRand(int N)
 }
 void PSOOptimizer::GetFitness(Particle& particle)
 {
-	return fitness_fun_(particle, problemParas, lower_bound_, upper_bound_);
+	return fitness_fun_(curr_iter_, particle, problemParas, lower_bound_, upper_bound_);
 }
 
 void PSOOptimizer::UpdateAllParticles()
@@ -425,6 +425,7 @@ void PSOOptimizer::InitialParticle(int i)
 
 	#pragma region 初始化position/veloctiy值
 	// 注意要考虑非重叠约束，这里使用的是分块产生随机点的方法(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）
+	//朝向全部默认为0
 	//for (int j = 0; j < dim_; j += 2)
 	//{
 	//	double Xstart = lower_bound_[j];
