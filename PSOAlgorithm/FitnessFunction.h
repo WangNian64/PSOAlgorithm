@@ -100,7 +100,6 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 			point.direct = (newDirect == 4) ? (PointDirect)4 : (PointDirect)(newDirect % 4);
 		}
 	}
-
 #pragma endregion
 
 #pragma region 检查设备是否重叠
@@ -128,48 +127,138 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 	}
 #pragma endregion
 
-
 #pragma region 当前布局是可行解，进行布线
 
 	if (IsWorkable == true)
 	{
 		#pragma region 先进行对齐操作
-		//if (curIterNum == 199)
+		////if (curIterNum == 199)
+		////{
+		//for (int i = 0; i < proParas.DeviceSum; i++)
 		//{
-		for (int i = 0; i < proParas.DeviceSum; i++)
+		//	for (int j = 0; j < proParas.DeviceSum; j++)
+		//	{
+		//		if (i != j)
+		//		{
+		//			if (abs(particle.position_[3 * i] - particle.position_[3 * j]) <= 1)
+		//			{
+		//				particle.position_[3 * i] = particle.position_[3 * j]
+		//					= (particle.position_[3 * i] + particle.position_[3 * j]) * 0.5f;
+		//			}
+		//			if (abs(particle.position_[3 * i + 1] - particle.position_[3 * j + 1]) <= 1)
+		//			{
+		//				particle.position_[3 * i + 1] = particle.position_[3 * j + 1]
+		//					= (particle.position_[3 * i + 1] + particle.position_[3 * j + 1]) * 0.5f;
+		//			}
+		//		}
+		//	}
+		//}
+		////对齐入口
+		//for (int i = 0; i < proParas.DeviceSum; i++)
+		//{
+		//	if (abs(particle.position_[3 * i] - proParas.entrancePos.x) <= 1)
+		//	{
+		//		particle.position_[3 * i] = proParas.entrancePos.x;
+		//	}
+		//	if (abs(particle.position_[3 * i + 1] - proParas.entrancePos.y) <= 1)
+		//	{
+		//		particle.position_[3 * i + 1] = proParas.entrancePos.y;
+		//	}
+		//}
+		////}
+		#pragma endregion
+
+		#pragma region 检测设备出入口点坐标并对齐操作	
+		double alignMinDist = 1.0f;
+		for (int i = -1; i < proParas.DeviceSum; i++)
 		{
-			for (int j = 0; j < proParas.DeviceSum; j++)
+			//遍历所有cargoTypeList
+			//if 有一个是出口为i设备，且不是最后一个，那么就可以拿出这一对出入口点
+			for (int j = 0; j < proParas.CargoTypeNum; j++)
 			{
-				if (i != j)
+				for (int k = 0; k < proParas.cargoTypeList[j].deviceSum - 1; k++)
 				{
-					if (abs(particle.position_[3 * i] - particle.position_[3 * j]) <= 1)
+					//找到某个出口设备是i的
+					if (proParas.cargoTypeList[j].deviceList[k] - 1 == i)
 					{
-						particle.position_[3 * i] = particle.position_[3 * j]
-							= (particle.position_[3 * i] + particle.position_[3 * j]) * 0.5f;
-					}
-					if (abs(particle.position_[3 * i + 1] - particle.position_[3 * j + 1]) <= 1)
-					{
-						particle.position_[3 * i + 1] = particle.position_[3 * j + 1]
-							= (particle.position_[3 * i + 1] + particle.position_[3 * j + 1]) * 0.5f;
+						int outDeviceIndex = i;
+						int inDeviceIndex = proParas.cargoTypeList[j].deviceList[k + 1] - 1;
+						//特殊情况1：仓库入口
+						if (outDeviceIndex == -1)
+						{
+							for (AdjPoint& inPoint : copyDeviceParas[inDeviceIndex].adjPointsIn)
+							{
+								Vector2 inPointTPos(inPoint.pos.x + particle.position_[inDeviceIndex * 3],
+									inPoint.pos.y + particle.position_[inDeviceIndex * 3 + 1]);
+								if (inPointTPos.x!=proParas.entrancePos.x && abs(inPointTPos.x - proParas.entrancePos.x) <= alignMinDist)
+								{
+									//只能修改in，不能修改入口
+									double moveLength = inPointTPos.x - proParas.entrancePos.x;
+									particle.position_[inDeviceIndex * 3] -= moveLength;
+
+								}
+								else if (inPointTPos.y!=proParas.entrancePos.y && abs(inPointTPos.y - proParas.entrancePos.y) <= alignMinDist)
+								{
+									double moveLength = inPointTPos.y - proParas.entrancePos.y;
+									particle.position_[inDeviceIndex * 3 + 1] -= moveLength;
+								}
+							}
+						}
+						else if (inDeviceIndex == -2)//特殊情况2：仓库出口
+						{
+							for (AdjPoint& outPoint : copyDeviceParas[outDeviceIndex].adjPointsOut)
+							{
+								Vector2 outPointTPos(outPoint.pos.x + particle.position_[outDeviceIndex * 3],
+									outPoint.pos.y + particle.position_[outDeviceIndex * 3 + 1]);
+								if (outPointTPos.x!=proParas.exitPos.x && abs(outPointTPos.x - proParas.exitPos.x) <= alignMinDist)
+								{
+									//只能修改out，不能修改出口
+									double moveLength = outPointTPos.x - proParas.exitPos.x;
+									particle.position_[outDeviceIndex * 3] -= moveLength;
+								} 
+								else if (outPointTPos.y!=proParas.exitPos.y && abs(outPointTPos.y - proParas.exitPos.y) <= alignMinDist)
+								{
+									double moveLength = outPointTPos.y - proParas.exitPos.y;
+									particle.position_[outDeviceIndex * 3 + 1] -= moveLength;
+								}
+							}
+						} 
+						else//其他情况
+						{
+							for (AdjPoint& outPoint : copyDeviceParas[outDeviceIndex].adjPointsOut)
+							{
+								for (AdjPoint& inPoint : copyDeviceParas[inDeviceIndex].adjPointsIn)
+								{
+									//在考虑了设备坐标的情况下对比
+									Vector2 outPointTPos(outPoint.pos.x + particle.position_[outDeviceIndex * 3],
+										outPoint.pos.y + particle.position_[outDeviceIndex * 3 + 1]);
+									Vector2 inPointTPos(inPoint.pos.x + particle.position_[inDeviceIndex * 3],
+										inPoint.pos.y + particle.position_[inDeviceIndex * 3 + 1]);
+									if (outPointTPos.x!=inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) <= alignMinDist)
+									{
+										//x坐标接近
+										double moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
+										particle.position_[outDeviceIndex * 3] -= moveLength;
+										particle.position_[inDeviceIndex * 3] += moveLength;
+
+									}
+									else if (outPointTPos.y!=inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) <= alignMinDist)
+									{
+										//y坐标接近
+										double moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
+										particle.position_[outDeviceIndex * 3 + 1] -= moveLength;
+										particle.position_[inDeviceIndex * 3 + 1] += moveLength;
+									}
+								}
+							}
+						}
 					}
 				}
 			}
 		}
-		//对齐入口
-		for (int i = 0; i < proParas.DeviceSum; i++)
-		{
-			if (abs(particle.position_[3 * i] - proParas.entrancePos.x) <= 1)
-			{
-				particle.position_[3 * i] = proParas.entrancePos.x;
-			}
-			if (abs(particle.position_[3 * i + 1] - proParas.entrancePos.y) <= 1)
-			{
-				particle.position_[3 * i + 1] = proParas.entrancePos.y;
-			}
-		}
-		//}
 		#pragma endregion
 
+		//计算出入口点的集合坐标
 		vector<InoutPoint>().swap(particle.inoutPoints);
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
