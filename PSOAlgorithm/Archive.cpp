@@ -57,7 +57,7 @@ int MeshCrowd::CalMeshId(Particle particle)
 	return id;
 }
 
-// 对每个粒子定义网格编号
+// 对每个粒子定义网格编号（将所有的粒子放到不同的网格中）
 void MeshCrowd::DivideArchiving()
 {
 	for (int i = 0; i < this->curArchiveLength; i++)
@@ -99,8 +99,6 @@ void MeshCrowd::GetCrowd()
 	}
 	
 }
-
-
 
 // 构造函数
 GetGbest::GetGbest(vector<Particle> curArchiveList, int meshDivCount, double* minList, double* maxList, int dim, int ParticleCount):

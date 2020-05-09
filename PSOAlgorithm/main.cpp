@@ -12,22 +12,22 @@ int main()
 	#pragma region 设置PSO参数
 	int deviceNum = 6;	
 	int cargoTypeNum = 4;
-	ProblemParas proParas(deviceNum, cargoTypeNum);//初始化所有设备相关参数
+	ProblemParas proParas(deviceNum, cargoTypeNum);		//初始化所有设备相关参数
 
-	int dim = deviceNum * 3;						// 总维度=设备数*3(x,y,朝向)
-	PSOPara psopara(dim);							// dim是变量维度
-	psopara.mesh_div_count = 2;						// 网格划分数目
-	psopara.problemParas = proParas;				// 布局问题的参数
-	psopara.particle_num_ = 100;					// 粒子个数
-	psopara.max_iter_num_ = 400;					// 最大迭代次数
-	psopara.fitness_count_ = 2;						// 适应度数目
-	psopara.archive_max_count = 200;				// archive数组的最大数目
-	psopara.SetDt(1.0);								// 时间步长
-	psopara.SetWstart(0.9);							// 初始权重
-	psopara.SetWend(0.4);							// 结束权重
-	psopara.SetC1(1.49445);							// 加速度因子1
-	psopara.SetC2(1.49445);							// 加速度因子2
-	psopara.SetLowBound(0, 0, DeviceDirect::Default);				// position的搜索范围下限
+	int dim = deviceNum * 3;							// 总维度=设备数*3(x,y,朝向)
+	PSOPara psopara(dim);								// dim是变量维度
+	psopara.mesh_div_count = 2;							// 网格划分数目
+	psopara.problemParas = proParas;					// 布局问题的参数
+	psopara.particle_num_ = 100;						// 粒子个数
+	psopara.max_iter_num_ = 400;						// 最大迭代次数
+	psopara.fitness_count_ = 2;							// 适应度数目
+	psopara.archive_max_count = 200;					// archive数组的最大数目
+	psopara.SetDt(1.0);									// 时间步长
+	psopara.SetWstart(0.9);								// 初始权重
+	psopara.SetWend(0.4);								// 结束权重
+	psopara.SetC1(1.49445);								// 加速度因子1
+	psopara.SetC2(1.49445);								// 加速度因子2
+	psopara.SetLowBound(0, 0, DeviceDirect::Default);	// position的搜索范围下限
 	psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270);// position的搜索范围上限
 	//
 	#pragma endregion
@@ -42,7 +42,6 @@ int main()
 
 	std::srand((unsigned int)time(0));
 
-
 	psooptimizer.InitialAllParticles();//初始化所有粒子
 	psooptimizer.InitialArchiveList();//初始化Archive存档
 	psooptimizer.InitGbest();//初始化全局最优 //这个地方要注意min和max
@@ -50,8 +49,11 @@ int main()
 	#pragma endregion
 
 	#pragma region 迭代更新粒子&存每一次的适应度值
+	//目标1的值放在archiveList1中，目标2的值放在archiveList2中
 	ofstream OutFile;
-	OutFile.open("../../archiveList.txt");
+	ofstream OutFile1;
+	OutFile.open("../../archiveList1.txt");
+	OutFile1.open("../../archiveList2.txt");
 	for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 	{
 		cout << (i + 1) << endl;
@@ -61,15 +63,24 @@ int main()
 		psooptimizer.UpdateGbest();//更新gbest
 
 		//存储每次迭代的Archive集合
-		OutFile << to_string(i) + "\n";
+
+		//OutFile << to_string(i) + "\n";
 		for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 		{
-			string line = to_string(it->fitness_[0]) + ", " + to_string(it->fitness_[1]) + "\n";
+			string line = to_string(it->fitness_[0]) + "\n";
 			OutFile << line;
 		}
 		OutFile << "\n";
+
+		for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
+		{
+			string line = to_string(it->fitness_[1]) + "\n";
+			OutFile1 << line;
+		}
+		OutFile1 << "\n";
 	}
 	OutFile.close();
+	OutFile1.close();
 	#pragma endregion
 	endTime = clock();
 	cout << "迭代" << psopara.max_iter_num_ << "次的最终用时:" << static_cast<double>(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;

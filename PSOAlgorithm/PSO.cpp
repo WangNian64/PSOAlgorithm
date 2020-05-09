@@ -408,7 +408,9 @@ void PSOOptimizer::GetInertialWeight()
 	for (int i = 0; i < dim_; i++)
 	{
 		w_[i] = wstart_[i] - (wstart_[i] - wend_[i]) * temp;
+		//w_[i] = wstart_[i];
 	}
+
 }
 
 //初始化第i个粒子

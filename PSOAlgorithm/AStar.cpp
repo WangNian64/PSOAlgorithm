@@ -9,6 +9,7 @@
 //  即格子宽高为10 对角线为14
 #pragma once
 #include "AStar.h"
+#include "DevicePara.h"
 #include <algorithm>
 //自定义排序函数
 bool mySort(const APoint* p1, const APoint* p2)
@@ -74,6 +75,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
     curPathDirect = beginDirect;
     _endPoint = _allPoints[endRowIndex][endColIndex];
     APoint* beginPoint = _allPoints[beginRowIndex][beginColIndex];
+
     if (_endPoint->type == AType::ATYPE_BARRIER)
     {
         cout << "终点是障碍" << endl;

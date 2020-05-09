@@ -15,6 +15,7 @@ public:
 		this->x = x;
 		this->y = y;
 	}
+
 };
 //设备种类（暂时）
 enum DeviceTypeEnum

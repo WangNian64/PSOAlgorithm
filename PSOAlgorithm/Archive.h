@@ -43,7 +43,6 @@ class GetGbest : MeshCrowd
 public:
 	double* archiveProbability;
 
-
 	// 默认构造函数
 	GetGbest() {}
 
