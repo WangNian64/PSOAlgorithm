@@ -10,6 +10,11 @@ using namespace std;
 struct Size {
 	double x;
 	double y;
+	Size(double x, double y)
+	{
+		this->x = x;
+		this->y = y;
+	}
 };
 //成本计算参数
 struct CostPara {

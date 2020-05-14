@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "AStar.h"
 using namespace std;
 //表示一个坐标
@@ -15,8 +16,37 @@ public:
 		this->x = x;
 		this->y = y;
 	}
-
+	double Distance(Vector2 v) const
+	{
+		return sqrt(pow(this->x - v.x, 2) + pow(this->y - v.y, 2));
+	}
+	bool operator<(const Vector2& v) const
+	{
+		if (*this == v) {
+			return false;
+		}
+		else
+		{
+			if (this->x == v.x)
+			{
+				return this->y < v.y;
+			}
+			else
+			{
+				return this->x < v.x;
+			}
+		}
+	}
+	bool operator>(const Vector2& v) const
+	{
+		return !(*this < v || *this == v);
+	}
+	bool operator==(const Vector2& v) const
+	{
+		return this->x == v.x && this->y == v.y;
+	}
 };
+
 //设备种类（暂时）
 enum DeviceTypeEnum
 {
@@ -158,4 +188,30 @@ struct CargoType
 	int* deviceList;	//设备队列
 	double totalVolume;	//一段时间的总物流量
 };
-
+//一小段路径的数据结构
+struct SegPath
+{
+	Vector2 p1;
+	Vector2 p2;
+	SegPath(Vector2 p1, Vector2 p2)
+	{
+		this->p1 = p1;
+		this->p2 = p2;
+	}
+	bool operator<(const SegPath& sg) const
+	{
+		if (this->p1 == sg.p1 && this->p2 == sg.p2)
+			return false;
+		else
+		{ 
+			if (this->p1 == sg.p1)
+			{
+				return this->p2 < sg.p2;
+			}
+			else
+			{
+				return this->p1 < sg.p1;
+			}
+		}
+	}
+};

@@ -426,42 +426,49 @@ void PSOOptimizer::InitialParticle(int i)
 	particles_[i].best_fitness_ = new double[fitness_count];
 
 	#pragma region 初始化position/veloctiy值
-	////先随机朝向，然后根据朝向调整粒子的范围
-	//for (int j = 2; j < dim_; j += 3)
-	//{
-	//	particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-	//	particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
-	//}
-	////根据朝向修改设备上下界范围
-	//for (int j = 2; j < dim_; j += 3)
-	//{
-	//	//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
-	//	//Rotate90或者Rotate270,修改上下限
-	//	DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
-	//	if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
-	//	{
-	//		//x和y
-	//		lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-	//		lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+	//先随机朝向，然后根据朝向调整粒子的范围
+	for (int j = 2; j < dim_; j += 3)
+	{
+		particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+		particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+	}
+	//根据朝向修改设备上下界范围&设备坐标
+	vector<Size> deviceSizeCopy;
+	for (int i = 0; i < problemParas.DeviceSum; i++)
+	{
+		deviceSizeCopy.push_back(Size(problemParas.deviceParaList[i].size.x, problemParas.deviceParaList[i].size.y));
+	}
+	for (int j = 2; j < dim_; j += 3)
+	{
+		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
+		//Rotate90或者Rotate270,修改上下限
+		DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
+		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
+		{
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
 
-	//		upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-	//		upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
-	//	}
-	//	else
-	//	{
-	//		//x和y
-	//		lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-	//		lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			//size的x和y需要互换
+			swap(deviceSizeCopy[j / 3].x, deviceSizeCopy[j / 3].y);
+		}
+		else
+		{
+			//x和y
+			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
 
-	//		upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-	//		upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
-	//	}
+		}
 
-	//	range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
-	//	range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
-	//}
+		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
+		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
+	}
 	//考虑非重叠约束，这里分块产生随机点(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向全部默认为0
 	for (int j = 0; j < dim_; j += 3)
 	{
@@ -505,10 +512,10 @@ void PSOOptimizer::InitialParticle(int i)
 					findParticle = true;
 					particles_[i].position_[j] = tempPositionX;
 					particles_[i].position_[j + 1] = tempPositionY;
-					particles_[i].position_[j + 2] = DeviceDirect::Default;
+					//particles_[i].position_[j + 2] = DeviceDirect::Default;
 					particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
 					particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
-					particles_[i].velocity_[j + 2] = GetDoubleRand() * range_interval_[j + 2] / 300;
+					//particles_[i].velocity_[j + 2] = GetDoubleRand() * range_interval_[j + 2] / 300;
 				}
 				Xstart++;
 				if (Xstart >= upper_bound_[j] - 1) {
@@ -517,56 +524,6 @@ void PSOOptimizer::InitialParticle(int i)
 			}
 		}
 	}
-	//for (int j = 0; j < dim_; j += 2)
-	//{
-	//	double Xstart = lower_bound_[j];
-	//	double Ystart = lower_bound_[j + 1];
-
-	//	double tempPositionX = 0;
-	//	double tempPositionY = 0;
-
-	//	bool findParticle = false;
-	//	while (Ystart <= upper_bound_[j + 1] - 1 && findParticle == false) {//X和Y要在范围内
-	//		Xstart = lower_bound_[j];
-	//		while (Xstart <= upper_bound_[j] - 1 && findParticle == false) {
-	//			tempPositionX = GetDoubleRand() * 1.0 + Xstart;//得到Xstart到Xstart+1之间的一个随机数
-	//			tempPositionY = GetDoubleRand() * 1.0 + Ystart;//得到Ystart到Ystart+1之间的一个随机数
-
-	//			double tempLowX = tempPositionX - 0.5 * problemParas.DeviceSizeArray[j / 2].x;
-	//			double tempUpX = tempPositionX + 0.5 * problemParas.DeviceSizeArray[j / 2].x;
-	//			double tempLowY = tempPositionY - 0.5 * problemParas.DeviceSizeArray[j / 2].y;
-	//			double tempUpY = tempPositionY + 0.5 * problemParas.DeviceSizeArray[j / 2].y;
-
-	//			bool IsCross = false;
-	//			for (int k = 0; k < j; k += 2) {//检验该位置是否与其他设备重叠
-	//				//将随机产生的粒子和当前i粒子j之前的所有设备坐标比较，检验是否有重叠
-	//				double curLowX = particles_[i].position_[k] - 0.5 * problemParas.DeviceSizeArray[k / 2].x;
-	//				double curUpX = particles_[i].position_[k] + 0.5 * problemParas.DeviceSizeArray[k / 2].x;
-	//				double curLowY = particles_[i].position_[k + 1] - 0.5 * problemParas.DeviceSizeArray[k / 2].y;
-	//				double curUpY = particles_[i].position_[k + 1] + 0.5 * problemParas.DeviceSizeArray[k / 2].y;
-	//				//若发生重叠，退出
-	//				if (IsRangeOverlap(tempLowX, tempUpX, curLowX, curUpX) && IsRangeOverlap(tempLowY, tempUpY, curLowY, curUpY)) {
-	//					IsCross = true;
-	//					break;
-	//				}
-	//			}
-	//			//全部不重叠，给粒子赋值
-	//			if (IsCross == false) {
-	//				findParticle = true;
-	//				particles_[i].position_[j] = tempPositionX;
-	//				particles_[i].position_[j + 1] = tempPositionY;
-	//				particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
-	//				particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
-	//			}
-	//			Xstart++;
-	//			if (Xstart >= upper_bound_[j] - 1) {
-	//				Ystart++;
-	//			}
-	//		}
-	//	}
-	//	//particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-	//	//particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
-	//}
 	#pragma endregion
 
 	//然后随机位置（可能不是可行解）

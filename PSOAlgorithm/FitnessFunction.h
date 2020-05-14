@@ -5,6 +5,7 @@
 #include <math.h>
 #include <algorithm>
 #include <cmath>
+#include <set>
 #define PI 3.14159265358979
 #define DOUBLE_MAX 1.7976931348623158e+308
 #define DOUBLE_MIN 2.2250738585072014e-308
@@ -700,12 +701,11 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		star->_allPoints = pathPointMap;
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
-
 		double totalTime = 0.0;
 		vector<PointLink>().swap(particle.pointLinks);
 
 
-
+		vector<PointLink> copyPLinks;
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
 		{
 			CargoType curCargoType = proParas.cargoTypeList[i];
@@ -723,7 +723,6 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 
 				forwardDeviceIndex = proParas.cargoTypeList[i].deviceList[j] - 1;
 				curDeviceIndex = proParas.cargoTypeList[i].deviceList[j + 1] - 1;
-				//cout << forwardDeviceIndex << ", " << curDeviceIndex << endl;
 				if (forwardDeviceIndex == -1)//说明是入口
 				{
 					forwardOutIndex = 0;
@@ -929,7 +928,27 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 				deviceDistance = star->CalcuPathLength(path);
 
 
-				//计算路径（只带上起始点+路径中的转弯点）
+				#pragma region 计算路径（只带上起始点 + 路径中的转弯点）
+				//路径保存下来
+				vector<Vector2> points1;
+
+				Vector2 endP1(initDevice2PosX, initDevice2PosY);
+				points1.push_back(endP1);
+				APoint* copyPath = path;
+				while (copyPath)
+				{
+					Vector2 tempP(copyPath->x, copyPath->y);
+					points1.push_back(tempP);
+					copyPath = copyPath->parent;
+				}
+				Vector2 startP1(initDevice1PosX, initDevice1PosY);
+				points1.push_back(startP1);
+
+				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1);
+				copyPLinks.push_back(pointLink1);
+
+
+				//保存路径（只保存每段的起始点）
 				vector<Vector2> points;
 				Vector2 endP(initDevice2PosX, initDevice2PosY);
 				points.push_back(endP);
@@ -939,14 +958,14 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 				Vector2 lastP(path->x, path->y);
 				points.push_back(lastP);
 				path = path->parent;
-				while (path) 
+				while (path)
 				{
 					Vector2 curP(path->x, path->y);
 					//只有转弯的点才会被加入路径
 					if (pathCurDirect == PathDirection::Horizon && curP.x == lastP.x)
 					{
-						if ((lastP.x != points.back().x || lastP.y != points.back().y) 
-							&& CalcuDeviceDist(lastP, points.back()) <= 1.0) 
+						if ((lastP.x != points.back().x || lastP.y != points.back().y)
+							&& CalcuDeviceDist(lastP, points.back()) <= 1.0)
 						{
 							particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
 							return;
@@ -956,7 +975,7 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 					}
 					else if (pathCurDirect == PathDirection::Vertical && curP.y == lastP.y)
 					{
-						if ((lastP.x != points.back().x || lastP.y != points.back().y) 
+						if ((lastP.x != points.back().x || lastP.y != points.back().y)
 							&& CalcuDeviceDist(lastP, points.back()) <= 1.0)
 						{
 							particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
@@ -975,7 +994,8 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 
 				PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
 				particle.pointLinks.push_back(pointLink);
-
+				#pragma endregion
+				
 
 
 				//计算输送时间(物料总量 * 路线长度 * 输送效率)
@@ -993,10 +1013,40 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		}
 		#pragma endregion
 
+		//上面得到了pointLinks
+		//设置一个set<SegPath>数据结构
+		//SegPath的结构是有两个Vector2
+		//然后遍历pointLinks
+		//set会自动消除相同的路径段
+		//然后遍历set，计算；路径总长度
+		set<SegPath> segPathsSet;
+		for (PointLink pl : particle.pointLinks)
+		{
+			for (int i = 0; i < pl.points.size() - 1; i++)
+			{
+				SegPath temp(pl.points[i], pl.points[i+1]);
+				segPathsSet.insert(temp);
+			}
+		}
+		//遍历set，计算总长度
+		double totalPathLength = 0.0;
+		//cout << segPathsSet.size() << endl;
+		for (SegPath sp : segPathsSet)
+		{
+			//cout << sp.p1.x << ", " << sp.p1.y << ";" << sp.p2.x << ", " << sp.p2.y << endl;
+			totalPathLength += sp.p1.Distance(sp.p2);
+		}
+		//cout << endl;
+		//cout << endl;
+		//cout << endl;
+		//cout << endl;
+		//cout << endl;
 		//设置适应度值
-		particle.fitness_[0] = totalTime;
+		//particle.fitness_[0] = totalTime;
+		particle.fitness_[0] = totalPathLength;//想不考虑不同路径上的物流量不同
+		//cout << totalPathLength << endl;
 		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
-		particle.fitness_[1] = 100;//在增加了出口之后，面积没有意义了
+		particle.fitness_[1] = totalTime;//在增加了出口之后，面积没有意义了
 
 		#pragma region 析构
 		//delete[] copyDeviceParas;
