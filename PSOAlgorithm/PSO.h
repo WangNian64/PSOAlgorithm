@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <set>
 #include "ProblemParas.h"
 
 // 适应度是越大越好还是越小越好
@@ -143,6 +144,9 @@ struct Particle
 
 	vector<PointLink> pointLinks; //最终路径集合
 	vector<InoutPoint> inoutPoints;//出入口集合
+	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
+	set<Vector2> curveConveyorList;//转弯输送机信息列表
+	//set<SegPath> segPathSet;
 	//int pointLinkSum = 0;//路径的数目
 	Particle() {}
 	Particle(const Particle& particle)//拷贝构造函数
@@ -168,12 +172,12 @@ struct Particle
 		}
 		this->pointLinks = particle.pointLinks;
 		this->inoutPoints = particle.inoutPoints;
+		this->strConveyorList = particle.strConveyorList;
+		this->curveConveyorList = particle.curveConveyorList;
 	}
 	~Particle()
 	{
 	}
-
-	//Particle(int dim, double* position, double* velocity/*, double* best_position, double best_fitness*/);
 };
 
 typedef void (*ComputeFitness)(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);

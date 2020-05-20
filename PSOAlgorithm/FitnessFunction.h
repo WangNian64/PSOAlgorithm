@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <map>
 #define PI 3.14159265358979
 #define DOUBLE_MAX 1.7976931348623158e+308
 #define DOUBLE_MIN 2.2250738585072014e-308
@@ -49,22 +50,8 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 	bool IsWorkable = true;//解是否可行
 	double deviceDist = 0;
 	particle.fitness_[0] = particle.fitness_[1] = 0;
-	//for (int i = 0; i < particle.dim_; i+=2) {
-	//	for (int j = 0; j < particle.dim_; j+=2) {
-	//		deviceDist = abs(particle.position_[i] - particle.position_[j])
-	//			+ abs(particle.position_[i + 1] - particle.position_[j + 1]);
-	//		if (deviceDist < proParas.minDistArray[i / 2][j / 2])
-	//		{
-	//			particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-	//			IsWorkable = false;
-	//			break;
-	//		}
-	//		//添加成本作为适应度值（考虑最小距离）
-	//		//particle.fitness_[0] += deviceDist * proParas.costParaArray[i / 2][j / 2].UnitCost * proParas.costParaArray[i / 2][j / 2].MatFlow;
-	//	}
-	//}
 
-	#pragma region 深拷贝一份设备信息
+	#pragma region 深拷贝一份设备参数
 	DevicePara* copyDeviceParas = new DevicePara[proParas.DeviceSum];
 	for (int i = 0; i < proParas.DeviceSum; i++)
 	{
@@ -562,7 +549,7 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		}
 		#pragma endregion
 
-		//计算出入口点的集合坐标
+		#pragma region 计算出入口点的集合坐标
 		vector<InoutPoint>().swap(particle.inoutPoints);
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
@@ -583,6 +570,8 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 				particle.inoutPoints.push_back(ioPoint);
 			}
 		}
+
+		#pragma endregion
 
 		#pragma region 根据设备坐标和出入口坐标构造路径点图
 
@@ -1013,32 +1002,110 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		}
 		#pragma endregion
 
-		//上面得到了pointLinks
-		//设置一个set<SegPath>数据结构
-		//SegPath的结构是有两个Vector2
-		//然后遍历pointLinks
-		//set会自动消除相同的路径段
-		//然后遍历set，计算；路径总长度
-		set<SegPath> segPathsSet;
-		for (PointLink pl : particle.pointLinks)
+		#pragma region 将布局结果转化为输送机参数&计算目标函数值
+		particle.strConveyorList.clear();
+		particle.curveConveyorList.clear();
+		set<SegPath> segPathSet;
+		for (PointLink pl : copyPLinks)//过滤所有重复的路线段
 		{
-			for (int i = 0; i < pl.points.size() - 1; i++)
+			for (int i = pl.points.size() - 1; i > 0; i--)
 			{
-				SegPath temp(pl.points[i], pl.points[i+1]);
-				segPathsSet.insert(temp);
+				if (pl.points[i] != pl.points[i - 1])//坐标不能一样
+				{
+					SegPath temp(pl.points[i], pl.points[i - 1]);
+					segPathSet.insert(temp);
+				}
 			}
 		}
-		//遍历set，计算总长度
-		double totalPathLength = 0.0;
-		//cout << segPathsSet.size() << endl;
-		for (SegPath sp : segPathsSet)
+		map<Vector2, PointInfo> pathPointInfoMap;//路径点信息map
+		//遍历set，计算出所有set中 点的出入度&点所在路线的垂直水平数目&是否保留 信息
+		for (SegPath sp : segPathSet)
 		{
-			//cout << sp.p1.x << ", " << sp.p1.y << ";" << sp.p2.x << ", " << sp.p2.y << endl;
-			totalPathLength += sp.p1.Distance(sp.p2);
+			//在map中找sp的p1
+			if (pathPointInfoMap.count(sp.p1)) {
+				//找到，更新信息
+				Vector2 startP = sp.p1;
+				if (sp.direct == PathPointDirect::Vert) {
+					++pathPointInfoMap[startP].vertDirNum;
+				}
+				else {
+					++pathPointInfoMap[startP].horiDirNum;
+				}
+			}
+			else {
+				if (sp.direct == PathPointDirect::Vert) {
+					pathPointInfoMap.insert({ sp.p1, PointInfo(1, 0, false) });
+				}
+				else {
+					pathPointInfoMap.insert({ sp.p1, PointInfo(0, 1, false) });
+				}
+			}
+
+			//在map中找sp的p2
+			if (pathPointInfoMap.count(sp.p2)) {
+				//找到，更新信息
+				Vector2 endP = sp.p2;
+				if (sp.direct == PathPointDirect::Vert) {
+					++pathPointInfoMap[endP].vertDirNum;
+				}
+				else {
+					++pathPointInfoMap[endP].horiDirNum;
+				}
+			}
+			else {
+				if (sp.direct == PathPointDirect::Vert) {
+					pathPointInfoMap.insert({ sp.p2, PointInfo(1, 0, false) });
+				}
+				else {
+					pathPointInfoMap.insert({ sp.p2, PointInfo(0, 1, false) });
+				}
+			}
 		}
-		//cout << endl;
-		//cout << endl;
-		//cout << endl;
+
+		for (auto it = pathPointInfoMap.begin(); it != pathPointInfoMap.end(); it++)
+		{
+			if ((it->second.horiDirNum == 1 && it->second.vertDirNum == 0)
+				|| (it->second.horiDirNum == 0 && it->second.vertDirNum == 1)) {
+				it->second.isKeep = true;
+			}
+			if (it->second.horiDirNum >= 1 && it->second.vertDirNum >= 1) {
+				it->second.isKeep = true;
+			}
+		}
+		for (PointLink pl : copyPLinks) {
+			StraightConveyorInfo tempStrInfo;
+			tempStrInfo.startPos = pl.points[pl.points.size() - 1];//开头
+			tempStrInfo.startVnum = pathPointInfoMap[pl.points[pl.points.size() - 1]].vertDirNum;
+			tempStrInfo.startHnum = pathPointInfoMap[pl.points[pl.points.size() - 1]].horiDirNum;
+			for (int i = pl.points.size() - 2; i >= 0; i--) {
+				Vector2 p = pl.points[i];
+				if (pathPointInfoMap[p].isKeep == true) {//这里会出现重复的
+					//先更新直线输送机
+					if (tempStrInfo.startPos != p) {
+						tempStrInfo.endPos = p;
+						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
+						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
+						particle.strConveyorList.insert(tempStrInfo);
+						tempStrInfo.startPos = p;
+						tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
+						tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
+					}
+					//只要不是始终点，都需要更新转弯输送机
+					if (!(pathPointInfoMap[p].horiDirNum == 1 && pathPointInfoMap[p].vertDirNum == 0)
+						&& !(pathPointInfoMap[p].horiDirNum == 0 && pathPointInfoMap[p].vertDirNum == 1)) {
+						particle.curveConveyorList.insert(p);
+					}
+				}
+			}
+		}
+		//遍历set，计算直线输送机的总长度
+		double totalPathLength = 0.0;
+		//cout << segPathSet.size() << endl;
+		for (SegPath sp : segPathSet)
+		{
+			totalPathLength += sp.p1.Distance(sp.p2);
+			//cout << sp.p1.x << ", " << sp.p1.y << "; " << sp.p2.x << ", " << sp.p2.y << endl;
+		}
 		//cout << endl;
 		//cout << endl;
 		//设置适应度值
@@ -1047,26 +1114,6 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		//cout << totalPathLength << endl;
 		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
 		particle.fitness_[1] = totalTime;//在增加了出口之后，面积没有意义了
-
-		#pragma region 析构
-		//delete[] copyDeviceParas;
-		//delete[] DeviceLowXList;
-		//delete[] DeviceHighXList;
-		//delete[] DeviceLowYList;
-		//delete[] DeviceHighYList;
-		//vector<int>().swap(barrierRowIndexs);
-		//vector<int>().swap(barrierColIndexs);
-		//vector< vector<APoint*> >().swap(pathPointMap);//这样释放内存是不够的
-		//for (int i = 0; i < pathPointMap.size(); i++)
-		//{
-		//	for (int j = 0; j < pathPointMap[i].size(); j++)
-		//	{
-		//		delete pathPointMap[i][j];
-		//	}
-		//}
-
-		//vector<double>().swap(horizonAxisList);
-		//vector<double>().swap(verticalAxisList);
 		#pragma endregion
 
 	}

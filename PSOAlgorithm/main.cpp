@@ -19,7 +19,7 @@ int main()
 	psopara.mesh_div_count = 2;							// 网格划分数目
 	psopara.problemParas = proParas;					// 布局问题的参数
 	psopara.particle_num_ = 100;						// 粒子个数
-	psopara.max_iter_num_ = 400;						// 最大迭代次数
+	psopara.max_iter_num_ = 200;						// 最大迭代次数
 	psopara.fitness_count_ = 2;							// 适应度数目
 	psopara.archive_max_count = 200;					// archive数组的最大数目
 	psopara.SetDt(1.0);									// 时间步长
@@ -82,12 +82,12 @@ int main()
 	OutFile.close();
 	OutFile1.close();
 	#pragma endregion
+
 	endTime = clock();
 	cout << "迭代" << psopara.max_iter_num_ << "次的最终用时:" << static_cast<double>(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
+
 	#pragma region 保存设备尺寸&最终布局结果&连线点的坐标
 	OutFile.open("../../FinalResult.txt");
-
-
 	#pragma region 记录最终布局结果
 	int resultIndex = 0;
 	int minConveyValue = INTMAX_MAX;
@@ -123,7 +123,6 @@ int main()
 	}
 	#pragma endregion
 
-
 	#pragma region 记录设备尺寸
 	for (int i = 2; i < dim; i += 3)
 	{
@@ -140,7 +139,6 @@ int main()
 		OutFile << line + "\n";
 	}
 	#pragma endregion
-
 
 	#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
 	vector<InoutPoint> ioPoints = psooptimizer.archive_list[resultIndex].inoutPoints;
@@ -166,7 +164,6 @@ int main()
 		OutFile << "\n";
 	}
 	#pragma endregion
-
 
 	#pragma region 记录出入口路径
 	//先存每种货物的路径条数
@@ -208,6 +205,31 @@ int main()
 	}
 	#pragma endregion
 
+	#pragma region 记录直线输送机和转弯输送机参数
+	set<StraightConveyorInfo> strInfoList = psooptimizer.archive_list[resultIndex].strConveyorList;
+	set<Vector2> curveInfoList = psooptimizer.archive_list[resultIndex].curveConveyorList;
+	OutFile << strInfoList.size() << "\n";
+	for (StraightConveyorInfo sci : strInfoList) 
+	{
+		OutFile << to_string(sci.startPos.x) << "," << to_string(sci.startPos.y)
+			<< ";" << to_string(sci.endPos.x) << "," << to_string(sci.endPos.y) 
+			<< ";" << to_string(sci.startHnum) << ";" << to_string(sci.startVnum) 
+			<< ";" << to_string(sci.endHnum) << ";" << to_string(sci.endVnum)
+			<< "\n";
+	}
+	OutFile << curveInfoList.size() << "\n";
+	for (Vector2 v : curveInfoList) 
+	{
+		OutFile << to_string(v.x) << "," << to_string(v.y) << "\n";
+	}
+	//set<SegPath> segPathSet = psooptimizer.archive_list[resultIndex].segPathSet;
+	//OutFile << segPathSet.size() << "\n";
+	//for (SegPath sp : segPathSet)
+	//{
+	//	OutFile << to_string(sp.p1.x) << "," << to_string(sp.p1.y)
+	//			<< ";" << to_string(sp.p2.x) << "," << to_string(sp.p2.y) << "\n";
+	//}
+	#pragma endregion
 
 	OutFile.close();
 	#pragma endregion

@@ -1,6 +1,4 @@
 #pragma once
-#include <iostream>
-#include <vector>
 #include <cmath>
 #include "AStar.h"
 using namespace std;
@@ -37,13 +35,17 @@ public:
 			}
 		}
 	}
+	bool operator!=(const Vector2& v) const
+	{
+		return !(*this == v);
+	}
 	bool operator>(const Vector2& v) const
 	{
 		return !(*this < v || *this == v);
 	}
 	bool operator==(const Vector2& v) const
 	{
-		return this->x == v.x && this->y == v.y;
+		return abs(this->x - v.x) <= 0.0001 && abs(this->y - v.y) <= 0.0001;
 	}
 };
 
@@ -121,6 +123,26 @@ enum DeviceDirect
 	Rotate180,
 	Rotate270
 };
+
+//点所在线段的方向：垂直/水平
+enum PathPointDirect
+{
+	Vert, Hori
+};
+//路径点的信息
+struct PointInfo
+{
+	int vertDirNum;
+	int horiDirNum;
+	bool isKeep;//是否保留
+	PointInfo() = default;
+	PointInfo(int vDirNum, int hDirNum, bool iK) 
+	{
+		vertDirNum = vDirNum;
+		horiDirNum = hDirNum;
+		isKeep = iK;
+	}
+};
 //设备相关性(从0到5依次增大）
 enum DeviceRelation
 {
@@ -130,13 +152,13 @@ enum DeviceRelation
 class DevicePara
 {
 public:
-	int ID;				//设备ID
-	//DeviceType type;	//设备种类相关参数 
-	double workSpeed;	//加工/处理1单位物料的时间
-	Vector2 size;		//设备尺寸（分别是x轴和y轴的长度）
-	Vector2 axis;		//设备坐标
-	DeviceDirect direct;//设备朝向
-	double spaceLength;//空隙（为了实现距离约束）
+	int ID;					//设备ID
+	//DeviceType type;		//设备种类相关参数 
+	double workSpeed;		//加工/处理1单位物料的时间
+	Vector2 size;			//设备尺寸（分别是x轴和y轴的长度）
+	Vector2 axis;			//设备坐标
+	DeviceDirect direct;	//设备朝向
+	double spaceLength;		//空隙（为了实现距离约束）
 	//出入口点的数组（会影响输送线的布局）
 	vector<AdjPoint> adjPointsIn;//入口
 	vector<AdjPoint> adjPointsOut;//出口
@@ -193,14 +215,21 @@ struct SegPath
 {
 	Vector2 p1;
 	Vector2 p2;
+	PathPointDirect direct;
 	SegPath(Vector2 p1, Vector2 p2)
 	{
 		this->p1 = p1;
 		this->p2 = p2;
+		if (abs(p1.x - p2.x) > abs(p1.y - p2.y)) {
+			direct = PathPointDirect::Hori;
+		}
+		else {
+			direct = PathPointDirect::Vert;
+		}
 	}
 	bool operator<(const SegPath& sg) const
 	{
-		if (this->p1 == sg.p1 && this->p2 == sg.p2)
+		if ((this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1))
 			return false;
 		else
 		{ 
@@ -211,6 +240,38 @@ struct SegPath
 			else
 			{
 				return this->p1 < sg.p1;
+			}
+		}
+	}
+};
+struct StraightConveyorInfo
+{
+	Vector2 startPos;
+	Vector2 endPos;
+	int startVnum;
+	int startHnum;
+	int endVnum;
+	int endHnum;
+	StraightConveyorInfo() = default;
+	StraightConveyorInfo(Vector2 sPos, Vector2 ePos) {
+		startPos = sPos;
+		endPos = ePos;
+	}
+	bool operator<(const StraightConveyorInfo& rhs) const 
+	{
+		if (rhs.startPos == this->startPos && rhs.endPos == this->endPos) 
+		{
+			return false;
+		}
+		else
+		{
+			if (this->startPos == rhs.startPos)
+			{
+				return this->endPos < rhs.endPos;
+			}
+			else
+			{
+				return this->startPos < rhs.startPos;
 			}
 		}
 	}
