@@ -44,6 +44,10 @@ int FindAxisIndex(double axis, const vector<double>& axisList);
 
 //顺时针旋转后的坐标
 Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
+//对一个数字*10000然后四舍五入到int
+int Multi10000ToInt(double num);
+
+Vector2Int Multi10000ToInt(Vector2 v);
 //默认的适应度计算函数，可以替换
 void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds)
 {
@@ -1002,29 +1006,32 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		}
 		#pragma endregion
 
-		#pragma region 将布局结果转化为输送机参数&计算目标函数值
+		#pragma region 将布局结果转化为输送机参数
 		particle.strConveyorList.clear();
 		particle.curveConveyorList.clear();
+		//particle.pathPointInfoMap.clear();
 		set<SegPath> segPathSet;
 		for (PointLink pl : copyPLinks)//过滤所有重复的路线段
 		{
 			for (int i = pl.points.size() - 1; i > 0; i--)
 			{
-				if (pl.points[i] != pl.points[i - 1])//坐标不能一样
+				Vector2Int p1 = Multi10000ToInt(pl.points[i]);
+				Vector2Int p2 = Multi10000ToInt(pl.points[i - 1]);
+				if (p1 != p2)//坐标不能一样
 				{
-					SegPath temp(pl.points[i], pl.points[i - 1]);
+					SegPath temp(p1, p2);
 					segPathSet.insert(temp);
 				}
 			}
 		}
-		map<Vector2, PointInfo> pathPointInfoMap;//路径点信息map
+		map<Vector2Int, PointInfo> pathPointInfoMap;//路径点信息map
 		//遍历set，计算出所有set中 点的出入度&点所在路线的垂直水平数目&是否保留 信息
 		for (SegPath sp : segPathSet)
 		{
 			//在map中找sp的p1
 			if (pathPointInfoMap.count(sp.p1)) {
 				//找到，更新信息
-				Vector2 startP = sp.p1;
+				Vector2Int startP = sp.p1;
 				if (sp.direct == PathPointDirect::Vert) {
 					++pathPointInfoMap[startP].vertDirNum;
 				}
@@ -1044,7 +1051,7 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 			//在map中找sp的p2
 			if (pathPointInfoMap.count(sp.p2)) {
 				//找到，更新信息
-				Vector2 endP = sp.p2;
+				Vector2Int endP = sp.p2;
 				if (sp.direct == PathPointDirect::Vert) {
 					++pathPointInfoMap[endP].vertDirNum;
 				}
@@ -1074,11 +1081,11 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 		}
 		for (PointLink pl : copyPLinks) {
 			StraightConveyorInfo tempStrInfo;
-			tempStrInfo.startPos = pl.points[pl.points.size() - 1];//开头
-			tempStrInfo.startVnum = pathPointInfoMap[pl.points[pl.points.size() - 1]].vertDirNum;
-			tempStrInfo.startHnum = pathPointInfoMap[pl.points[pl.points.size() - 1]].horiDirNum;
+			tempStrInfo.startPos = Multi10000ToInt(pl.points[pl.points.size() - 1]);//开头
+			tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
+			tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
 			for (int i = pl.points.size() - 2; i >= 0; i--) {
-				Vector2 p = pl.points[i];
+				Vector2Int p = Multi10000ToInt(pl.points[i]);
 				if (pathPointInfoMap[p].isKeep == true) {//这里会出现重复的
 					//先更新直线输送机
 					if (tempStrInfo.startPos != p) {
@@ -1098,22 +1105,22 @@ void FitnessFunction(int curIterNum, Particle& particle, ProblemParas proParas, 
 				}
 			}
 		}
-		//遍历set，计算直线输送机的总长度
-		double totalPathLength = 0.0;
-		//cout << segPathSet.size() << endl;
-		for (SegPath sp : segPathSet)
+		#pragma endregion
+
+		#pragma region 计算目标函数值
+
+		//遍历直线和转弯输送机的set，得到输送机的总成本
+		double conveyorTotalCost = 0.0;
+		for (StraightConveyorInfo sci : particle.strConveyorList)
 		{
-			totalPathLength += sp.p1.Distance(sp.p2);
-			//cout << sp.p1.x << ", " << sp.p1.y << "; " << sp.p2.x << ", " << sp.p2.y << endl;
+			conveyorTotalCost += proParas.strConveyorUnitCost * sci.startPos.Distance(sci.endPos);
 		}
-		//cout << endl;
-		//cout << endl;
+		conveyorTotalCost += proParas.curveConveyorUnitCost * particle.curveConveyorList.size();
 		//设置适应度值
 		//particle.fitness_[0] = totalTime;
-		particle.fitness_[0] = totalPathLength;//想不考虑不同路径上的物流量不同
-		//cout << totalPathLength << endl;
+		particle.fitness_[0] = conveyorTotalCost;
 		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
-		particle.fitness_[1] = totalTime;//在增加了出口之后，面积没有意义了
+		particle.fitness_[1] = totalTime;
 		#pragma endregion
 
 	}
@@ -1208,4 +1215,13 @@ double CalcuTotalArea(Particle& particle, ProblemParas proParas) {
 	//计算总面积
 	area = (max_X - min_X) * (max_Y - min_Y);
 	return area;
+}
+//先乘以10000，然后四舍五入到Int
+int Multi10000ToInt(double num)
+{
+	return round(num * 10000);
+}
+Vector2Int Multi10000ToInt(Vector2 v)
+{
+	return Vector2Int(Multi10000ToInt(v.x), Multi10000ToInt(v.y));
 }

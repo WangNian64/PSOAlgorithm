@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <map>
+#include <random>
 #include "ProblemParas.h"
 
 // 适应度是越大越好还是越小越好
@@ -145,7 +147,8 @@ struct Particle
 	vector<PointLink> pointLinks; //最终路径集合
 	vector<InoutPoint> inoutPoints;//出入口集合
 	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
-	set<Vector2> curveConveyorList;//转弯输送机信息列表
+	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
+	//map<Vector2Int, PointInfo> pathPointInfoMap;//路径点信息map
 	//set<SegPath> segPathSet;
 	//int pointLinkSum = 0;//路径的数目
 	Particle() {}
@@ -174,6 +177,7 @@ struct Particle
 		this->inoutPoints = particle.inoutPoints;
 		this->strConveyorList = particle.strConveyorList;
 		this->curveConveyorList = particle.curveConveyorList;
+		//this->pathPointInfoMap = particle.pathPointInfoMap;
 	}
 	~Particle()
 	{

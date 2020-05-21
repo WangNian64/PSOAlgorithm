@@ -48,7 +48,51 @@ public:
 		return abs(this->x - v.x) <= 0.0001 && abs(this->y - v.y) <= 0.0001;
 	}
 };
-
+struct Vector2Int
+{
+public:
+	int x;
+	int y;
+	Vector2Int() {}
+	Vector2Int(int x, int y)
+	{
+		this->x = x;
+		this->y = y;
+	}
+	double Distance(Vector2Int v) const
+	{
+		return sqrt(pow((this->x - v.x)/10000.0f, 2) + pow((this->y - v.y)/10000.0f, 2));
+	}
+	bool operator<(const Vector2Int& v) const
+	{
+		if (*this == v) {
+			return false;
+		}
+		else
+		{
+			if (this->x == v.x)
+			{
+				return this->y < v.y;
+			}
+			else
+			{
+				return this->x < v.x;
+			}
+		}
+	}
+	bool operator!=(const Vector2Int& v) const
+	{
+		return !(*this == v);
+	}
+	bool operator>(const Vector2Int& v) const
+	{
+		return !(*this < v || *this == v);
+	}
+	bool operator==(const Vector2Int& v) const
+	{
+		return this->x == v.x && this->y == v.y;
+	}
+};
 //设备种类（暂时）
 enum DeviceTypeEnum
 {
@@ -213,10 +257,10 @@ struct CargoType
 //一小段路径的数据结构
 struct SegPath
 {
-	Vector2 p1;
-	Vector2 p2;
+	Vector2Int p1;
+	Vector2Int p2;
 	PathPointDirect direct;
-	SegPath(Vector2 p1, Vector2 p2)
+	SegPath(Vector2Int p1, Vector2Int p2)
 	{
 		this->p1 = p1;
 		this->p2 = p2;
@@ -246,14 +290,14 @@ struct SegPath
 };
 struct StraightConveyorInfo
 {
-	Vector2 startPos;
-	Vector2 endPos;
+	Vector2Int startPos;
+	Vector2Int endPos;
 	int startVnum;
 	int startHnum;
 	int endVnum;
 	int endHnum;
 	StraightConveyorInfo() = default;
-	StraightConveyorInfo(Vector2 sPos, Vector2 ePos) {
+	StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos) {
 		startPos = sPos;
 		endPos = ePos;
 	}

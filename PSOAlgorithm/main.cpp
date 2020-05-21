@@ -11,7 +11,7 @@ int main()
 {
 	#pragma region 设置PSO参数
 	int deviceNum = 6;	
-	int cargoTypeNum = 4;
+	int cargoTypeNum = 3;
 	ProblemParas proParas(deviceNum, cargoTypeNum);		//初始化所有设备相关参数
 
 	int dim = deviceNum * 3;							// 总维度=设备数*3(x,y,朝向)
@@ -207,7 +207,7 @@ int main()
 
 	#pragma region 记录直线输送机和转弯输送机参数
 	set<StraightConveyorInfo> strInfoList = psooptimizer.archive_list[resultIndex].strConveyorList;
-	set<Vector2> curveInfoList = psooptimizer.archive_list[resultIndex].curveConveyorList;
+	set<Vector2Int> curveInfoList = psooptimizer.archive_list[resultIndex].curveConveyorList;
 	OutFile << strInfoList.size() << "\n";
 	for (StraightConveyorInfo sci : strInfoList) 
 	{
@@ -218,16 +218,26 @@ int main()
 			<< "\n";
 	}
 	OutFile << curveInfoList.size() << "\n";
-	for (Vector2 v : curveInfoList) 
+	for (Vector2Int v : curveInfoList) 
 	{
 		OutFile << to_string(v.x) << "," << to_string(v.y) << "\n";
 	}
+
+
 	//set<SegPath> segPathSet = psooptimizer.archive_list[resultIndex].segPathSet;
 	//OutFile << segPathSet.size() << "\n";
 	//for (SegPath sp : segPathSet)
 	//{
 	//	OutFile << to_string(sp.p1.x) << "," << to_string(sp.p1.y)
 	//			<< ";" << to_string(sp.p2.x) << "," << to_string(sp.p2.y) << "\n";
+	//}
+
+	//map<Vector2, PointInfo> pathPointInfoMap = psooptimizer.archive_list[resultIndex].pathPointInfoMap;
+	//OutFile << pathPointInfoMap.size() << "\n";
+	//for (auto it = pathPointInfoMap.begin(); it != pathPointInfoMap.end(); it++) 
+	//{
+	//	OutFile << to_string(it->first.x) << "," << to_string(it->first.y)
+	//		<< ";" << to_string(it->second.horiDirNum) << ";" << to_string(it->second.vertDirNum) << "\n";
 	//}
 	#pragma endregion
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
-#include <fstream>
 #include <string>
+#include <fstream>
 #include "DevicePara.h"
 #include "Tools.h"
 #include "Graph.h"
@@ -47,7 +47,10 @@ struct ProblemParas
 	Graph deviceGraph;//设备连的图结构
 
 	double conveySpeed;//输送机输送速度
-	double spaceLength;//给设备外层再套一层壳（为了更好的距离约束）
+	double spaceLength;//给设备外层再套一层壳（距离约束）
+
+	double strConveyorUnitCost;//单位直线输送机成本
+	double curveConveyorUnitCost;//单个转弯输送机成本
 	ProblemParas() {}
 	ProblemParas(int deviceSum, int cargoTypeNum)
 	{
@@ -153,6 +156,19 @@ struct ProblemParas
 			getline(fileIn, line);
 			spaceLength = atof(line.c_str());
 			#pragma endregion
+
+			#pragma region 单位长度直线输送机的成本
+			getline(fileIn, line);
+			getline(fileIn, line);
+			strConveyorUnitCost = atof(line.c_str());
+			#pragma endregion
+
+			#pragma region 单个转弯输送机的成本
+			getline(fileIn, line);
+			getline(fileIn, line);
+			curveConveyorUnitCost = atof(line.c_str());
+			#pragma endregion
+
 
 			#pragma region 物料参数
 			getline(fileIn, line);//空一行

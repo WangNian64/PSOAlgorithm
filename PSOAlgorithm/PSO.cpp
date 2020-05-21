@@ -408,7 +408,6 @@ void PSOOptimizer::GetInertialWeight()
 	for (int i = 0; i < dim_; i++)
 	{
 		w_[i] = wstart_[i] - (wstart_[i] - wend_[i]) * temp;
-		//w_[i] = wstart_[i];
 	}
 
 }
@@ -469,9 +468,25 @@ void PSOOptimizer::InitialParticle(int i)
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
-	//考虑非重叠约束，这里分块产生随机点(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向全部默认为0
-	for (int j = 0; j < dim_; j += 3)
+	//考虑非重叠约束，这里分块产生随机点(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
+	//新的随机：随机设备的摆放顺序
+	vector<int> unmakeDeviceIndexVec;
+	vector<int> madeDeviceIndexVec;
+	for (int i = 0; i < problemParas.DeviceSum; i++)
 	{
+		unmakeDeviceIndexVec.push_back(i);
+	}
+	default_random_engine e;
+	while (unmakeDeviceIndexVec.size() > 0) 
+	{
+		//微秒级精度的随机数种子
+		e.seed(GetRamdonSeed());
+		uniform_int_distribution<unsigned> u(0, unmakeDeviceIndexVec.size() - 1);
+		int randomVecIndex = u(e);
+		int randomDeviceIndex = unmakeDeviceIndexVec[randomVecIndex];//得到设备的index
+		cout << randomDeviceIndex << ", ";
+		int j = randomDeviceIndex * 3;
+		
 		double Xstart = lower_bound_[j];
 		double Ystart = lower_bound_[j + 1];
 
@@ -492,15 +507,19 @@ void PSOOptimizer::InitialParticle(int i)
 				double tempUpY = tempPositionY + halfY;
 
 				bool IsCross = false;
-				for (int k = 0; k < j; k += 3) {//检验该位置是否与其他设备重叠
-					//将随机产生的粒子和当前i粒子j之前的所有设备坐标比较，检验是否有重叠
-					double halfX1 = problemParas.deviceParaList[k / 3].size.x * 0.5 + problemParas.deviceParaList[k / 3].spaceLength;
-					double halfY1 = problemParas.deviceParaList[k / 3].size.y * 0.5 + problemParas.deviceParaList[k / 3].spaceLength;
+				//检查当前设备是否与其他重叠
+				for (int k = 0; k < madeDeviceIndexVec.size(); k++)
+				{
+					int curDeviceIndex = madeDeviceIndexVec[k];
+					int curDimIndex = curDeviceIndex * 3;
 
-					double curLowX = particles_[i].position_[k] - halfX1;
-					double curUpX = particles_[i].position_[k] + halfX1;
-					double curLowY = particles_[i].position_[k + 1] - halfY1;
-					double curUpY = particles_[i].position_[k + 1] + halfY1;
+					double halfX1 = problemParas.deviceParaList[curDeviceIndex].size.x * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
+					double halfY1 = problemParas.deviceParaList[curDeviceIndex].size.y * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
+
+					double curLowX = particles_[i].position_[curDimIndex] - halfX1;
+					double curUpX = particles_[i].position_[curDimIndex] + halfX1;
+					double curLowY = particles_[i].position_[curDimIndex + 1] - halfY1;
+					double curUpY = particles_[i].position_[curDimIndex + 1] + halfY1;
 					//若发生重叠，退出
 					if (IsRangeOverlap(tempLowX, tempUpX, curLowX, curUpX) && IsRangeOverlap(tempLowY, tempUpY, curLowY, curUpY)) {
 						IsCross = true;
@@ -516,6 +535,11 @@ void PSOOptimizer::InitialParticle(int i)
 					particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
 					particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
 					//particles_[i].velocity_[j + 2] = GetDoubleRand() * range_interval_[j + 2] / 300;
+
+					//更新vec
+					madeDeviceIndexVec.push_back(randomDeviceIndex);
+					unmakeDeviceIndexVec.erase(unmakeDeviceIndexVec.begin() + randomVecIndex);
+
 				}
 				Xstart++;
 				if (Xstart >= upper_bound_[j] - 1) {
@@ -523,9 +547,12 @@ void PSOOptimizer::InitialParticle(int i)
 				}
 			}
 		}
+
+
 	}
 	#pragma endregion
-
+	cout << endl;
+	cout << endl;
 	//然后随机位置（可能不是可行解）
 	//for (int j = 0; j < dim_; j++) {
 	//	if (j % 3 != 2)

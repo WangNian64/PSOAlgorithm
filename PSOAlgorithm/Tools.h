@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <Windows.h>
 using namespace std;
 //判断两个区间是否重叠
 static bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {
@@ -31,6 +32,20 @@ static vector<string> split(const string& str, const string& pattern)
 		res.push_back(x);//stoi(x)转整型
 		strs = strs.substr(pos + 1, size);
 		pos = strs.find(pattern);
+	}
+	return res;
+}
+//返回一个随机数种子（微秒级）
+static unsigned GetRamdonSeed()
+{
+	LARGE_INTEGER nFrequency;
+	unsigned int res;
+	if (QueryPerformanceFrequency(&nFrequency))
+	{
+		LARGE_INTEGER nStartCounter;
+
+		QueryPerformanceCounter(&nStartCounter);
+		res = (unsigned)nStartCounter.LowPart;
 	}
 	return res;
 }
