@@ -11,7 +11,7 @@ int main()
 {
 	#pragma region 设置PSO参数
 	int deviceNum = 6;	
-	int cargoTypeNum = 3;
+	int cargoTypeNum = 4;
 	ProblemParas proParas(deviceNum, cargoTypeNum);		//初始化所有设备相关参数
 
 	int dim = deviceNum * 3;							// 总维度=设备数*3(x,y,朝向)
@@ -29,7 +29,6 @@ int main()
 	psopara.SetC2(1.49445);								// 加速度因子2
 	psopara.SetLowBound(0, 0, DeviceDirect::Default);	// position的搜索范围下限
 	psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270);// position的搜索范围上限
-	//
 	#pragma endregion
 
 	#pragma region 调用PSO算法，并输出结果
@@ -44,7 +43,7 @@ int main()
 
 	psooptimizer.InitialAllParticles();//初始化所有粒子
 	psooptimizer.InitialArchiveList();//初始化Archive存档
-	psooptimizer.InitGbest();//初始化全局最优 //这个地方要注意min和max
+	psooptimizer.InitGbest();//初始化全局最优
 
 	#pragma endregion
 

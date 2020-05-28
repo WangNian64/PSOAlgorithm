@@ -247,7 +247,6 @@ void PSOOptimizer::UpdateParticle(int i)
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
 
-
 	for (int j = 0; j < dim_; j++)
 	{
 		if (j % 3 != 2)
@@ -305,18 +304,12 @@ void PSOOptimizer::UpdateParticle(int i)
 		
 	}
 
-	//打印所有的设备坐标
-	//cout << "第" << i << "个" << endl;
-	//for (int j = 0; j < dim_; j++)
-	//{
-	//	cout << lower_bound_[j] << "," << particles_[i].position_[j] << "," << upper_bound_[j] << endl;
-	//}
 	//计算更新后粒子的适应度值数组
 	GetFitness(particles_[i]);
 }
 
 
-// 更新Pbest
+//更新Pbest
 void PSOOptimizer::UpdatePbest()
 {
 	for (int i = 0; i < this->particle_num_; i++)
@@ -333,9 +326,7 @@ void PSOOptimizer::UpdatePbest()
 				this->particles_[i].best_position_[j] = this->particles_[i].position_[j];
 			}
 		}
-	}			
-	//cout << endl;
-
+	}
 }
 
 // 更新Gbest
@@ -484,7 +475,6 @@ void PSOOptimizer::InitialParticle(int i)
 		uniform_int_distribution<unsigned> u(0, unmakeDeviceIndexVec.size() - 1);
 		int randomVecIndex = u(e);
 		int randomDeviceIndex = unmakeDeviceIndexVec[randomVecIndex];//得到设备的index
-		cout << randomDeviceIndex << ", ";
 		int j = randomDeviceIndex * 3;
 		
 		double Xstart = lower_bound_[j];
@@ -551,17 +541,6 @@ void PSOOptimizer::InitialParticle(int i)
 
 	}
 	#pragma endregion
-	cout << endl;
-	cout << endl;
-	//然后随机位置（可能不是可行解）
-	//for (int j = 0; j < dim_; j++) {
-	//	if (j % 3 != 2)
-	//	{
-	//		particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-	//		particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
-
-	//	}
-	//}
 	//计算自身的适应度值
 	GetFitness(particles_[i]); 
 	// 初始化个体最优位置
