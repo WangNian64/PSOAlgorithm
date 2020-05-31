@@ -23,38 +23,34 @@ struct CostPara {
 };
 struct ProblemParas
 {	
-
 	int DeviceSum;					//设备总数
 	DevicePara* deviceParaList;		//设备参数列表
 
-	//车间尺寸
-	double workShopLength;
-	double workShopWidth;
-	
-	//仓库入口坐标
-	Vector2 entrancePos;		
-	//仓库出口坐标
-	Vector2 exitPos;
-	CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
+	double workShopLength;//车间长度
+	double workShopWidth;//车间宽度
 
-	double** minDistArray;			//设备最小距离数组
-	DeviceRelation** deviceRelateArray;//设备相关性数组
+	Vector2 entrancePos;//仓库入口坐标	
+	Vector2 exitPos;//仓库出口坐标
 
 	//物料参数列表
 	int CargoTypeNum;
 	CargoType* cargoTypeList;
-	
 	Graph deviceGraph;//设备连的图结构
-
+	//输送机参数
+	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
+	double conveyWidth;//输送机宽度
 	double conveySpeed;//输送机输送速度
-	double spaceLength;//给设备外层再套一层壳（距离约束）
-
 	double strConveyorUnitCost;//单位直线输送机成本
 	double curveConveyorUnitCost;//单个转弯输送机成本
+
+	//以前的参数
+	CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
+	double** minDistArray;			//设备最小距离数组
+	DeviceRelation** deviceRelateArray;//设备相关性数组
+
 	ProblemParas() {}
 	ProblemParas(int deviceSum, int cargoTypeNum)
 	{
-		conveySpeed = 1;//运输单位距离单位物料的时间
 		#pragma region 分配空间
 		DeviceSum = deviceSum;
 		CargoTypeNum = cargoTypeNum;
@@ -123,7 +119,6 @@ struct ProblemParas
 
 				deviceParaList[i].spaceLength = atof(strSplit[3].c_str());
 				//邻接点的位置
-				//格式说明：1,2,0|2,4,0（0,1,2,代表这是入口、出口，2,0是点的坐标）
 				if (strSplit[4] != "null")
 				{
 					vector<string> adjStrList = split(strSplit[4], "|");//分离出每个点
@@ -140,35 +135,25 @@ struct ProblemParas
 						if (adjPoint.inoutType == 0) {
 							adjPoint.index = InIndex++;
 							deviceParaList[i].adjPointsIn.push_back(adjPoint);
-							deviceParaList[i].usableAdjPointsIn.push_back(adjPoint);
 						} else {
 							adjPoint.index = OutIndex++;
 							deviceParaList[i].adjPointsOut.push_back(adjPoint);
-							deviceParaList[i].usableAdjPointsOut.push_back(adjPoint);
 						}
 					}
 				}
 			}
 			#pragma endregion
 
-			#pragma region 输送线到设备空隙
+			#pragma region 输送线参数
 			getline(fileIn, line);//空一行
 			getline(fileIn, line);
-			spaceLength = atof(line.c_str());
+			vector<string> conveyInfoStr = split(line, " ");
+			conveyWidth = atof(conveyInfoStr[0].c_str());
+			conveySpeed = atof(conveyInfoStr[1].c_str());
+			convey2DeviceDist = atof(conveyInfoStr[2].c_str());
+			strConveyorUnitCost = atof(conveyInfoStr[3].c_str());
+			curveConveyorUnitCost = atof(conveyInfoStr[4].c_str());
 			#pragma endregion
-
-			#pragma region 单位长度直线输送机的成本
-			getline(fileIn, line);
-			getline(fileIn, line);
-			strConveyorUnitCost = atof(line.c_str());
-			#pragma endregion
-
-			#pragma region 单个转弯输送机的成本
-			getline(fileIn, line);
-			getline(fileIn, line);
-			curveConveyorUnitCost = atof(line.c_str());
-			#pragma endregion
-
 
 			#pragma region 物料参数
 			getline(fileIn, line);//空一行
@@ -177,28 +162,41 @@ struct ProblemParas
 				getline(fileIn, line);
 				vector<string> strSplit = split(line, " ");
 				cargoTypeList[i].cargoName = "";
-				cargoTypeList[i].deviceSum = atoi(strSplit[0].c_str());
-				vector<string> deviceStrList = split(strSplit[1], "-");//遇到1-3-5-6分割
-				cargoTypeList[i].deviceList = new int[cargoTypeList[i].deviceSum];
-				for (int j = 0; j < cargoTypeList[i].deviceSum; j++)
+				cargoTypeList[i].linkSum = atoi(strSplit[0].c_str());
+				cargoTypeList[i].deviceSum = cargoTypeList[i].linkSum + 1;
+				cargoTypeList[i].deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];
+				for (int j = 0; j < cargoTypeList[i].linkSum; j++)
 				{
-					if (deviceStrList[j] == "ENTER")//说明是出口
+					vector<string> deviceLinkStr = split(strSplit[j + 1], "-");
+					//分为入口和出口
+					if (deviceLinkStr[0] == "ENTER")//说明是仓库入口
 					{
-						cargoTypeList[i].deviceList[j] = 0;//入口的特殊表示
-					}
-					else if (deviceStrList[j] == "EXIT")//说明是出口
-					{
-						cargoTypeList[i].deviceList[j] = -1;//出口的特殊表示
+						cargoTypeList[i].deviceLinkList[j].outDeviceIndex = -1;
 					}
 					else
 					{
-						cargoTypeList[i].deviceList[j] = atoi(deviceStrList[j].c_str());//普通设备
+						vector<string> devicePointStr = split(deviceLinkStr[0], ",");
+						cargoTypeList[i].deviceLinkList[j].outDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						cargoTypeList[i].deviceLinkList[j].outPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
-					cout << cargoTypeList[i].deviceList[j] << ", " << endl;
+					if (deviceLinkStr[1] == "EXIT")//说明是仓库出口
+					{
+						cargoTypeList[i].deviceLinkList[j].inDeviceIndex = -2;
+					}
+					else
+					{
+						vector<string> devicePointStr = split(deviceLinkStr[1], ",");
+						cargoTypeList[i].deviceLinkList[j].inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						cargoTypeList[i].deviceLinkList[j].inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
+					}
+					cout << cargoTypeList[i].deviceLinkList[j].outDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].outPointIndex
+						<< "," << cargoTypeList[i].deviceLinkList[j].inDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].inPointIndex
+						<< endl;
 				}
+				cargoTypeList[i].totalVolume = atof(strSplit[strSplit.size() - 1].c_str());
 				cout << endl;
-				cargoTypeList[i].totalVolume = atof(strSplit[2].c_str());
 			}
+			cout << endl;
 			#pragma endregion
 
 			#pragma region 单位距离的物流成本数组
@@ -256,23 +254,23 @@ struct ProblemParas
 			cout << "no such file" << endl;
 		}
 
-		#pragma region 构造设备图结构
-		//点集
-		for (int i = 0; i < DeviceSum; i++)
-		{
-			deviceGraph.InsertVertex(i);
-		}
-		//边
-		for (int i = 0; i < CargoTypeNum; i++)
-		{
-			for (int j = 0; j < cargoTypeList[i].deviceSum - 1; j++)
-			{
-				int firstEdge = cargoTypeList[i].deviceList[j] - 1;//设备序号-1
-				int secondEdge = cargoTypeList[i].deviceList[j + 1] - 1;
-				deviceGraph.InsertEdge(firstEdge, secondEdge);
-			}
-		}
-		deviceGraph.ShowGraph();
+		#pragma region 构造设备图结构(似乎没有什么用)
+		////点集
+		//for (int i = 0; i < DeviceSum; i++)
+		//{
+		//	deviceGraph.InsertVertex(i);
+		//}
+		////边
+		//for (int i = 0; i < CargoTypeNum; i++)
+		//{
+		//	for (int j = 0; j < cargoTypeList[i].deviceSum - 1; j++)
+		//	{
+		//		int firstEdge = cargoTypeList[i].deviceList[j] - 1;//设备序号-1
+		//		int secondEdge = cargoTypeList[i].deviceList[j + 1] - 1;
+		//		deviceGraph.InsertEdge(firstEdge, secondEdge);
+		//	}
+		//}
+		//deviceGraph.ShowGraph();
 		#pragma endregion
 	
 	}

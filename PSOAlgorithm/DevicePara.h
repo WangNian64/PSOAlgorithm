@@ -206,14 +206,10 @@ public:
 	//出入口点的数组（会影响输送线的布局）
 	vector<AdjPoint> adjPointsIn;//入口
 	vector<AdjPoint> adjPointsOut;//出口
-	vector<AdjPoint> usableAdjPointsIn;
-	vector<AdjPoint> usableAdjPointsOut;
 	DevicePara() {}
 	~DevicePara() {
 		vector<AdjPoint>().swap(adjPointsIn);
 		vector<AdjPoint>().swap(adjPointsOut);
-		vector<AdjPoint>().swap(usableAdjPointsIn);
-		vector<AdjPoint>().swap(usableAdjPointsOut);
 	}
 };
 //出入口相连的数据结构
@@ -246,13 +242,24 @@ struct InoutPoint
 		this->pointDirect = pointDirect;
 	}
 };
+struct DeviceLink
+{
+	int inDeviceIndex;
+	int outDeviceIndex;
+	int inPointIndex;
+	int outPointIndex;
+	DeviceLink() {
+		inDeviceIndex = outDeviceIndex = inPointIndex = outPointIndex = 0;
+	}
+};
 //物料信息
 struct CargoType
 {
 	string cargoName;	//物料名
-	int deviceSum;		//经过的设备总数
-	int* deviceList;	//设备队列
-	double totalVolume;	//一段时间的总物流量
+	int deviceSum;		//经过的设备数目
+	int linkSum;		//设备配对的数目
+	DeviceLink* deviceLinkList;	//设备连接列表
+	double totalVolume;	//该物料的总物流量
 };
 //一小段路径的数据结构
 struct SegPath

@@ -62,13 +62,14 @@ int main()
 		psooptimizer.UpdateGbest();//更新gbest
 
 		//存储每次迭代的Archive集合
-
 		//OutFile << to_string(i) + "\n";
 		for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 		{
+			//cout << it->fitness_[0] << ",";
 			string line = to_string(it->fitness_[0]) + "\n";
 			OutFile << line;
 		}
+		//cout << endl;
 		OutFile << "\n";
 
 		for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)

@@ -242,11 +242,11 @@ void PSOOptimizer::UpdateParticle(int i)
 			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
 		}
-
+		//cout << upper_bound_[j - 2] << ", " << upper_bound_[j - 1] << endl;
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
-
+	//cout << endl;
 	for (int j = 0; j < dim_; j++)
 	{
 		if (j % 3 != 2)
@@ -266,7 +266,7 @@ void PSOOptimizer::UpdateParticle(int i)
 				if (particles_[i].position_[j] > upper_bound_[j])
 				{
 					double thre = GetDoubleRand(99);
-					if (last_position == upper_bound_[j])
+					if (last_position >= upper_bound_[j])
 					{
 						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
 					}
@@ -282,7 +282,7 @@ void PSOOptimizer::UpdateParticle(int i)
 				if (particles_[i].position_[j] < lower_bound_[j])
 				{
 					double thre = GetDoubleRand(99);
-					if (last_position == lower_bound_[j])
+					if (last_position <= lower_bound_[j])
 					{
 						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
 					}
@@ -293,10 +293,6 @@ void PSOOptimizer::UpdateParticle(int i)
 					else
 					{
 						particles_[i].position_[j] = lower_bound_[j];
-					}
-					if (particles_[i].position_[j] < lower_bound_[j])
-					{
-						cout << endl;
 					}
 				}
 			}
@@ -455,10 +451,11 @@ void PSOOptimizer::InitialParticle(int i)
 			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
 		}
-
+		//cout << upper_bound_[j - 2] << "," << upper_bound_[j - 1] << endl;
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
+	//cout << endl;
 	//考虑非重叠约束，这里分块产生随机点(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
 	//新的随机：随机设备的摆放顺序
 	vector<int> unmakeDeviceIndexVec;
@@ -489,8 +486,8 @@ void PSOOptimizer::InitialParticle(int i)
 			while (Xstart <= upper_bound_[j] - 1 && findParticle == false) {
 				tempPositionX = GetDoubleRand() * 1.0 + Xstart;//得到Xstart到Xstart+1之间的一个随机数
 				tempPositionY = GetDoubleRand() * 1.0 + Ystart;//得到Ystart到Ystart+1之间的一个随机数
-				double halfX = problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-				double halfY = problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+				double halfX = deviceSizeCopy[j / 3].x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+				double halfY = deviceSizeCopy[j / 3].y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
 				double tempLowX = tempPositionX - halfX;
 				double tempUpX = tempPositionX + halfX;
 				double tempLowY = tempPositionY - halfY;
@@ -503,8 +500,8 @@ void PSOOptimizer::InitialParticle(int i)
 					int curDeviceIndex = madeDeviceIndexVec[k];
 					int curDimIndex = curDeviceIndex * 3;
 
-					double halfX1 = problemParas.deviceParaList[curDeviceIndex].size.x * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
-					double halfY1 = problemParas.deviceParaList[curDeviceIndex].size.y * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
+					double halfX1 = deviceSizeCopy[curDeviceIndex].x * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
+					double halfY1 = deviceSizeCopy[curDeviceIndex].y * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
 
 					double curLowX = particles_[i].position_[curDimIndex] - halfX1;
 					double curUpX = particles_[i].position_[curDimIndex] + halfX1;
