@@ -16,7 +16,7 @@ int main()
 
 	int dim = deviceNum * 3;							// 总维度=设备数*3(x,y,朝向)
 	PSOPara psopara(dim);								// dim是变量维度
-	psopara.mesh_div_count = 2;							// 网格划分数目
+	psopara.mesh_div_count = 4;							// 网格划分数目
 	psopara.problemParas = proParas;					// 布局问题的参数
 	psopara.particle_num_ = 100;						// 粒子个数
 	psopara.max_iter_num_ = 200;						// 最大迭代次数
@@ -63,6 +63,7 @@ int main()
 
 		//存储每次迭代的Archive集合
 		//OutFile << to_string(i) + "\n";
+		cout << psooptimizer.archive_list.size() << endl;
 		for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 		{
 			//cout << it->fitness_[0] << ",";

@@ -39,10 +39,12 @@ struct ProblemParas
 	//输送机参数
 	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;//输送机宽度
+	double conveyMinLength;//输送机最短长度
 	double conveySpeed;//输送机输送速度
 	double strConveyorUnitCost;//单位直线输送机成本
 	double curveConveyorUnitCost;//单个转弯输送机成本
 
+	double conveyMinDist;//输送线两个点之间的最短距离
 	//以前的参数
 	CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
 	double** minDistArray;			//设备最小距离数组
@@ -150,9 +152,11 @@ struct ProblemParas
 			vector<string> conveyInfoStr = split(line, " ");
 			conveyWidth = atof(conveyInfoStr[0].c_str());
 			conveySpeed = atof(conveyInfoStr[1].c_str());
-			convey2DeviceDist = atof(conveyInfoStr[2].c_str());
-			strConveyorUnitCost = atof(conveyInfoStr[3].c_str());
-			curveConveyorUnitCost = atof(conveyInfoStr[4].c_str());
+			conveyMinLength = atof(conveyInfoStr[2].c_str());
+			convey2DeviceDist = atof(conveyInfoStr[3].c_str());
+			strConveyorUnitCost = atof(conveyInfoStr[4].c_str());
+			curveConveyorUnitCost = atof(conveyInfoStr[5].c_str());
+			conveyMinDist = conveyMinLength + conveyWidth;
 			#pragma endregion
 
 			#pragma region 物料参数

@@ -151,7 +151,7 @@ int PSOOptimizer::GetIntRand(int N)
 }
 void PSOOptimizer::GetFitness(Particle& particle)
 {
-	return fitness_fun_(curr_iter_, particle, problemParas, lower_bound_, upper_bound_);
+	fitness_fun_(curr_iter_, max_iter_num_, particle, problemParas, lower_bound_, upper_bound_);
 }
 
 void PSOOptimizer::UpdateAllParticles()

@@ -184,7 +184,7 @@ struct Particle
 	}
 };
 
-typedef void (*ComputeFitness)(int curIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
+typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
 
 class PSOOptimizer
 {
