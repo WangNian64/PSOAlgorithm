@@ -7,11 +7,6 @@
 #include <cmath>
 #include <set>
 #include <map>
-#define PI 3.14159265358979
-#define DOUBLE_MAX 1.7976931348623158e+308
-#define DOUBLE_MIN 2.2250738585072014e-308
-
-#define MAX_FITNESS 10000000.0
 //Up = 1, Right = 2, Down = 3, Left = 4
 //一共10种情况：上下，左右，下下，上上，左左，右右，
 //上左，上右，下左，下右
@@ -29,9 +24,17 @@ bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x <= outPos.x;
 }
+bool IsInRight2Out(Vector2 inPos, Vector2 outPos)
+{
+	return inPos.x >= outPos.x;
+}
 bool IsInUp2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.y >= outPos.y;
+}
+bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
+{
+	return inPos.y <= outPos.y;
 }
 
 void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
@@ -49,7 +52,9 @@ Vector2Int Multi10000ToInt(Vector2 v);
 //默认的适应度计算函数，可以替换
 void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds)
 {
-	bool IsWorkable = true;//解是否可行
+	double punishValue1 = 0;
+	double punishValue2 = 0;
+	bool IsDeviceOverlap = true;//是否重叠
 	double deviceDist = 0;
 	particle.fitness_[0] = particle.fitness_[1] = 0;
 
@@ -99,6 +104,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 	#pragma endregion
 
 	#pragma region 检查设备是否重叠
+	//如果重叠，进行调整
 	double outSizeLength, outSizeWidth;
 	for (int i = 0; i < particle.dim_; i += 3) {
 		outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
@@ -116,17 +122,23 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 			double secondUpY = particle.position_[j + 1] + outSizeWidth;
 			if (IsRangeOverlap(firstLowX, firstUpX, secondLowX, secondUpX) && IsRangeOverlap(firstLowY, firstUpY, secondLowY, secondUpY)) {
 				particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-				IsWorkable = false;
-				//cout << "重叠" << endl;
+				IsDeviceOverlap = true;
+				cout << curIterNum << ":" << "重叠" << endl;
 				return;
 			}
 		}
 	}
 	#pragma endregion
 
-	#pragma region 当前布局是可行解，进行布线
+	#pragma region 如果设备重叠，调整设备位置，否则直接布线
+	if (IsDeviceOverlap == true) {
+		//那个论文里用的是定义一个弹性势能表示重叠程度的大小，重叠越多这个值越大
+		//先找到重叠势能最大的设备，然后进行调整
+		//这个过程感觉不简单啊
+	}
+	//在检测一次设备位置，看是否重叠
 
-	if (IsWorkable == true)
+	if (IsDeviceOverlap == false)
 	{
 		#pragma region 对齐方案1：对齐设备中心点x和y
 		////if (curIterNum == 199)
@@ -167,7 +179,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 
 		#pragma region 对齐方案2：检测设备出入口点坐标并进行对齐操作
 		//遍历所有cargoTypeList
-		//if 有一个是出口为i设备，且不是最后一个，那么就可以拿出这一对出入口点
 		for (int j = 0; j < proParas.CargoTypeNum; j++)
 		{
 			for (int k = 0; k < proParas.cargoTypeList[j].linkSum; k++)
@@ -296,44 +307,59 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					outPoint = copyDeviceParas[outDeviceIndex].adjPointsOut[outPointIndex];
 					inPoint = copyDeviceParas[inDeviceIndex].adjPointsIn[inPointIndex];
 					//考虑点的朝向
-					outPointDirect = outPoint.direct;
+					outPointDirect = outPoint.direct; 
 					inPointDirect = inPoint.direct;
 					//出入口的真实坐标
 					Vector2 outPointTPos(outPoint.pos.x + particle.position_[outDeviceIndex * 3],
 						outPoint.pos.y + particle.position_[outDeviceIndex * 3 + 1]);
 					Vector2 inPointTPos(inPoint.pos.x + particle.position_[inDeviceIndex * 3],
 						inPoint.pos.y + particle.position_[inDeviceIndex * 3 + 1]);
-					//出入口设备四个方向的边界
-					Vector2 outUpPos(particle.position_[outDeviceIndex * 3], particle.position_[outDeviceIndex * 3 + 1] + 0.5 * copyDeviceParas[outDeviceIndex].size.y + proParas.convey2DeviceDist);
-					Vector2 outDownPos(particle.position_[outDeviceIndex * 3], particle.position_[outDeviceIndex * 3 + 1] - 0.5 * copyDeviceParas[outDeviceIndex].size.y - proParas.convey2DeviceDist);
-					Vector2 outLeftPos(particle.position_[outDeviceIndex * 3] - 0.5 * copyDeviceParas[outDeviceIndex].size.x - proParas.convey2DeviceDist, particle.position_[outDeviceIndex * 3 + 1]);
-					Vector2 outRightPos(particle.position_[outDeviceIndex * 3] + 0.5 * copyDeviceParas[outDeviceIndex].size.x + proParas.convey2DeviceDist, particle.position_[outDeviceIndex * 3 + 1]);
+					//出入口设备四个方向不考虑外层的边界
+					Vector2 outDeviceUpPos(particle.position_[outDeviceIndex * 3], particle.position_[outDeviceIndex * 3 + 1] + 0.5 * copyDeviceParas[outDeviceIndex].size.y);
+					Vector2 outDeviceDownPos(particle.position_[outDeviceIndex * 3], particle.position_[outDeviceIndex * 3 + 1] - 0.5 * copyDeviceParas[outDeviceIndex].size.y);
+					Vector2 outDeviceLeftPos(particle.position_[outDeviceIndex * 3] - 0.5 * copyDeviceParas[outDeviceIndex].size.x, particle.position_[outDeviceIndex * 3 + 1]);
+					Vector2 outDeviceRightPos(particle.position_[outDeviceIndex * 3] + 0.5 * copyDeviceParas[outDeviceIndex].size.x, particle.position_[outDeviceIndex * 3 + 1]);
 
-					Vector2 inUpPos(particle.position_[inDeviceIndex * 3], particle.position_[inDeviceIndex * 3 + 1] + 0.5 * copyDeviceParas[inDeviceIndex].size.y + proParas.convey2DeviceDist);
-					Vector2 inDownPos(particle.position_[inDeviceIndex * 3], particle.position_[inDeviceIndex * 3 + 1] - 0.5 * copyDeviceParas[inDeviceIndex].size.y - proParas.convey2DeviceDist);
-					Vector2 inLeftPos(particle.position_[inDeviceIndex * 3] - 0.5 * copyDeviceParas[inDeviceIndex].size.x - proParas.convey2DeviceDist, particle.position_[inDeviceIndex * 3 + 1]);
-					Vector2 inRightPos(particle.position_[inDeviceIndex * 3] + 0.5 * copyDeviceParas[inDeviceIndex].size.x + proParas.convey2DeviceDist, particle.position_[inDeviceIndex * 3 + 1]);
+					Vector2 inDeviceUpPos(particle.position_[inDeviceIndex * 3], particle.position_[inDeviceIndex * 3 + 1] + 0.5 * copyDeviceParas[inDeviceIndex].size.y);
+					Vector2 inDeviceDownPos(particle.position_[inDeviceIndex * 3], particle.position_[inDeviceIndex * 3 + 1] - 0.5 * copyDeviceParas[inDeviceIndex].size.y);
+					Vector2 inDeviceLeftPos(particle.position_[inDeviceIndex * 3] - 0.5 * copyDeviceParas[inDeviceIndex].size.x, particle.position_[inDeviceIndex * 3 + 1]);
+					Vector2 inDeviceRightPos(particle.position_[inDeviceIndex * 3] + 0.5 * copyDeviceParas[inDeviceIndex].size.x, particle.position_[inDeviceIndex * 3 + 1]);
+
+
+					//出入口设备四个方向的边界
+					Vector2 outUpPos(outDeviceUpPos.x, outDeviceUpPos.y + proParas.convey2DeviceDist);
+					Vector2 outDownPos(outDeviceDownPos.x, outDeviceDownPos.y - proParas.convey2DeviceDist);
+					Vector2 outLeftPos(outDeviceLeftPos.x - proParas.convey2DeviceDist, outDeviceLeftPos.y);
+					Vector2 outRightPos(outDeviceRightPos.x + proParas.convey2DeviceDist, outDeviceRightPos.y);
+
+					Vector2 inUpPos(inDeviceUpPos.x, inDeviceUpPos.y + proParas.convey2DeviceDist);
+					Vector2 inDownPos(inDeviceDownPos.x, inDeviceDownPos.y - proParas.convey2DeviceDist);
+					Vector2 inLeftPos(inDeviceLeftPos.x - proParas.convey2DeviceDist, inDeviceLeftPos.x);
+					Vector2 inRightPos(outDeviceRightPos.x + proParas.convey2DeviceDist, outDeviceRightPos.y);
+
 
 					//要用到的各种比较值
 					double inR2outXDist, out2inLXDist, in2outLXDist, outR2inXDist;
-					double outU2InDYDist, inR2outLXDist, outR2inLXDist;
-					double outUp2inDYDist, outL2inLXDist, inU2outUYDist, outU2inYDist;
+					double outU2inDYDist, inR2outLXDist, outR2inLXDist;
+					double outL2inLXDist, inU2outUYDist, inU2outDYDist, outU2inYDist;
+					double out2inDYDist, inU2outYDist, in2outDYDist;
 					//先判断两者的方位
 					//加一个判断二者方位的操作
 					Vector2 inDevicePos(particle.position_[inDeviceIndex * 3], particle.position_[inDeviceIndex * 3 + 1]);
 					Vector2 outDevicePos(particle.position_[outDeviceIndex * 3], particle.position_[outDeviceIndex * 3 + 1]);
-					bool inLeft2OutBool = IsInLeft2Out(inDevicePos, outDevicePos);
-					bool inUp2OutBool = IsInUp2Out(inDevicePos, outDevicePos);
+					bool inLeft2OutBool, inRight2OutBool, inUp2OutBool, inDown2OutBool;
 
-					//一共10种情况：上下，左右，下下，上上，左左，右右，上左，上右，下左，下右
-					//in和out应该是可以互换的
+					int OutPosIndex_X, OutPosIndex_Y, InPosIndex_X, InPosIndex_Y;
+					OutPosIndex_X = outDeviceIndex * 3; OutPosIndex_Y = outDeviceIndex * 3 + 1;
+					InPosIndex_X = inDeviceIndex * 3; InPosIndex_Y = inDeviceIndex * 3 + 1;
+					double moveLength = 0.0;
 					//用表驱动法，一共16种
 					//Up = 1, Right = 2, Down = 3, Left = 4
 					//      	   //上 右 下 左
 					//  /*上*/{-1, 1, 2, 3, 4},
-					//	/*右*/{ -1, 5, 6, 7, 8 },
-					//	/*下*/{ -1, 9, 10, 11, 12 },
-					//	/*左*/{ -1, 13, 14, 15, 16 },
+					//	/*右*/{-1, 5, 6, 7, 8},
+					//	/*下*/{-1, 9, 10, 11, 12},
+					//	/*左*/{-1, 13, 14, 15, 16},
 					switch (pointDirectArray[outPointDirect][inPointDirect])
 					{
 					case 1://上上
@@ -341,47 +367,51 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 						//1.两者在y上过于接近,让两者在y上对齐
 						if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < proParas.conveyMinDist)
 						{
-							double moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
-							particle.position_[outDeviceIndex * 3] -= moveLength;
-							particle.position_[inDeviceIndex * 3] += moveLength;
+							moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
+							particle.position_[OutPosIndex_Y] -= moveLength;
+							particle.position_[InPosIndex_Y] += moveLength;
+							break;
 						}
-						else
+						//2.入口设备在出口设备左/右上角
+						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
+						if (inUp2OutBool)
 						{
-							//2.入口设备在出口设备左/右上角(分开计算）
-							if (inUp2OutBool)
+							inR2outXDist = inRightPos.x - outPointTPos.x;
+							if (inR2outXDist > 0 && inR2outXDist < proParas.conveyMinDist)
 							{
-								inR2outXDist = inRightPos.x - outPointTPos.x;
-								if (inR2outXDist > 0 && inR2outXDist < proParas.conveyMinDist)
-								{
-									double moveLength = inR2outXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] += moveLength;
-									particle.position_[inDeviceIndex * 3] -= moveLength;
-								}
-								out2inLXDist = outPointTPos.x - inLeftPos.x;
-								if (out2inLXDist > 0 && out2inLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = out2inLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
+								moveLength = inR2outXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
 							}
-							else
+							out2inLXDist = outPointTPos.x - inLeftPos.x;
+							if (out2inLXDist > 0 && out2inLXDist < proParas.conveyMinDist)
 							{
-								//3.入口设备在出口设备下方(分为左右)对称的
-								in2outLXDist = inPointTPos.x - outLeftPos.x;
-								if (in2outLXDist > 0 && in2outLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = in2outLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] += moveLength;
-									particle.position_[inDeviceIndex * 3] -= moveLength;
-								}
-								outR2inXDist = outRightPos.x - inPointTPos.x;
-								if (outR2inXDist > 0 && outR2inXDist < proParas.conveyMinDist)
-								{
-									double moveLength = outR2inXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
+								moveLength = out2inLXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						//3.入口设备在出口设备左/右下角
+						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
+						if (inDown2OutBool)
+						{
+							in2outLXDist = inPointTPos.x - outLeftPos.x;
+							if (in2outLXDist > 0 && in2outLXDist < proParas.conveyMinDist)
+							{
+								moveLength = in2outLXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+							outR2inXDist = outRightPos.x - inPointTPos.x;
+							if (outR2inXDist > 0 && outR2inXDist < proParas.conveyMinDist)
+							{
+								moveLength = outR2inXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
 							}
 						}
 						break;
@@ -389,117 +419,388 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					case 11://下下
 					{
 						//1.两者在y上过于接近,让两者在y上对齐
-
-					}
-					case 3://上下
-					{
-						//1.两者在x上过于接近,让两者在x上对齐
-						if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < proParas.conveyMinDist)
+						if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < proParas.conveyMinDist)//这个待定
 						{
-							double moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
-							particle.position_[outDeviceIndex * 3] -= moveLength;
-							particle.position_[inDeviceIndex * 3] += moveLength;
+							moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
+							particle.position_[OutPosIndex_Y] -= moveLength;
+							particle.position_[InPosIndex_Y] += moveLength;
+							break;
 						}
-						else
+						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
+						//2.入口设备在出口设备左/右上角
+						if (inUp2OutBool)
 						{
-							//2.入口设备在出口设备左/右上角 或者反过来
-							if (inUp2OutBool)
+							in2outLXDist = inPointTPos.x - outLeftPos.x;
+							if (in2outLXDist > 0 && in2outLXDist < proParas.conveyMinDist)
 							{
-								outU2InDYDist = outUpPos.y - inDownPos.y;
-								if (outU2InDYDist > 0 && outU2InDYDist < proParas.conveyMinDist)
-								{
-									double moveLength = outU2InDYDist * 0.5;
-									particle.position_[outDeviceIndex * 3 + 1] -= moveLength;
-									particle.position_[inDeviceIndex * 3 + 1] += moveLength;
-								}
+								moveLength = in2outLXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
 							}
-							else
+							outR2inXDist = outRightPos.x - inPointTPos.x;
+							if (outR2inXDist > 0 && outR2inXDist < proParas.conveyMinDist)
 							{
-								//3.入口设备在出口设备下面/分为左右
-								inR2outLXDist = inRightPos.x - outLeftPos.x;
-								if (inR2outLXDist > 0 && inR2outLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = inR2outLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] += moveLength;
-									particle.position_[inDeviceIndex * 3] -= moveLength;
-								}
-								outR2inLXDist = outRightPos.x - inLeftPos.x;
-								if (outR2inLXDist > 0 && outR2inLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = outR2inLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
+								moveLength = outR2inXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						//3.入口设备在出口设备左/右下角
+						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
+						if (inDown2OutBool)
+						{
+							inR2outXDist = inRightPos.x - outPointTPos.x;
+							if (inR2outXDist > 0 && inR2outXDist < proParas.conveyMinDist)
+							{
+								moveLength = inR2outXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+							out2inLXDist = outPointTPos.x - inLeftPos.x;
+							if (out2inLXDist > 0 && out2inLXDist < proParas.conveyMinDist)
+							{
+								moveLength = out2inLXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
 							}
 						}
 						break;
 					}
-					case 4://上左
+					case 16://左左
 					{
+						//1.两者在x上过于接近,让两者在x上对齐
+						if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < proParas.conveyMinDist)
+						{
+							moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
+							particle.position_[OutPosIndex_X] -= moveLength;
+							particle.position_[InPosIndex_X] += moveLength;
+							break;
+						}
+						//2.in在out左边
+						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
 						if (inLeft2OutBool)
 						{
-							if (inUp2OutBool)
+							//in在out左上
+							out2inDYDist = outPointTPos.y - inDownPos.y;
+							if (out2inDYDist > 0 && out2inDYDist < proParas.conveyMinDist)
 							{
-								//1.in在out左上
-								outUp2inDYDist = outUpPos.y - inDownPos.y;
-								if (outUp2inDYDist > 0 && outUp2inDYDist < proParas.conveyMinDist)
-								{
-									double moveLength = outUp2inDYDist * 0.5;
-									particle.position_[outDeviceIndex * 3 + 1] -= moveLength;
-									particle.position_[inDeviceIndex * 3 + 1] += moveLength;
-								}
+								moveLength = out2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
 							}
-							else
+							//in在out左下
+							inU2outYDist = inUpPos.y - outPointTPos.y;
+							if (inU2outYDist > 0 && inU2outYDist < proParas.conveyMinDist)
 							{
-								//5.in在out下左
-								outL2inLXDist = outLeftPos.x - inLeftPos.x;
-								if (outL2inLXDist > 0 && outL2inLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = outL2inLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
-							}
-							//3.in在Out左边
-							double inU2outUYDist = inUpPos.y - outUpPos.y;
-							if (inU2outUYDist > 0 && inU2outUYDist < proParas.conveyMinDist)
-							{
-								double moveLength = inU2outUYDist * 0.5;
-								particle.position_[outDeviceIndex * 3 + 1] += moveLength;
-								particle.position_[inDeviceIndex * 3 + 1] -= moveLength;
+								moveLength = inU2outYDist * 0.5;
+								particle.position_[OutPosIndex_Y] += moveLength;
+								particle.position_[InPosIndex_Y] -= moveLength;
+								break;
 							}
 						}
-						else
+						//3.in在out右边
+						inRight2OutBool = IsInRight2Out(inLeftPos, outRightPos);
+						if (inRight2OutBool)
 						{
-							if (inUp2OutBool)
-							{
-								//2.in在out右上
-								out2inLXDist = outPointTPos.x - inLeftPos.x;
-								if (out2inLXDist > 0 && out2inLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = out2inLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
-							}
-							else
-							{
-								//6.in在out下右
-								outR2inLXDist = outRightPos.x - inLeftPos.x;
-								if (outR2inLXDist > 0 && outR2inLXDist < proParas.conveyMinDist)
-								{
-									double moveLength = outR2inLXDist * 0.5;
-									particle.position_[outDeviceIndex * 3] -= moveLength;
-									particle.position_[inDeviceIndex * 3] += moveLength;
-								}
-							}
-							//4.in在out右边
+							//in在out右上
 							outU2inYDist = outUpPos.y - inPointTPos.y;
 							if (outU2inYDist > 0 && outU2inYDist < proParas.conveyMinDist)
 							{
-								double moveLength = outU2inYDist * 0.5;
-								particle.position_[outDeviceIndex * 3 + 1] -= moveLength;
-								particle.position_[inDeviceIndex * 3 + 1] += moveLength;
+								moveLength = outU2inYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+							//in在out右下
+							in2outDYDist = inPointTPos.y - outDownPos.y;
+							if (in2outDYDist > 0 && in2outDYDist < proParas.conveyMinDist)
+							{
+								moveLength = in2outDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] += moveLength;
+								particle.position_[InPosIndex_Y] -= moveLength;
+								break;
+							}
+						}
+						break;
+					}
+					case 6://右右
+					{
+						//1.两者在x上过于接近,让两者在x上对齐
+						if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < proParas.conveyMinDist)
+						{
+							moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
+							particle.position_[OutPosIndex_X] -= moveLength;
+							particle.position_[InPosIndex_X] += moveLength;
+							break;
+						}
+						//2.in在out右边
+						inRight2OutBool = IsInRight2Out(inLeftPos, outRightPos);
+						if (inRight2OutBool)
+						{
+							//in在out右上
+							out2inDYDist = outPointTPos.y - inDownPos.y;
+							if (out2inDYDist > 0 && out2inDYDist < proParas.conveyMinDist)
+							{
+								moveLength = out2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+							//in在out右下
+							inU2outYDist = inUpPos.y - outPointTPos.y;
+							if (inU2outYDist > 0 && inU2outYDist < proParas.conveyMinDist)
+							{
+								moveLength = inU2outYDist * 0.5;
+								particle.position_[OutPosIndex_Y] += moveLength;
+								particle.position_[InPosIndex_Y] -= moveLength;
+								break;
+							}
+						}
+						//3.in在out左边
+						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
+						if (inLeft2OutBool)
+						{
+							//in在out左上
+							outU2inYDist = outUpPos.y - inPointTPos.y;
+							if (outU2inYDist > 0 && outU2inYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+							//in在out左下
+							in2outDYDist = inPointTPos.y - outDownPos.y;
+							if (in2outDYDist > 0 && in2outDYDist < proParas.conveyMinDist)
+							{
+								moveLength = in2outDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] += moveLength;
+								particle.position_[InPosIndex_Y] -= moveLength;
+								break;
+							}
+						}
+						break;
+					}
+					case 3://上下
+					{
+						//1.in在out上方，且在x上很接近
+						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
+						if (inUp2OutBool)
+						{
+							if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < proParas.conveyMinDist)
+							{
+								moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						//2.入口设备在出口设备左/右上角
+						inUp2OutBool = IsInUp2Out(inDeviceDownPos, outDeviceUpPos);
+						if (inUp2OutBool)//左右可以用一种方式计算
+						{
+							outU2inDYDist = outUpPos.y - inDownPos.y;
+							if (outU2inDYDist > 0 && outU2inDYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						//入口设备在出口设备下面
+						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
+						if (inDown2OutBool) 
+						{
+							//3.入口设备在出口设备下面/分为左右
+							inR2outLXDist = inRightPos.x - outLeftPos.x;
+							if (inR2outLXDist > 0 && inR2outLXDist < proParas.conveyMinDist)
+							{
+								moveLength = inR2outLXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+							outR2inLXDist = outRightPos.x - inLeftPos.x;
+							if (outR2inLXDist > 0 && outR2inLXDist < proParas.conveyMinDist)
+							{
+								moveLength = outR2inLXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						break;
+					}
+					case 14://左右
+					{
+						//1.in在out左边，且在y上很接近
+						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
+						if (inLeft2OutBool)
+						{
+							if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < proParas.conveyMinDist)
+							{
+								moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						//2.in在out左边
+						inLeft2OutBool = IsInLeft2Out(inDeviceRightPos, outDeviceLeftPos);
+						if (inLeft2OutBool)
+						{
+							inR2outLXDist = inRightPos.x - outLeftPos.x;
+							if (inR2outLXDist > 0 && inR2outLXDist < proParas.conveyMinDist)
+							{
+								moveLength = inR2outLXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+						}
+						//3.in在out右边，分为右上和右下
+						inRight2OutBool = IsInRight2Out(inLeftPos, outRightPos);
+						if (inRight2OutBool)
+						{
+							//in在out右下
+							inU2outDYDist = inUpPos.y - outDownPos.y;
+							if (inU2outDYDist > 0 && inU2outDYDist < proParas.conveyMinDist)
+							{
+								moveLength = inU2outDYDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+							//in在out右上
+							outU2inDYDist = outUpPos.y - inDownPos.y;
+							if (outU2inDYDist > 0 && outU2inDYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						break;
+					}
+					case 4://上左(先不考虑可能的情况)
+					{
+						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
+						if (inLeft2OutBool)
+						{
+							//1.in在out左上
+							outU2inDYDist = outUpPos.y - inDownPos.y;
+							if (outU2inDYDist > 0 && outU2inDYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}	
+						}
+						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
+						if (inUp2OutBool)
+						{
+							//2.in在out右上
+							out2inLXDist = outPointTPos.x - inLeftPos.x;
+							if (out2inLXDist > 0 && out2inLXDist < proParas.conveyMinDist)
+							{
+								moveLength = out2inLXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						inRight2OutBool = IsInRight2Out(inLeftPos, outRightPos);
+						if (inRight2OutBool)
+						{
+							//3.in在out右上一点
+							outU2inYDist = outUpPos.y - inPointTPos.y;
+							if (outU2inYDist > 0 && outU2inYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
+						if (inDown2OutBool)
+						{
+							//4.in在out右下角
+							outR2inLXDist = outRightPos.x - inLeftPos.x;
+							if (outR2inLXDist > 0 && outR2inLXDist < proParas.conveyMinDist)
+							{
+								moveLength = outR2inLXDist * 0.5;
+								particle.position_[OutPosIndex_X] -= moveLength;
+								particle.position_[InPosIndex_X] += moveLength;
+								break;
+							}
+						}
+						break;
+					}
+					case 2://上右
+					{
+						//in在out上
+						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
+						if (inUp2OutBool)
+						{
+							//1.in在out左上
+							inR2outXDist = inRightPos.x - outPointTPos.x;
+							if (inR2outXDist > 0 && inR2outXDist < proParas.conveyMinDist)
+							{
+								moveLength = inR2outXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
+							}
+						}
+						//in在out右
+						inRight2OutBool = IsInRight2Out(inLeftPos, outRightPos);//这个计算也可以优化，提前算好
+						if (inRight2OutBool)
+						{
+							//2.in在out右上
+							outU2inDYDist = outUpPos.y - inDownPos.y;
+							if (outU2inDYDist > 0 && outU2inDYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inDYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						//in在out左
+						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
+						if (inLeft2OutBool)
+						{
+							//3.in在out左上
+							outU2inYDist = outUpPos.y - inPointTPos.y;
+							if (outU2inYDist > 0 && outU2inYDist < proParas.conveyMinDist)
+							{
+								moveLength = outU2inYDist * 0.5;
+								particle.position_[OutPosIndex_Y] -= moveLength;
+								particle.position_[InPosIndex_Y] += moveLength;
+								break;
+							}
+						}
+						//in在out下
+						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
+						if (inDown2OutBool)
+						{
+							//3.in在out左下
+							inR2outLXDist = inRightPos.x - outLeftPos.x;
+							if (inR2outLXDist > 0 && inR2outLXDist < proParas.conveyMinDist)
+							{
+								moveLength = inR2outLXDist * 0.5;
+								particle.position_[OutPosIndex_X] += moveLength;
+								particle.position_[InPosIndex_X] -= moveLength;
+								break;
 							}
 						}
 						break;
@@ -645,14 +946,12 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		#pragma endregion
 
 		#pragma region 寻路
-
 		auto star = new CAstar();
 		star->_allPoints = pathPointMap;
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
 		double totalTime = 0.0;
-		vector<PointLink>().swap(particle.pointLinks);
-
+		//vector<PointLink>().swap(particle.pointLinks);
 
 		vector<PointLink> copyPLinks;
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
@@ -821,53 +1120,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 				beginColIndex = FindAxisIndex(device1PosX, horizonAxisList);
 				endRowIndex = FindAxisIndex(device2PosY, verticalAxisList);
 				endColIndex = FindAxisIndex(device2PosX, horizonAxisList);
-				//实际的index需要进一步计算
-				/*if (forwardDeviceIndex != -1)
-				{
-					根据出口点的方向，让初始点的index偏移一个单位
-					switch (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct)
-					{
-					case PointDirect::Up:
-						if (beginRowIndex < verticalAxisList.size() - 1)
-							beginRowIndex++;
-						break;
-					case PointDirect::Down:
-						if (beginRowIndex > 0)
-							beginRowIndex--;
-						break;
-					case PointDirect::Left:
-						if (beginColIndex > 0)
-							beginColIndex--;
-						break;
-					case PointDirect::Right:
-						if (beginColIndex < horizonAxisList.size() - 1)
-							beginColIndex++;
-						break;
-					}
-				}
-				if (curDeviceIndex != -2)
-				{
-					根据入口点的方向，让初始点的index偏移一个单位
-					switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
-					{
-					case PointDirect::Up:
-						if (endRowIndex < verticalAxisList.size() - 1)
-							endRowIndex++;
-						break;
-					case PointDirect::Down:
-						if (endRowIndex > 0)
-							endRowIndex--;
-						break;
-					case PointDirect::Left:
-						if (endColIndex > 0)
-							endColIndex--;
-						break;
-					case PointDirect::Right:
-						if (endColIndex < horizonAxisList.size() - 1)
-							endColIndex++;
-						break;
-					}
-				}*/
+
 				//得到路径，path是第一个节点
 				APoint* path = star->findWay(pathBeginDirect, beginRowIndex, beginColIndex, endRowIndex, endColIndex);
 				//不可行的解，直接退出
@@ -901,55 +1154,65 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 
 
 				//保存路径（只保存每段的起始点）
-				vector<Vector2> points;
-				Vector2 endP(initDevice2PosX, initDevice2PosY);//从终点开始计算
-				points.push_back(endP);
+				//if (curIterNum != 0) 
+				//vector<Vector2> points;
+				//Vector2 endP(initDevice2PosX, initDevice2PosY);//从终点开始计算
+				//points.push_back(endP);
 
-				PathDirection pathCurDirect = pathEndDirect;//因为这个路径是反向的
+				//PathDirection pathCurDirect = pathEndDirect;//因为这个路径是反向的
 
-				Vector2 lastP(path->x, path->y);//从最后一个点开始
-				points.push_back(lastP);
-				path = path->parent;
-				while (path)
-				{
-					Vector2 curP(path->x, path->y);
-					//只有转弯的点才会被加入路径
-					if (pathCurDirect == PathDirection::Horizon && curP.x == lastP.x)
-					{
-						//if ((lastP.x != points.back().x || lastP.y != points.back().y)
-						//	&& CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist)
-						//{
-						//	particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-						//	return;
-						//}
-						points.push_back(lastP);
-						pathCurDirect = PathDirection::Vertical;
-					}
-					else if (pathCurDirect == PathDirection::Vertical && curP.y == lastP.y)
-					{
-						//if ((lastP.x != points.back().x || lastP.y != points.back().y)
-						//	&& CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist)
-						//{
-						//	particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-						//	return;
-						//}
-						points.push_back(lastP);
-						pathCurDirect = PathDirection::Horizon;
-					}
-					path = path->parent;
-					lastP = curP;
-				}
-				if (CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist) 
-				{
-					particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-					return;
-				}
-				points.push_back(lastP);
-				Vector2 startP(initDevice1PosX, initDevice1PosY);
-				points.push_back(startP);
+				//Vector2 lastP(path->x, path->y);//从最后一个点开始
+				//points.push_back(lastP);
+				//path = path->parent;
+				//while (path)
+				//{
+				//	Vector2 curP(path->x, path->y);
+				//	//只有转弯的点才会被加入路径
+				//	if (pathCurDirect == PathDirection::Horizon && curP.x == lastP.x)
+				//	{
+				//		//if (curIterNum != 0)
+				//			//if ((lastP.x != points.back().x || lastP.y != points.back().y)
+				//			//	&& CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist)
+				//			//{
+				//			//	//punishValue1 = 200 * (curIterNum + 1);
+				//			//	//punishValue2 = 40 * (curIterNum + 1);
+				//			//	particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+				//			//	return;
+				//			//}
+				//		points.push_back(lastP);
+				//		pathCurDirect = PathDirection::Vertical;
+				//	}
+				//	else if (pathCurDirect == PathDirection::Vertical && curP.y == lastP.y)
+				//	{
+				//		//if (curIterNum != 0) {
+				//			//if ((lastP.x != points.back().x || lastP.y != points.back().y)
+				//			//	&& CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist)
+				//			//{
+				//			//	//punishValue1 = 200 * (curIterNum + 1);
+				//			//	//punishValue2 = 40 * (curIterNum + 1);
+				//			//	particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+				//			//	return;
+				//			//}
+				//		points.push_back(lastP);
+				//		pathCurDirect = PathDirection::Horizon;
+				//	}
+				//	path = path->parent;
+				//	lastP = curP;
+				//}
+				////if (curIterNum != 0)
+				//	//if (CalcuDeviceDist(lastP, points.back()) < proParas.conveyMinDist)
+				//	//{
+				//	//	//punishValue1 = 200 * (curIterNum + 1);
+				//	//	//punishValue2 = 40 * (curIterNum + 1);
+				//	//	particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+				//	//	return;
+				//	//}
+				//points.push_back(lastP);
+				//Vector2 startP(initDevice1PosX, initDevice1PosY);
+				//points.push_back(startP);
 
-				PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
-				particle.pointLinks.push_back(pointLink);
+				//PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
+				//particle.pointLinks.push_back(pointLink);
 				#pragma endregion
 				
 
@@ -1053,13 +1316,15 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					//先更新直线输送机
 					if (tempStrInfo.startPos != p) {
 						tempStrInfo.endPos = p;
-						if (curIterNum >= maxIterNum / 2) {
+						//if (curIterNum != 0)
 							if (tempStrInfo.startPos.Distance(tempStrInfo.endPos) < proParas.conveyMinDist)
 							{
+								cout << "输送线太短" << endl;
+								//punishValue1 = 150 * (curIterNum + 1);
+								//punishValue2 = 30 * (curIterNum + 1);
 								particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
 								return;
 							}
-						}
 						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
 						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
 						particle.strConveyorList.insert(tempStrInfo);
@@ -1078,7 +1343,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		#pragma endregion
 
 		#pragma region 计算目标函数值
-
 		//遍历直线和转弯输送机的set，得到输送机的总成本
 		double conveyorTotalCost = 0.0;
 		for (StraightConveyorInfo sci : particle.strConveyorList)
@@ -1087,17 +1351,24 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		}
 		conveyorTotalCost += proParas.curveConveyorUnitCost * particle.curveConveyorList.size();
 		//设置适应度值
-		//cout << conveyorTotalCost << "," << totalTime << endl;
+		cout << totalTime << "," << conveyorTotalCost << endl;
 
-		particle.fitness_[0] = conveyorTotalCost;
 		//particle.fitness_[0] = 1000;
+		particle.fitness_[0] = totalTime;
+		//particle.fitness_[0] = totalTime + punishValue1;
 
 		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
-		//particle.fitness_[1] = totalTime;
-		particle.fitness_[1] = 1000;
+		//particle.fitness_[1] = 1000;
+		particle.fitness_[1] = conveyorTotalCost;
+		//particle.fitness_[1] = conveyorTotalCost + punishValue2;
 		#pragma endregion
 
+		delete[] DeviceLowXList;
+		delete[] DeviceHighXList;
+		delete[] DeviceLowYList;
+		delete[] DeviceHighYList;
 	}
+	delete[] copyDeviceParas;
 	#pragma endregion
 	return;
 }
@@ -1144,8 +1415,8 @@ double CalcuTotalArea(Particle& particle, ProblemParas proParas) {
 	double area = 0;
 	double min_X, min_Y, max_X, max_Y;
 	int min_X_index, min_Y_index, max_X_index, max_Y_index;
-	min_X = min_Y = DOUBLE_MAX;
-	max_X = max_Y = DOUBLE_MIN;
+	min_X = min_Y = INT_MAX;
+	max_X = max_Y = INT_MAX;
 	min_X_index = min_Y_index = max_X_index = max_Y_index = 0;
 	for (int i = 0; i < particle.dim_; i += 2) {
 		if (particle.position_[i] - proParas.deviceParaList[i / 2].size.x * 0.5 < min_X) {

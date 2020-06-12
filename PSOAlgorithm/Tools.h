@@ -3,6 +3,8 @@
 #include <vector>
 #include <algorithm>
 #include <Windows.h>
+#define PI 3.14159265358979
+#define MAX_FITNESS 10000000.0
 using namespace std;
 //判断两个区间是否重叠
 static bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {

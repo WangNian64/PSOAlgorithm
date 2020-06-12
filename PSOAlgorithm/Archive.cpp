@@ -48,6 +48,7 @@ int MeshCrowd::CalMeshId(Particle particle)
 	//计算网格编号id
 	//首先，将每个维度按照等分因子进行等分离散化，
 	//获取粒子在各维度上的编号。按照10进制将每一个维度编号等比相加（如果用户自定义了mesh_div_num的值，则按照自定义）,计算出值
+	//也就是，每个维度上都有一个值
 	int id = 0;
 	for (int i = 0; i < particle.dim_; i++) 
 	{

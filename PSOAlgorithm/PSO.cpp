@@ -82,11 +82,39 @@ PSOOptimizer::~PSOOptimizer()
 // 初始化所有粒子（没有更新全局最佳）
 void PSOOptimizer::InitialAllParticles()
 {
+	// 先给所有粒子分配内存
+	for (int i = 0; i < particle_num_; ++i) {
+		particles_[i].dim_ = dim_;
+		particles_[i].fitnessCount = this->fitness_count;
+
+		particles_[i].position_ = new double[dim_];
+		particles_[i].velocity_ = new double[dim_];
+		particles_[i].best_position_ = new double[dim_];
+		particles_[i].fitness_ = new double[fitness_count];
+		particles_[i].best_fitness_ = new double[fitness_count];
+	}
 	// 初始化所有粒子（包括初始化每个粒子的个体最优值）
-	for (int i = 0; i < particle_num_; i++)
+	// 先初始化1/5的粒子，然后复制
+	//for (int i = 0; i < particle_num_ / 10; ) {
+	//	InitialParticle(i);
+	//	if (this->particles_[i].fitness_[0] != MAX_FITNESS) {
+	//		cout << i << endl;
+	//		++i;
+	//	}
+	//}
+	//for (int j = particle_num_ / 10; j < particle_num_; j++) {
+	//	particles_[j] = particles_[j % (particle_num_ / 10)];
+	//}
+
+	for (int i = 0; i < particle_num_; ++i)
 	{
 		InitialParticle(i);
+		/*if (this->particles_[i].fitness_[0] != MAX_FITNESS) {
+			cout << i << endl;
+			++i;
+		}*/
 	}
+	cout << "初始化完成";
 }
 
 // 初始化Archive数组
@@ -215,7 +243,6 @@ void PSOOptimizer::UpdateParticle(int i)
 			}
 		}
 	}
-
 	//根据朝向修改设备上下界范围
 	for (int j = 2; j < dim_; j += 3)
 	{
@@ -402,15 +429,6 @@ void PSOOptimizer::GetInertialWeight()
 //初始化第i个粒子
 void PSOOptimizer::InitialParticle(int i)
 {
-	particles_[i].dim_ = dim_;
-	particles_[i].fitnessCount = this->fitness_count;
-	// 为每个粒子动态分配内存
-	particles_[i].position_ = new double[dim_];
-	particles_[i].velocity_ = new double[dim_];
-	particles_[i].best_position_ = new double[dim_];
-	particles_[i].fitness_ = new double[fitness_count];
-	particles_[i].best_fitness_ = new double[fitness_count];
-
 	#pragma region 初始化position/veloctiy值
 	//先随机朝向，然后根据朝向调整粒子的范围
 	for (int j = 2; j < dim_; j += 3)
@@ -455,8 +473,18 @@ void PSOOptimizer::InitialParticle(int i)
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
-	//cout << endl;
-	//考虑非重叠约束，这里分块产生随机点(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
+
+	//不考虑非重叠约束，直接产生随机解
+	//for (int j = 0; j < dim_; j += 3) {
+	//	particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+	//	particles_[i].position_[j + 1] = GetDoubleRand() * range_interval_[j + 1] + lower_bound_[j + 1];
+	//	particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+	//	particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
+	//}
+
+
+	#pragma region 考虑非重叠约束，这里分块产生随机点
+	//(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
 	//新的随机：随机设备的摆放顺序
 	vector<int> unmakeDeviceIndexVec;
 	vector<int> madeDeviceIndexVec;
@@ -465,7 +493,7 @@ void PSOOptimizer::InitialParticle(int i)
 		unmakeDeviceIndexVec.push_back(i);
 	}
 	default_random_engine e;
-	while (unmakeDeviceIndexVec.size() > 0) 
+	while (unmakeDeviceIndexVec.size() > 0)
 	{
 		//微秒级精度的随机数种子
 		e.seed(GetRamdonSeed());
@@ -473,7 +501,7 @@ void PSOOptimizer::InitialParticle(int i)
 		int randomVecIndex = u(e);
 		int randomDeviceIndex = unmakeDeviceIndexVec[randomVecIndex];//得到设备的index
 		int j = randomDeviceIndex * 3;
-		
+
 		double Xstart = lower_bound_[j];
 		double Ystart = lower_bound_[j + 1];
 
@@ -534,9 +562,9 @@ void PSOOptimizer::InitialParticle(int i)
 				}
 			}
 		}
-
-
 	}
+	#pragma endregion
+	
 	#pragma endregion
 	//计算自身的适应度值
 	GetFitness(particles_[i]); 

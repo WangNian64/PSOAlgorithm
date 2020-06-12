@@ -28,7 +28,7 @@ APoint::APoint() :x(0)
 }
 APoint::~APoint()
 {
-
+    if (parent) { delete[] parent; }
 }
 
 

@@ -46,71 +46,70 @@ struct ProblemParas
 
 	double conveyMinDist;//输送线两个点之间的最短距离
 	//以前的参数
-	CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
-	double** minDistArray;			//设备最小距离数组
-	DeviceRelation** deviceRelateArray;//设备相关性数组
+	//CostPara** costParaArray;		//成本计算参数数组(包括物流量和物流成本)
+	//double** minDistArray;			//设备最小距离数组
+	//DeviceRelation** deviceRelateArray;//设备相关性数组
 
 	ProblemParas() {}
-	ProblemParas(int deviceSum, int cargoTypeNum)
+	ProblemParas(ifstream& inputFile)
 	{
-		#pragma region 分配空间
-		DeviceSum = deviceSum;
-		CargoTypeNum = cargoTypeNum;
-		deviceParaList = new DevicePara[DeviceSum];
-
-		costParaArray = new CostPara * [DeviceSum];
-		for (int i = 0; i < DeviceSum; i++) {
-			costParaArray[i] = new CostPara[DeviceSum];
-		}
-
-		minDistArray = new double* [DeviceSum];
-		for (int i = 0; i < DeviceSum; i++) {
-			minDistArray[i] = new double[DeviceSum];
-		}
-
-		deviceRelateArray = new DeviceRelation * [DeviceSum];
-		for (int i = 0; i < DeviceSum; i++) {
-			deviceRelateArray[i] = new DeviceRelation[DeviceSum];
-		}
-
-		cargoTypeList = new CargoType[CargoTypeNum];
-
-		#pragma endregion
-
 		//读取参数
-		ifstream fileIn("../../InputPara.txt");
 		string line;
-		if (fileIn) // 有该文件
+		if (inputFile) // 有该文件
 		{
+			#pragma region 这几个参数目前不用
+			//costParaArray = new CostPara * [DeviceSum];
+			//for (int i = 0; i < DeviceSum; i++) {
+			//	costParaArray[i] = new CostPara[DeviceSum];
+			//}
+
+			//minDistArray = new double* [DeviceSum];
+			//for (int i = 0; i < DeviceSum; i++) {
+			//	minDistArray[i] = new double[DeviceSum];
+			//}
+
+			//deviceRelateArray = new DeviceRelation * [DeviceSum];
+			//for (int i = 0; i < DeviceSum; i++) {
+			//	deviceRelateArray[i] = new DeviceRelation[DeviceSum];
+			//}
+			#pragma endregion
+
+
+
+
 			#pragma region 车间尺寸	
-			getline(fileIn, line);//空一行
-			getline(fileIn, line);
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
 			vector<string> shopSizeStr = split(line, ",");
 			workShopLength = atof(shopSizeStr[0].c_str());
 			workShopWidth = atof(shopSizeStr[1].c_str());
 			#pragma endregion
 
 			#pragma region 仓库入口坐标	
-			getline(fileIn, line);//空一行
-			getline(fileIn, line);
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
 			vector<string> enterPosStr = split(line, ",");
 			entrancePos.x = atof(enterPosStr[0].c_str());
 			entrancePos.y = atof(enterPosStr[1].c_str());
 			#pragma endregion
 
 			#pragma region 仓库出口坐标	
-			getline(fileIn, line);//空一行
-			getline(fileIn, line);
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
 			vector<string> exitPosStr = split(line, ",");
 			exitPos.x = atof(exitPosStr[0].c_str());
 			exitPos.y = atof(exitPosStr[1].c_str());
 			#pragma endregion
 
 			#pragma region 设备相关参数
-			getline(fileIn, line);//空一行
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
+			DeviceSum = atoi(line.c_str());//设备数目
+
+			deviceParaList = new DevicePara[DeviceSum];
 			for (int i = 0; i < DeviceSum; i++)
 			{
-				getline(fileIn, line);
+				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
 
 				deviceParaList[i].ID = atoi(strSplit[0].c_str());
@@ -147,8 +146,8 @@ struct ProblemParas
 			#pragma endregion
 
 			#pragma region 输送线参数
-			getline(fileIn, line);//空一行
-			getline(fileIn, line);
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
 			vector<string> conveyInfoStr = split(line, " ");
 			conveyWidth = atof(conveyInfoStr[0].c_str());
 			conveySpeed = atof(conveyInfoStr[1].c_str());
@@ -160,10 +159,14 @@ struct ProblemParas
 			#pragma endregion
 
 			#pragma region 物料参数
-			getline(fileIn, line);//空一行
+			getline(inputFile, line);//空一行
+			getline(inputFile, line);
+			CargoTypeNum = atoi(line.c_str());//物料类型数目
+
+			cargoTypeList = new CargoType[CargoTypeNum];
 			for (int i = 0; i < CargoTypeNum; i++)
 			{
-				getline(fileIn, line);
+				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
 				cargoTypeList[i].cargoName = "";
 				cargoTypeList[i].linkSum = atoi(strSplit[0].c_str());
@@ -193,57 +196,60 @@ struct ProblemParas
 						cargoTypeList[i].deviceLinkList[j].inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
 						cargoTypeList[i].deviceLinkList[j].inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
-					cout << cargoTypeList[i].deviceLinkList[j].outDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].outPointIndex
-						<< "," << cargoTypeList[i].deviceLinkList[j].inDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].inPointIndex
-						<< endl;
+					//cout << cargoTypeList[i].deviceLinkList[j].outDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].outPointIndex
+					//	<< "," << cargoTypeList[i].deviceLinkList[j].inDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].inPointIndex
+					//	<< endl;
 				}
 				cargoTypeList[i].totalVolume = atof(strSplit[strSplit.size() - 1].c_str());
-				cout << endl;
+				//cout << endl;
 			}
-			cout << endl;
+			//cout << endl;
 			#pragma endregion
 
+
+
+
 			#pragma region 单位距离的物流成本数组
-			getline(fileIn, line);//空一行
-			for (int i = 0; i < DeviceSum; i++)
-			{
-				getline(fileIn, line);
-				vector<string> strSplit = split(line, ",");
-				for (int j = 0; j < DeviceSum; j++)
-				{
-					costParaArray[i][j].UnitCost = atof(strSplit[j].c_str());
-				}
-			}
+			//getline(inputFile, line);//空一行
+			//for (int i = 0; i < DeviceSum; i++)
+			//{
+			//	getline(inputFile, line);
+			//	vector<string> strSplit = split(line, ",");
+			//	for (int j = 0; j < DeviceSum; j++)
+			//	{
+			//		costParaArray[i][j].UnitCost = atof(strSplit[j].c_str());
+			//	}
+			//}
 			#pragma endregion
 
 			#pragma region 物流量数组
-			getline(fileIn, line);//空一行
-			for (int i = 0; i < DeviceSum; i++) {
-				getline(fileIn, line);
-				vector<string> strSplit = split(line, ",");
-				for (int j = 0; j < DeviceSum; j++)
-				{
-					costParaArray[i][j].MatFlow = atof(strSplit[j].c_str());
-				}
-			}
+			//getline(inputFile, line);//空一行
+			//for (int i = 0; i < DeviceSum; i++) {
+			//	getline(inputFile, line);
+			//	vector<string> strSplit = split(line, ",");
+			//	for (int j = 0; j < DeviceSum; j++)
+			//	{
+			//		costParaArray[i][j].MatFlow = atof(strSplit[j].c_str());
+			//	}
+			//}
 			#pragma endregion
 
 			#pragma region 设备最小距离数组 
-			getline(fileIn, line);//空一行
-			for (int i = 0; i < DeviceSum; i++) {
-				getline(fileIn, line);
-				vector<string> strSplit = split(line, ",");
-				for (int j = 0; j < DeviceSum; j++)
-				{
-					minDistArray[i][j] = atof(strSplit[j].c_str());
-				}
-			}
+			//getline(inputFile, line);//空一行
+			//for (int i = 0; i < DeviceSum; i++) {
+			//	getline(inputFile, line);
+			//	vector<string> strSplit = split(line, ",");
+			//	for (int j = 0; j < DeviceSum; j++)
+			//	{
+			//		minDistArray[i][j] = atof(strSplit[j].c_str());
+			//	}
+			//}
 			#pragma endregion
 
-			#pragma region 设备相关性数组
-			//getline(fileIn, line);//空一行
+			#pragma region 设备物流相关性数组
+			//getline(inputFile, line);//空一行
 			//for (int i = 0; i < DeviceSum; i++) {
-			//	getline(fileIn, line);
+			//	getline(inputFile, line);
 			//	vector<string> strSplit = split(line, ",");
 			//	for (int j = 0; j < DeviceSum; j++)
 			//	{

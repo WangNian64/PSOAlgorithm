@@ -144,7 +144,7 @@ struct Particle
 	double* best_position_ = nullptr;	//粒子的个体最优位置数组
 	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
 
-	vector<PointLink> pointLinks; //最终路径集合
+	//vector<PointLink> pointLinks; //最终路径集合
 	vector<InoutPoint> inoutPoints;//出入口集合
 	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
 	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
@@ -173,7 +173,7 @@ struct Particle
 			this->velocity_[i] = particle.velocity_[i];
 			this->best_position_[i] = particle.best_position_[i];
 		}
-		this->pointLinks = particle.pointLinks;
+		//this->pointLinks = particle.pointLinks;
 		this->inoutPoints = particle.inoutPoints;
 		this->strConveyorList = particle.strConveyorList;
 		this->curveConveyorList = particle.curveConveyorList;
@@ -181,6 +181,7 @@ struct Particle
 	}
 	~Particle()
 	{
+
 	}
 };
 
