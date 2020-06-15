@@ -19,11 +19,17 @@ struct PSOPara
 	int max_iter_num_;							// 最大迭代次数
 
 	int mesh_div_count;
-	double* dt_ = nullptr;						// 时间步长
-	double* wstart_ = nullptr;					// 初始权重
-	double* wend_ = nullptr;					// 终止权重
-	double* C1_ = nullptr;						// 加速度因子1
-	double* C2_ = nullptr;						// 加速度因子2
+	//double* dt_ = nullptr;						// 时间步长
+	//double* wstart_ = nullptr;					// 初始权重
+	//double* wend_ = nullptr;						// 终止权重
+	//double* C1_ = nullptr;						// 加速度因子1
+	//double* C2_ = nullptr;						// 加速度因子2
+	double dt_;						// 时间步长
+	double wstart_;					// 初始权重
+	double wend_;					// 终止权重
+	double C1_;						// 加速度因子1
+	double C2_;						// 加速度因子2
+
 
 	double* lower_bound_ = nullptr;				// position搜索范围下限
 	double* upper_bound_ = nullptr;				// position搜索范围上限
@@ -38,11 +44,11 @@ struct PSOPara
 	{
 		dim_ = dim;
 
-		dt_ = new double[dim_];
-		wstart_ = new double[dim_];
-		wend_ = new double[dim_];
-		C1_ = new double[dim_];
-		C2_ = new double[dim_];
+		//dt_ = new double[dim_];
+		//wstart_ = new double[dim_];
+		//wend_ = new double[dim_];
+		//C1_ = new double[dim_];
+		//C2_ = new double[dim_];
 
 		lower_bound_ = new double[dim_];
 		upper_bound_ = new double[dim_];
@@ -57,11 +63,11 @@ struct PSOPara
 		if (lower_bound_) { delete[]lower_bound_; }
 		if (upper_bound_) { delete[]upper_bound_; }
 		if (range_interval_) { delete[]range_interval_; }
-		if (dt_) { delete[]dt_; }
-		if (wstart_) { delete[]wstart_; }
-		if (wend_) { delete[]wend_; }
-		if (C1_) { delete[]C1_; }
-		if (C2_) { delete[]C2_; }
+		//if (dt_) { delete[]dt_; }
+		//if (wstart_) { delete[]wstart_; }
+		//if (wend_) { delete[]wend_; }
+		//if (C1_) { delete[]C1_; }
+		//if (C2_) { delete[]C2_; }
 	}
 
 	// 设置物流问题相关参数
@@ -71,37 +77,27 @@ struct PSOPara
 
 	// 设置时间步长
 	void SetDt(double stepLength) {
-		for (int i = 0; i < dim_; i++) {
-			dt_[i] = stepLength;
-		}
+		dt_ = stepLength;
 	}
 
 	// 设置wstart_
 	void SetWstart(double startWeight) {
-		for (int i = 0; i < dim_; i++) {
-			wstart_[i] = startWeight;
-		}
+		wstart_ = startWeight;
 	}
 
 	// 设置wend_
 	void SetWend(double endWeight) {
-		for (int i = 0; i < dim_; i++) {
-			wend_[i] = endWeight;
-		}
+		wend_ = endWeight;
 	}
 
 	// 设置C1
 	void SetC1(double c1) {
-		for (int i = 0; i < dim_; i++) {
-			C1_[i] = c1;
-		}
+		C1_ = c1;
 	}
 
 	// 设置C2
 	void SetC2(double c2) {
-		for (int i = 0; i < dim_; i++) {
-			C2_[i] = c2;
-		}
+		C2_ = c2;
 	}
 
 	// 设置low_bound
@@ -201,12 +197,19 @@ public:
 	double* lower_bound_ = nullptr;					// position搜索范围下限
 	double* range_interval_ = nullptr;				// position搜索区间长度
 
-	double* dt_ = nullptr;							// 时间步长
-	double* wstart_ = nullptr;						// 初始权重
-	double* wend_ = nullptr;						// 终止权重
-	double* w_ = nullptr;							// 当前迭代权重
-	double* C1_ = nullptr;							// 加速度因子
-	double* C2_ = nullptr;							// 加速度因子
+	//double* dt_ = nullptr;							// 时间步长
+	//double* wstart_ = nullptr;						// 初始权重
+	//double* wend_ = nullptr;						// 终止权重
+	//double* w_ = nullptr;							// 当前迭代权重
+	//double* C1_ = nullptr;							// 加速度因子
+	//double* C2_ = nullptr;							// 加速度因子
+
+	double dt_;							// 时间步长
+	double wstart_;						// 初始权重
+	double wend_;						// 终止权重
+	double w_;							// 当前迭代权重
+	double C1_;							// 加速度因子
+	double C2_;							// 加速度因子
 
 	double** all_best_fitness_ = nullptr;			// 全局最优粒子的适应度数组 100x2
 	double** all_best_position_ = nullptr;			// 全局最优粒子的position 100x12

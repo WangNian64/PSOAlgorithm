@@ -13,20 +13,25 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
 	fitness_count = pso_para->fitness_count_;
 	curr_iter_ = 0;
 
-	dt_ = new double[dim_];
-	wstart_ = new double[dim_];
-	wend_ = new double[dim_];
-	C1_ = new double[dim_];
-	C2_ = new double[dim_];
+	//dt_ = new double[dim_];
+	//wstart_ = new double[dim_];
+	//wend_ = new double[dim_];
+	//C1_ = new double[dim_];
+	//C2_ = new double[dim_];
+	dt_ = pso_para->dt_;
+	wstart_ = pso_para->wstart_;
+	wend_ = pso_para->wend_;
+	C1_ = pso_para->C1_;
+	C2_ = pso_para->C2_;
 
-	for (int i = 0; i < dim_; i++)
+	/*for (int i = 0; i < dim_; i++)
 	{
 		dt_[i] = pso_para->dt_[i];
 		wstart_[i] = pso_para->wstart_[i];
 		wend_[i] = pso_para->wend_[i];
 		C1_[i] = pso_para->C1_[i];
 		C2_[i] = pso_para->C2_[i];
-	}
+	}*/
 
 	if (pso_para->upper_bound_ && pso_para->lower_bound_)
 	{
@@ -43,7 +48,7 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
 	}
 
 	particles_ = new Particle[particle_num_];
-	w_ = new double[dim_];
+	//w_ = new double[dim_];
 
 	all_best_position_ = new double*[particle_num_];
 	for (int j = 0; j < particle_num_; j++)
@@ -70,12 +75,12 @@ PSOOptimizer::~PSOOptimizer()
 	if (upper_bound_) { delete[]upper_bound_; }
 	if (lower_bound_) { delete[]lower_bound_; }
 	if (range_interval_) { delete[]range_interval_; }
-	if (dt_) { delete[]dt_; }
-	if (wstart_) { delete[]wstart_; }
-	if (wend_) { delete[]wend_; }
-	if (w_) { delete[]w_; }
-	if (C1_) { delete[]C1_; }
-	if (C2_) { delete[]C2_; }
+	//if (dt_) { delete[]dt_; }
+	//if (wstart_) { delete[]wstart_; }
+	//if (wend_) { delete[]wend_; }
+	//if (w_) { delete[]w_; }
+	//if (C1_) { delete[]C1_; }
+	//if (C2_) { delete[]C2_; }
 	if (all_best_position_) { delete[]all_best_position_; }
 }
 
@@ -201,10 +206,15 @@ void PSOOptimizer::UpdateParticle(int i)
 	{
 		double last_position = particles_[i].position_[j];
 
-		particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
-			C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-			C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
-		particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
+		//particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
+		//	C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+		//	C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+		//particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
+		particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
+			C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+			C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+		particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
+
 
 		// 如果搜索区间有上下限限制
 		if (upper_bound_ && lower_bound_)
@@ -282,10 +292,14 @@ void PSOOptimizer::UpdateParticle(int i)
 			//double last_velocity = particles_[i].velocity_[j];
 			double last_position = particles_[i].position_[j];
 
-			particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
-				C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-				C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
-			particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
+			//particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
+			//	C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+			//	C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+			//particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
+			particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
+				C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+				C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+			particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
 
 			// 如果搜索区间有上下限限制
 			if (upper_bound_ && lower_bound_)
@@ -419,10 +433,7 @@ void PSOOptimizer::GetInertialWeight()
 {
 	double temp = curr_iter_ / (double)max_iter_num_;
 	//temp *= temp;
-	for (int i = 0; i < dim_; i++)
-	{
-		w_[i] = wstart_[i] - (wstart_[i] - wend_[i]) * temp;
-	}
+	w_ = wstart_ - (wstart_ - wend_) * temp;
 }
 
 //初始化第i个粒子
