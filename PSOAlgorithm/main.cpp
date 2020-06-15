@@ -73,20 +73,27 @@ int main()
 				//存储每次迭代的Archive集合
 				//OutFile << to_string(i) + "\n";
 				//cout << psooptimizer.archive_list.size() << endl;
+				double minFitness1, minFitness2;
+				minFitness1 = minFitness2 = INT_MAX;
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
-					//cout << it->fitness_[0] << ",";
-					string line = to_string(it->fitness_[0]) + "\n";
-					OutFile << line;
+					minFitness1 = min(minFitness1, it->fitness_[0]);
+					//string line = to_string(it->fitness_[0]) + "\n";
+					//OutFile << line;
 				}
-				OutFile << "\n";
+				string f1line = to_string(minFitness1) + "\n";
+				OutFile << f1line;
+				//OutFile << "\n";
 
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
-					string line = to_string(it->fitness_[1]) + "\n";
-					OutFile1 << line;
+					minFitness2 = min(minFitness2, it->fitness_[1]);
+					//string line = to_string(it->fitness_[1]) + "\n";
+					//OutFile1 << line;
 				}
-				OutFile1 << "\n";
+				string f2line = to_string(minFitness2) + "\n";
+				OutFile1 << f2line;
+				//OutFile1 << "\n";
 			}
 			OutFile.close();
 			OutFile1.close();

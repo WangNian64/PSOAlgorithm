@@ -54,7 +54,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 {
 	double punishValue1 = 0;
 	double punishValue2 = 0;
-	bool IsDeviceOverlap = true;//是否重叠
+	bool IsDeviceOverlap = false;//是否重叠
 	double deviceDist = 0;
 	particle.fitness_[0] = particle.fitness_[1] = 0;
 
@@ -105,6 +105,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 
 	#pragma region 检查设备是否重叠
 	//如果重叠，进行调整
+	//降低标准会发生什么？
 	double outSizeLength, outSizeWidth;
 	for (int i = 0; i < particle.dim_; i += 3) {
 		outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
@@ -123,7 +124,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 			if (IsRangeOverlap(firstLowX, firstUpX, secondLowX, secondUpX) && IsRangeOverlap(firstLowY, firstUpY, secondLowY, secondUpY)) {
 				particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
 				IsDeviceOverlap = true;
-				cout << curIterNum << ":" << "重叠" << endl;
+				//cout << curIterNum << ":" << "重叠" << endl;
 				return;
 			}
 		}
@@ -131,11 +132,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 	#pragma endregion
 
 	#pragma region 如果设备重叠，调整设备位置，否则直接布线
-	if (IsDeviceOverlap == true) {
-		//那个论文里用的是定义一个弹性势能表示重叠程度的大小，重叠越多这个值越大
-		//先找到重叠势能最大的设备，然后进行调整
-		//这个过程感觉不简单啊
-	}
+	//if (IsDeviceOverlap == true) {
+	//	//步骤：
+	//	//只要有一个设备有重叠，就要处理
+	//	while ()
+	//}
 	//在检测一次设备位置，看是否重叠
 
 	if (IsDeviceOverlap == false)
@@ -1319,7 +1320,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 						//if (curIterNum != 0)
 							if (tempStrInfo.startPos.Distance(tempStrInfo.endPos) < proParas.conveyMinDist)
 							{
-								cout << "输送线太短" << endl;
+								//cout << "输送线太短" << endl;
 								//punishValue1 = 150 * (curIterNum + 1);
 								//punishValue2 = 30 * (curIterNum + 1);
 								particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;

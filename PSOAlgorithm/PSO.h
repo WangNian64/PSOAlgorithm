@@ -29,8 +29,6 @@ struct PSOPara
 	double* upper_bound_ = nullptr;				// position搜索范围上限
 	double* range_interval_ = nullptr;			// position搜索区间长度
 
-	int results_dim_ = 0;						// results的维度
-
 	int archive_max_count;						// pareto最优解数组的最大值
 	ProblemParas problemParas;					//和粒子对应的设备布局参数
 

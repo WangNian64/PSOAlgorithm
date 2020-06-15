@@ -418,12 +418,11 @@ bool PSOOptimizer::ComparePbest(double* fitness, double* pbestFitness)
 void PSOOptimizer::GetInertialWeight()
 {
 	double temp = curr_iter_ / (double)max_iter_num_;
-	temp *= temp;
+	//temp *= temp;
 	for (int i = 0; i < dim_; i++)
 	{
 		w_[i] = wstart_[i] - (wstart_[i] - wend_[i]) * temp;
 	}
-
 }
 
 //初始化第i个粒子
