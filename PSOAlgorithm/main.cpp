@@ -13,6 +13,7 @@ int main()
 	for (int curProblem = 0; curProblem < problemSum; curProblem++)//跑多个问题
 	{
 		cout << "跑第" + to_string(curProblem + 1) + "个问题" << endl;
+
 		#pragma region 设置PSO参数
 		ifstream inputFile;
 		inputFile.open("../../InputParas/InputPara" + to_string(curProblem + 1) + ".txt");
@@ -37,8 +38,6 @@ int main()
 		#pragma endregion
 
 		#pragma region 调用PSO算法，并输出结果
-	
-
 		PSOOptimizer psooptimizer(&psopara, FitnessFunction);//构造函数
 		std::srand(GetRamdonSeed());
 

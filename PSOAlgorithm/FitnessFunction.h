@@ -12,14 +12,14 @@
 //上左，上右，下左，下右
 //横竖的顺序都是上下左右
 int pointDirectArray[5][5] = {
-	      {-1, -1, -1, -1, -1},
-		       //上 右 下 左
-	/*上*/{-1, 1, 2, 3, 4},
-	/*右*/{-1, 5, 6, 7, 8},
-	/*下*/{-1, 9, 10, 11, 12},
-	/*左*/{-1, 13, 14, 15, 16},
+		  {-1, -1, -1, -1, -1},
+		  //上 右 下 左
+		  /*上*/{-1, 1, 2, 3, 4},
+		  /*右*/{-1, 5, 6, 7, 8},
+		  /*下*/{-1, 9, 10, 11, 12},
+		  /*左*/{-1, 13, 14, 15, 16},
 };
-//判断两个坐标的上下或者左右关系
+#pragma region 判断两个坐标的上下或者左右关系
 bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x <= outPos.x;
@@ -37,7 +37,8 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 	return inPos.y <= outPos.y;
 }
 
-void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
+#pragma endregion
+void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas);
 double CalcuTotalArea(Particle& particle, ProblemParas proParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -50,7 +51,7 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //默认的适应度计算函数，可以替换
-void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds)
+void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas)
 {
 	double punishValue1 = 0;
 	double punishValue2 = 0;
@@ -176,7 +177,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		//	}
 		//}
 		////}
-		#pragma endregion
+#pragma endregion
 
 		#pragma region 对齐方案2：检测设备出入口点坐标并进行对齐操作
 		//遍历所有cargoTypeList
@@ -308,7 +309,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					outPoint = copyDeviceParas[outDeviceIndex].adjPointsOut[outPointIndex];
 					inPoint = copyDeviceParas[inDeviceIndex].adjPointsIn[inPointIndex];
 					//考虑点的朝向
-					outPointDirect = outPoint.direct; 
+					outPointDirect = outPoint.direct;
 					inPointDirect = inPoint.direct;
 					//出入口的真实坐标
 					Vector2 outPointTPos(outPoint.pos.x + particle.position_[outDeviceIndex * 3],
@@ -616,7 +617,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 						}
 						//入口设备在出口设备下面
 						inDown2OutBool = IsInDown2Out(inUpPos, outDownPos);
-						if (inDown2OutBool) 
+						if (inDown2OutBool)
 						{
 							//3.入口设备在出口设备下面/分为左右
 							inR2outLXDist = inRightPos.x - outLeftPos.x;
@@ -703,7 +704,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 								particle.position_[OutPosIndex_Y] -= moveLength;
 								particle.position_[InPosIndex_Y] += moveLength;
 								break;
-							}	
+							}
 						}
 						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
 						if (inUp2OutBool)
@@ -1215,7 +1216,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 				//PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
 				//particle.pointLinks.push_back(pointLink);
 				#pragma endregion
-				
+
 
 
 				//计算输送时间(物料总量 * 路线长度 * 输送效率)
@@ -1318,14 +1319,14 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					if (tempStrInfo.startPos != p) {
 						tempStrInfo.endPos = p;
 						//if (curIterNum != 0)
-							if (tempStrInfo.startPos.Distance(tempStrInfo.endPos) < proParas.conveyMinDist)
-							{
-								//cout << "输送线太短" << endl;
-								//punishValue1 = 150 * (curIterNum + 1);
-								//punishValue2 = 30 * (curIterNum + 1);
-								particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
-								return;
-							}
+						if (tempStrInfo.startPos.Distance(tempStrInfo.endPos) < proParas.conveyMinDist)
+						{
+							//cout << "输送线太短" << endl;
+							//punishValue1 = 150 * (curIterNum + 1);
+							//punishValue2 = 30 * (curIterNum + 1);
+							particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+							return;
+						}
 						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
 						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
 						particle.strConveyorList.insert(tempStrInfo);

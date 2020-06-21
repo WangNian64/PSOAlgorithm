@@ -1,5 +1,4 @@
 #pragma once
-#include <stdlib.h>
 #include <iostream>
 #include <vector>
 #include <set>
@@ -19,17 +18,17 @@ struct PSOPara
 	int max_iter_num_;							// 最大迭代次数
 
 	int mesh_div_count;
-	//double* dt_ = nullptr;						// 时间步长
-	//double* wstart_ = nullptr;					// 初始权重
-	//double* wend_ = nullptr;						// 终止权重
-	//double* C1_ = nullptr;						// 加速度因子1
-	//double* C2_ = nullptr;						// 加速度因子2
-	double dt_;						// 时间步长
-	double wstart_;					// 初始权重
-	double wend_;					// 终止权重
-	double C1_;						// 加速度因子1
-	double C2_;						// 加速度因子2
+	//double* dt_ = nullptr;					// 时间步长
+	//double* wstart_ = nullptr;				// 初始权重
+	//double* wend_ = nullptr;					// 终止权重
+	//double* C1_ = nullptr;					// 加速度因子1
+	//double* C2_ = nullptr;					// 加速度因子2
 
+	double dt_;									// 时间步长
+	double wstart_;								// 初始权重
+	double wend_;								// 终止权重
+	double C1_;									// 加速度因子1
+	double C2_;									// 加速度因子2
 
 	double* lower_bound_ = nullptr;				// position搜索范围下限
 	double* upper_bound_ = nullptr;				// position搜索范围上限
@@ -139,6 +138,7 @@ struct Particle
 	double* best_fitness_ = nullptr;	//粒子的个体最优适应度数组
 
 	//vector<PointLink> pointLinks; //最终路径集合
+
 	vector<InoutPoint> inoutPoints;//出入口集合
 	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
 	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
@@ -179,48 +179,48 @@ struct Particle
 	}
 };
 
-typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas, double* lowerBounds, double* upBounds);
+typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas);
 
 class PSOOptimizer
 {
 public:
-	int particle_num_;								// 粒子个数
-	int max_iter_num_;								// 最大迭代次数
-	int curr_iter_;									// 当前迭代次数
+	int particle_num_;							// 粒子个数
+	int max_iter_num_;							// 最大迭代次数
+	int curr_iter_;								// 当前迭代次数
 
-	int dim_;										// 参数维度（position和velocity的维度）
-	int fitness_count;								// 适应度数目
-	int meshDivCount;								// 网格等分因子（默认为10）
-	Particle* particles_ = nullptr;					// 所有粒子
+	int dim_;									// 参数维度（position和velocity的维度）
+	int fitness_count;							// 适应度数目
+	int meshDivCount;							// 网格等分因子（默认为10）
+	Particle* particles_ = nullptr;				// 所有粒子
 
-	double* upper_bound_ = nullptr;					// position搜索范围上限
-	double* lower_bound_ = nullptr;					// position搜索范围下限
-	double* range_interval_ = nullptr;				// position搜索区间长度
+	double* upper_bound_ = nullptr;				// position搜索范围上限
+	double* lower_bound_ = nullptr;				// position搜索范围下限
+	double* range_interval_ = nullptr;			// position搜索区间长度
 
-	//double* dt_ = nullptr;							// 时间步长
-	//double* wstart_ = nullptr;						// 初始权重
-	//double* wend_ = nullptr;						// 终止权重
-	//double* w_ = nullptr;							// 当前迭代权重
-	//double* C1_ = nullptr;							// 加速度因子
-	//double* C2_ = nullptr;							// 加速度因子
+	//double* dt_ = nullptr;					// 时间步长
+	//double* wstart_ = nullptr;				// 初始权重
+	//double* wend_ = nullptr;					// 终止权重
+	//double* w_ = nullptr;						// 当前迭代权重
+	//double* C1_ = nullptr;					// 加速度因子
+	//double* C2_ = nullptr;					// 加速度因子
 
-	double dt_;							// 时间步长
-	double wstart_;						// 初始权重
-	double wend_;						// 终止权重
-	double w_;							// 当前迭代权重
-	double C1_;							// 加速度因子
-	double C2_;							// 加速度因子
+	double dt_;									// 时间步长
+	double wstart_;								// 初始权重
+	double wend_;								// 终止权重
+	double w_;									// 当前迭代权重
+	double C1_;									// 加速度因子
+	double C2_;									// 加速度因子
 
-	double** all_best_fitness_ = nullptr;			// 全局最优粒子的适应度数组 100x2
-	double** all_best_position_ = nullptr;			// 全局最优粒子的position 100x12
+	double** all_best_fitness_ = nullptr;		// 全局最优粒子的适应度数组 100x2
+	double** all_best_position_ = nullptr;		// 全局最优粒子的position 100x12
 
-	ProblemParas problemParas;						// 布局问题参数
+	ProblemParas problemParas;					// 布局问题参数
 
-	ComputeFitness fitness_fun_ = nullptr;			// 适应度函数
+	ComputeFitness fitness_fun_ = nullptr;		// 适应度函数
 
 	//MOPSO相关参数
-	vector<Particle> archive_list;					// 存放pareto非劣解的数组
-	int archiveMaxCount;							// archive数组的最大数目
+	vector<Particle> archive_list;				// 存放pareto非劣解的数组
+	int archiveMaxCount;						// archive数组的最大数目
 
 public:
 	// 默认构造函数
