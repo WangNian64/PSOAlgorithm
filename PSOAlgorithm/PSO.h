@@ -123,7 +123,22 @@ struct PSOPara
 		}
 	}
 };
-
+//存储最优粒子的输送线信息
+struct BestPathInfo
+{
+	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新
+	vector<InoutPoint> inoutPoints;//出入口集合
+	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
+	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
+	BestPathInfo() {
+		curBestFitnessVal = INT_MAX;
+	}
+	void Clear() {
+		inoutPoints.clear();
+		strConveyorList.clear();
+		curveConveyorList.clear();
+	}
+};
 //粒子结构体
 struct Particle
 {
@@ -139,9 +154,6 @@ struct Particle
 
 	//vector<PointLink> pointLinks; //最终路径集合
 
-	vector<InoutPoint> inoutPoints;//出入口集合
-	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
-	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
 	//map<Vector2Int, PointInfo> pathPointInfoMap;//路径点信息map
 	//set<SegPath> segPathSet;
 	//int pointLinkSum = 0;//路径的数目
@@ -167,11 +179,6 @@ struct Particle
 			this->velocity_[i] = particle.velocity_[i];
 			this->best_position_[i] = particle.best_position_[i];
 		}
-		//this->pointLinks = particle.pointLinks;
-		this->inoutPoints = particle.inoutPoints;
-		this->strConveyorList = particle.strConveyorList;
-		this->curveConveyorList = particle.curveConveyorList;
-		//this->pathPointInfoMap = particle.pathPointInfoMap;
 	}
 	~Particle()
 	{
@@ -179,7 +186,7 @@ struct Particle
 	}
 };
 
-typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas);
+typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle);
 
 class PSOOptimizer
 {
@@ -221,6 +228,9 @@ public:
 	//MOPSO相关参数
 	vector<Particle> archive_list;				// 存放pareto非劣解的数组
 	int archiveMaxCount;						// archive数组的最大数目
+
+
+	vector<BestPathInfo> bestPathInfoList;		//最优路径信息
 
 public:
 	// 默认构造函数

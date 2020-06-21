@@ -105,8 +105,8 @@ int main()
 			OutFile.open("../../Results/" + curProblemFolderName + "/" + curTestFolderName + "/FinalResult.txt");
 			#pragma region 记录最终布局结果
 			int resultIndex = 0;
-			int minHandleCost = INTMAX_MAX;
-			int minConveyValue = INTMAX_MAX;
+			int minHandleCost = INT_MAX;
+			int minConveyValue = INT_MAX;
 			//优先选物料运输成本最低的
 			for (int i = 0; i < psooptimizer.archive_list.size(); i++)
 			{
@@ -156,8 +156,9 @@ int main()
 			}
 			#pragma endregion
 
+			int fitnessIndex = 0;
 			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
-			vector<InoutPoint> ioPoints = psooptimizer.archive_list[resultIndex].inoutPoints;
+			vector<InoutPoint> ioPoints = psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints;
 			OutFile << to_string(ioPoints.size()) + "\n";//出入口数目
 			for (int i = 0; i < ioPoints.size(); i++)
 			{
@@ -222,8 +223,8 @@ int main()
 			#pragma endregion
 
 			#pragma region 记录直线输送机和转弯输送机参数
-			set<StraightConveyorInfo> strInfoList = psooptimizer.archive_list[resultIndex].strConveyorList;
-			set<Vector2Int> curveInfoList = psooptimizer.archive_list[resultIndex].curveConveyorList;
+			set<StraightConveyorInfo> strInfoList = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList;
+			set<Vector2Int> curveInfoList = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList;
 			OutFile << strInfoList.size() << "\n";
 			for (StraightConveyorInfo sci : strInfoList)
 			{

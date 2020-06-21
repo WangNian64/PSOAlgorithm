@@ -67,6 +67,8 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
 	fitness_fun_ = fitness_fun;
 
 	this->archiveMaxCount = pso_para->archive_max_count;
+
+	this->bestPathInfoList = vector<BestPathInfo>(2);//Ä¬ÈÏ³õÊ¼»¯
 }
 
 PSOOptimizer::~PSOOptimizer()
@@ -184,7 +186,7 @@ int PSOOptimizer::GetIntRand(int N)
 }
 void PSOOptimizer::GetFitness(Particle& particle)
 {
-	fitness_fun_(curr_iter_, max_iter_num_, particle, problemParas);
+	fitness_fun_(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
 }
 
 void PSOOptimizer::UpdateAllParticles()

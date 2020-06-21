@@ -38,7 +38,7 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 }
 
 #pragma endregion
-void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas);
+void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle);
 double CalcuTotalArea(Particle& particle, ProblemParas proParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -51,7 +51,7 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //默认的适应度计算函数，可以替换
-void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, ProblemParas proParas)
+void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle)
 {
 	double punishValue1 = 0;
 	double punishValue2 = 0;
@@ -177,7 +177,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		//	}
 		//}
 		////}
-#pragma endregion
+		#pragma endregion
 
 		#pragma region 对齐方案2：检测设备出入口点坐标并进行对齐操作
 		//遍历所有cargoTypeList
@@ -816,7 +816,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		#pragma endregion
 
 		#pragma region 计算出入口点的集合坐标
-		vector<InoutPoint>().swap(particle.inoutPoints);
+		vector<InoutPoint> tempInoutPoints;
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
 			for (AdjPoint point : copyDeviceParas[i].adjPointsIn)
@@ -825,7 +825,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				particle.inoutPoints.push_back(ioPoint);
+				tempInoutPoints.push_back(ioPoint);
 			}
 			for (AdjPoint point : copyDeviceParas[i].adjPointsOut)
 			{
@@ -833,7 +833,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				particle.inoutPoints.push_back(ioPoint);
+				tempInoutPoints.push_back(ioPoint);
 			}
 		}
 
@@ -1235,9 +1235,13 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		#pragma endregion
 
 		#pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
-		particle.strConveyorList.clear();
-		particle.curveConveyorList.clear();
+
+		//particle.strConveyorList.clear();
+		//particle.curveConveyorList.clear();
 		//particle.pathPointInfoMap.clear();
+		set<StraightConveyorInfo> tempStrConveyorList;//直线输送机信息列表
+		set<Vector2Int> tempCurveConveyorList;//转弯输送机信息列表
+
 		set<SegPath> segPathSet;
 		for (PointLink pl : copyPLinks)//过滤所有重复的路线段
 		{
@@ -1329,7 +1333,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 						}
 						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
 						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
-						particle.strConveyorList.insert(tempStrInfo);
+						tempStrConveyorList.insert(tempStrInfo);
 						tempStrInfo.startPos = p;
 						tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
 						tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
@@ -1337,7 +1341,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 					//只要不是始终点，都需要更新转弯输送机
 					if (!(pathPointInfoMap[p].horiDirNum == 1 && pathPointInfoMap[p].vertDirNum == 0)
 						&& !(pathPointInfoMap[p].horiDirNum == 0 && pathPointInfoMap[p].vertDirNum == 1)) {
-						particle.curveConveyorList.insert(p);
+						tempCurveConveyorList.insert(p);
 					}
 				}
 			}
@@ -1347,11 +1351,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		#pragma region 计算目标函数值
 		//遍历直线和转弯输送机的set，得到输送机的总成本
 		double conveyorTotalCost = 0.0;
-		for (StraightConveyorInfo sci : particle.strConveyorList)
+		for (StraightConveyorInfo sci : tempStrConveyorList)
 		{
 			conveyorTotalCost += proParas.strConveyorUnitCost * sci.startPos.Distance(sci.endPos);
 		}
-		conveyorTotalCost += proParas.curveConveyorUnitCost * particle.curveConveyorList.size();
+		conveyorTotalCost += proParas.curveConveyorUnitCost * tempCurveConveyorList.size();
 		//设置适应度值
 		cout << totalTime << "," << conveyorTotalCost << endl;
 
@@ -1363,6 +1367,16 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		//particle.fitness_[1] = 1000;
 		particle.fitness_[1] = conveyorTotalCost;
 		//particle.fitness_[1] = conveyorTotalCost + punishValue2;
+
+		//根据适应度是否升级选择更新BestPathInfoList
+		for (int i = 0; i < bestPathInfoList.size(); ++i) {
+			if (particle.fitness_[i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
+				bestPathInfoList[i].inoutPoints = tempInoutPoints;
+				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
+				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
+				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];
+			}
+		}
 		#pragma endregion
 
 		delete[] DeviceLowXList;
@@ -1371,7 +1385,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, Particle& particle, Problem
 		delete[] DeviceHighYList;
 	}
 	delete[] copyDeviceParas;
-	#pragma endregion
+#pragma endregion
 	return;
 }
 //顺时针旋转后的坐标
