@@ -68,7 +68,7 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
 
 	this->archiveMaxCount = pso_para->archive_max_count;
 
-	this->bestPathInfoList = vector<BestPathInfo>(2);//默认初始化
+	this->bestPathInfoList = vector<BestPathInfo>(fitness_count);//默认初始化
 }
 
 PSOOptimizer::~PSOOptimizer()

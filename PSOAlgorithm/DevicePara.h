@@ -1,6 +1,5 @@
 #pragma once
 #include <cmath>
-#include "AStar.h"
 using namespace std;
 //表示一个坐标
 struct Vector2
