@@ -1,6 +1,5 @@
 #pragma once
 #include "PSO.h"
-#include "Tools.h"
 #include "AStar.h"
 #include <math.h>
 #include <algorithm>
@@ -123,22 +122,144 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			double secondLowY = particle.position_[j + 1] - outSizeWidth;
 			double secondUpY = particle.position_[j + 1] + outSizeWidth;
 			if (IsRangeOverlap(firstLowX, firstUpX, secondLowX, secondUpX) && IsRangeOverlap(firstLowY, firstUpY, secondLowY, secondUpY)) {
-				particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+				//particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
 				IsDeviceOverlap = true;
 				//cout << curIterNum << ":" << "重叠" << endl;
-				return;
+				//return;
 			}
 		}
 	}
 	#pragma endregion
 
-	#pragma region 如果设备重叠，调整设备位置，否则直接布线
-	//if (IsDeviceOverlap == true) {
-	//	//步骤：
-	//	//只要有一个设备有重叠，就要处理
-	//	while ()
-	//}
-	//在检测一次设备位置，看是否重叠
+	#pragma region 如果设备重叠，调整设备位置，尽力减少重叠，否则直接布线
+
+	#pragma region 调整设备位置
+	if (IsDeviceOverlap == true) {
+		//1.用一个设备的尺寸数组存储所有设备
+		//2.每次从第一个设备开始，并且从编号为1的设备开始检测是否和该设备重叠
+		//3.如果重叠，执行以下操作：
+		//	a.规定设备只能向左下移动
+		//  b.分别计算该设备向左/下移动的距离
+		//	c.原则：选择移动的两个设备的尺寸x之和/尺寸y之和中相对于车间xy尺寸比例最小的方向移动
+		//目前是移动到紧贴的位置，先不考虑溢出
+		//4.移动之后，下次还是从第一个设备开始检测，直到所有的都不重叠
+		//5.然后计算出所有设备位置的包络矩形，如果小于车间尺寸，移动到车间内的一个随机位置
+		//然后根据这个移动前后的位置差修改所有设备的位置
+		//用比例计算这个并不是特别靠谱，可以试试维护一个大的包络矩形
+
+		vector<DeviceIDSize> deviceIDSizeList;//按照设备大小排序的ID数组
+		//先用其他结构存设备坐标，因为可能会修改失败
+		vector<double> particlePosList;
+		for (int i = 0; i < particle.dim_; ++i) {
+			particlePosList.push_back(particle.position_[i]);
+		}
+		for (int i = 0; i < proParas.DeviceSum; ++i) {
+			deviceIDSizeList.push_back(DeviceIDSize(i, copyDeviceParas[i].size));
+		}
+		sort(deviceIDSizeList.begin(), deviceIDSizeList.end());
+
+		double outSizeLength1, outSizeWidth1;
+		double outSizeLength2, outSizeWidth2;
+		int firstID, secondID;
+		int maxIter = 1000;
+		int curIter = 0;
+		bool tooMuch = false;
+		for (int i = 0; i < deviceIDSizeList.size(); ++i) {
+			//检测其他的设备是否和它重叠
+			firstID = deviceIDSizeList[i].ID;
+			outSizeLength1 = 0.5 * copyDeviceParas[firstID].size.x + copyDeviceParas[firstID].spaceLength;
+			outSizeWidth1 = 0.5 * copyDeviceParas[firstID].size.y + copyDeviceParas[firstID].spaceLength;
+			double firstLowX = particlePosList[3 * firstID] - outSizeLength1;
+			double firstUpX = particlePosList[3 * firstID] + outSizeLength1;
+			double firstLowY = particlePosList[3 * firstID + 1] - outSizeWidth1;
+			double firstUpY = particlePosList[3 * firstID + 1] + outSizeWidth1;
+			for (int j = 0; j < deviceIDSizeList.size();) {
+				++curIter;
+				if (curIter > maxIter) {
+					particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+					return;
+				}
+				//cout << j << endl;
+				secondID = deviceIDSizeList[j].ID;
+				if (firstID != secondID) {
+					outSizeLength2 = 0.5 * copyDeviceParas[secondID].size.x + copyDeviceParas[secondID].spaceLength;
+					outSizeWidth2 = 0.5 * copyDeviceParas[secondID].size.y + copyDeviceParas[secondID].spaceLength;
+					double secondLowX = particlePosList[3 * secondID] - outSizeLength2;
+					double secondUpX = particlePosList[3 * secondID] + outSizeLength2;
+					double secondLowY = particlePosList[3 * secondID + 1] - outSizeWidth2;
+					double secondUpY = particlePosList[3 * secondID + 1] + outSizeWidth2;
+					if (IsRangeOverlap(firstLowX, firstUpX, secondLowX, secondUpX)
+						&& IsRangeOverlap(firstLowY, firstUpY, secondLowY, secondUpY)) {
+						j = 0;//只要遇到重叠的就要重新开始判断
+						//重叠了，移动设备，根据比例确定往哪移动
+						//这个策略不一定很好，需要验证
+						double rateLeft = (outSizeLength1 + outSizeLength2) * 2 / proParas.workShopLength;
+						double rateDown = (outSizeWidth1 + outSizeWidth2) * 2 / proParas.workShopWidth;
+						if (rateLeft < rateDown) {//说明应该往左移动
+							particlePosList[firstID * 3] = secondLowX - outSizeLength1 - 0.1;
+						}
+						else {//往下移动
+							particlePosList[firstID * 3 + 1] = secondLowY - outSizeWidth1 - 0.1;
+						}
+						firstLowX = particlePosList[3 * firstID] - outSizeLength1;
+						firstUpX = particlePosList[3 * firstID] + outSizeLength1;
+						firstLowY = particlePosList[3 * firstID + 1] - outSizeWidth1;
+						firstUpY = particlePosList[3 * firstID + 1] + outSizeWidth1;
+					}
+					else {
+						++j;
+					}
+				}
+				else {
+					++j;
+				}
+			}
+		}
+		//5.然后计算出所有设备位置的包络矩形，如果小于车间尺寸，移动到车间内的一个随机位置
+		//实现：计算出所有设备的四个方向的边界
+		double min_X, min_Y, max_X, max_Y;
+		min_X = min_Y = INT_MAX;
+		max_X = max_Y = -INT_MAX;
+		for (int i = 0; i < proParas.DeviceSum; ++i) {
+			double outSizeLength = copyDeviceParas[i].size.x * 0.5 + copyDeviceParas[i].spaceLength;
+			double outSizeWidth = copyDeviceParas[i].size.y * 0.5 + copyDeviceParas[i].spaceLength;
+			min_X = min(min_X, particlePosList[3 * i] - outSizeLength);
+			max_X = max(max_X, particlePosList[3 * i] + outSizeLength);
+			min_Y = min(min_Y, particlePosList[3 * i + 1] - outSizeWidth);
+			max_Y = max(max_Y, particlePosList[3 * i + 1] + outSizeWidth);
+		}
+		Vector2 oriRectAxis((max_X + min_X) / 2.0, (max_Y + min_Y) / 2.0);//总包络矩形的中心坐标
+		Vector2 newRectAxis;
+		if ((max_X - min_X) <= proParas.workShopLength
+			&& (max_Y - min_Y) <= proParas.workShopWidth) {//包络矩形小于车间大小
+			//包络矩形随机产生一个坐标
+			double rectLowX = 0 + (max_X - min_X) * 0.5;
+			double rectHighX = proParas.workShopLength - (max_X - min_X) * 0.5;
+			double rectLowY = 0 + (max_Y - min_Y) * 0.5;
+			double rectHighY = proParas.workShopWidth - (max_Y - min_Y) * 0.5;
+			newRectAxis.x = GetDoubleRand() * (rectHighX - rectLowX) + rectLowX;
+			newRectAxis.y = GetDoubleRand() * (rectHighY - rectLowY) + rectLowY;
+			//根据包络矩形的坐标变化，修改所有设备的坐标
+			double deviceOffsetX = newRectAxis.x - oriRectAxis.x;
+			double deviceOffsetY = newRectAxis.y - oriRectAxis.y;
+			for (int i = 0; i < proParas.DeviceSum; ++i) {
+				particlePosList[3 * i] += deviceOffsetX;
+				particlePosList[3 * i + 1] += deviceOffsetY;
+			}
+			IsDeviceOverlap = false;
+			//修改postion，需要修改其他的吗？
+			for (int i = 0; i < proParas.DeviceSum; i++) {
+				particle.position_[i * 3] = particlePosList[3 * i];
+				particle.position_[i * 3 + 1] = particlePosList[3 * i + 1];
+			}
+		}
+		else {
+			IsDeviceOverlap = true;
+			particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
+			return;
+		}
+	}
+	#pragma endregion
 
 	if (IsDeviceOverlap == false)
 	{
@@ -915,7 +1036,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 		auto unique_end2 = unique(horizonAxisList.begin(), horizonAxisList.end());
 		horizonAxisList.erase(unique_end2, horizonAxisList.end());
 
-		//存下所有的障碍点的下标
+		//存所有的障碍点的下标
 		vector<int> barrierRowIndexs;
 		vector<int> barrierColIndexs;
 		//用这些坐标去组成路径点map
@@ -1434,7 +1555,7 @@ double CalcuTotalArea(Particle& particle, ProblemParas proParas) {
 	min_X = min_Y = INT_MAX;
 	max_X = max_Y = INT_MAX;
 	min_X_index = min_Y_index = max_X_index = max_Y_index = 0;
-	for (int i = 0; i < particle.dim_; i += 2) {
+	for (int i = 0; i < particle.dim_; i += 3) {
 		if (particle.position_[i] - proParas.deviceParaList[i / 2].size.x * 0.5 < min_X) {
 			min_X = particle.position_[i] - proParas.deviceParaList[i / 2].size.x * 0.5;
 			min_X_index = i / 2;

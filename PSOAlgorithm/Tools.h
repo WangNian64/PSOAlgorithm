@@ -37,6 +37,14 @@ static vector<string> split(const string& str, const string& pattern)
 	}
 	return res;
 }
+
+// 获取双精度随机数(返回一个0-1之间的小数,不包含1）
+static double GetDoubleRand(int N = 99)
+{
+	double temp = rand() % (N + 1) / (double)(N + 1);
+	return temp;
+}
+
 //返回一个随机数种子（微秒级）
 static unsigned GetRamdonSeed()
 {

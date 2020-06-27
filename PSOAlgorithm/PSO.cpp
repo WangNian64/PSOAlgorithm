@@ -1,7 +1,5 @@
 #pragma once
-#include "PSO.h"
 #include "Pareto.h"
-#include "Tools.h"
 #include "Archive.h"
 #include <ctime>
 // 构造函数(初始化各种算法的参数，给数组分配空间)
@@ -100,26 +98,9 @@ void PSOOptimizer::InitialAllParticles()
 		particles_[i].fitness_ = new double[fitness_count];
 		particles_[i].best_fitness_ = new double[fitness_count];
 	}
-	// 初始化所有粒子（包括初始化每个粒子的个体最优值）
-	// 先初始化1/5的粒子，然后复制
-	//for (int i = 0; i < particle_num_ / 10; ) {
-	//	InitialParticle(i);
-	//	if (this->particles_[i].fitness_[0] != MAX_FITNESS) {
-	//		cout << i << endl;
-	//		++i;
-	//	}
-	//}
-	//for (int j = particle_num_ / 10; j < particle_num_; j++) {
-	//	particles_[j] = particles_[j % (particle_num_ / 10)];
-	//}
-
 	for (int i = 0; i < particle_num_; ++i)
 	{
 		InitialParticle(i);
-		/*if (this->particles_[i].fitness_[0] != MAX_FITNESS) {
-			cout << i << endl;
-			++i;
-		}*/
 	}
 	cout << "初始化完成";
 }
@@ -171,19 +152,6 @@ void PSOOptimizer::InitGbest()
 	}
 }
 
-// 获取双精度随机数(返回一个0-1之间的小数）
-double PSOOptimizer::GetDoubleRand(int N)
-{
-	double temp = rand() % (N + 1) / (double)(N + 1);
-	return temp;
-}
-
-//
-int PSOOptimizer::GetIntRand(int N)
-{
-	int temp = rand() % (N + 1);
-	return temp;
-}
 void PSOOptimizer::GetFitness(Particle& particle)
 {
 	fitness_fun_(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
@@ -208,10 +176,6 @@ void PSOOptimizer::UpdateParticle(int i)
 	{
 		double last_position = particles_[i].position_[j];
 
-		//particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
-		//	C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-		//	C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
-		//particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
 		particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
 			C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
 			C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
@@ -221,10 +185,10 @@ void PSOOptimizer::UpdateParticle(int i)
 		// 如果搜索区间有上下限限制
 		if (upper_bound_ && lower_bound_)
 		{
-			if (particles_[i].position_[j] > upper_bound_[j])
+			if (particles_[i].position_[j] >= upper_bound_[j])//注意对于设备朝向，=也不行
 			{
 				double thre = GetDoubleRand(99);
-				if (last_position == upper_bound_[j])
+				if (last_position >= upper_bound_[j] - 1)//注意upper_bound_[j]-1=3
 				{
 					particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
 				}
@@ -234,10 +198,10 @@ void PSOOptimizer::UpdateParticle(int i)
 				}
 				else
 				{
-					particles_[i].position_[j] = upper_bound_[j];
+					particles_[i].position_[j] = upper_bound_[j] - 0.5;
 				}
 			}
-			if (particles_[i].position_[j] < lower_bound_[j])
+			if (particles_[i].position_[j] <= lower_bound_[j])
 			{
 				double thre = GetDoubleRand(99);
 				if (last_position == lower_bound_[j])
@@ -291,13 +255,8 @@ void PSOOptimizer::UpdateParticle(int i)
 		if (j % 3 != 2)
 		{
 			//保存上一次迭代结果的position和velocity
-			//double last_velocity = particles_[i].velocity_[j];
 			double last_position = particles_[i].position_[j];
 
-			//particles_[i].velocity_[j] = w_[j] * particles_[i].velocity_[j] +
-			//	C1_[j] * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-			//	C2_[j] * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
-			//particles_[i].position_[j] += dt_[j] * particles_[i].velocity_[j];
 			particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
 				C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
 				C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
@@ -449,10 +408,10 @@ void PSOOptimizer::InitialParticle(int i)
 		particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
 	}
 	//根据朝向修改设备上下界范围&设备坐标
-	vector<Size> deviceSizeCopy;
+	vector<Vector2> deviceSizeCopy;
 	for (int i = 0; i < problemParas.DeviceSum; i++)
 	{
-		deviceSizeCopy.push_back(Size(problemParas.deviceParaList[i].size.x, problemParas.deviceParaList[i].size.y));
+		deviceSizeCopy.push_back(Vector2(problemParas.deviceParaList[i].size.x, problemParas.deviceParaList[i].size.y));
 	}
 	for (int j = 2; j < dim_; j += 3)
 	{
@@ -481,19 +440,9 @@ void PSOOptimizer::InitialParticle(int i)
 			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
 		}
-		//cout << upper_bound_[j - 2] << "," << upper_bound_[j - 1] << endl;
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
-
-	//不考虑非重叠约束，直接产生随机解
-	//for (int j = 0; j < dim_; j += 3) {
-	//	particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-	//	particles_[i].position_[j + 1] = GetDoubleRand() * range_interval_[j + 1] + lower_bound_[j + 1];
-	//	particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
-	//	particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
-	//}
-
 
 	#pragma region 考虑非重叠约束，这里分块产生随机点
 	//(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
@@ -558,10 +507,8 @@ void PSOOptimizer::InitialParticle(int i)
 					findParticle = true;
 					particles_[i].position_[j] = tempPositionX;
 					particles_[i].position_[j + 1] = tempPositionY;
-					//particles_[i].position_[j + 2] = DeviceDirect::Default;
 					particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
 					particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
-					//particles_[i].velocity_[j + 2] = GetDoubleRand() * range_interval_[j + 2] / 300;
 
 					//更新vec
 					madeDeviceIndexVec.push_back(randomDeviceIndex);

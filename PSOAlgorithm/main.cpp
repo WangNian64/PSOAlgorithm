@@ -4,7 +4,6 @@
 #include <string>
 #include <iomanip>
 #include <ctime>
-#include "PSO.h"
 #include "FitnessFunction.h"
 int main()
 {
@@ -34,7 +33,9 @@ int main()
 		psopara.SetC1(1.49445);								// 加速度因子1
 		psopara.SetC2(1.49445);								// 加速度因子2
 		psopara.SetLowBound(0, 0, DeviceDirect::Default);	// position的搜索范围下限
-		psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270);// position的搜索范围上限
+
+		//不要让设备朝向取到最大值，只能取到3.几
+		psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270 + 1);// position的搜索范围上限
 		#pragma endregion
 
 		#pragma region 调用PSO算法，并输出结果

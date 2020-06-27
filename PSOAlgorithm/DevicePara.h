@@ -191,6 +191,18 @@ enum DeviceRelation
 {
 	X,U,O,I,E,A
 };
+struct DeviceIDSize
+{
+	int ID;
+	Vector2 size;
+	DeviceIDSize(int id, Vector2 s) {
+		ID = id;
+		size = s;
+	}
+	bool operator<(const DeviceIDSize& rhs) const {
+		return (this->size.x * this->size.y) < (rhs.size.x * rhs.size.y);
+	}
+};
 //单个设备的参数
 class DevicePara
 {

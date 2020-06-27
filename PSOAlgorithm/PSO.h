@@ -255,12 +255,6 @@ public:
 	// 初始化全局最优
 	void InitGbest();
 
-	// 获取双精度随机数（默认精度为0.1）
-	double GetDoubleRand(int N = 9);
-
-	//(返回一个0 - N包括N的int）
-	int GetIntRand(int N);
-
 	// 计算该粒子的适应度值
 	void GetFitness(Particle& particle);
 
