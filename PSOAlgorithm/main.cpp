@@ -7,6 +7,7 @@
 #include "FitnessFunction.h"
 int main()
 {
+
 	int problemSum = 1;//问题的数目
 	int testSum = 1;//每个实验跑的实验次数
 	for (int curProblem = 0; curProblem < problemSum; curProblem++)//跑多个问题
@@ -24,7 +25,7 @@ int main()
 		psopara.mesh_div_count = 4;							// 网格划分数目
 		psopara.problemParas = proParas;					// 布局问题的参数
 		psopara.particle_num_ =	100;						// 粒子个数
-		psopara.max_iter_num_ = 200;						// 最大迭代次数
+		psopara.max_iter_num_ = 400;						// 最大迭代次数
 		psopara.fitness_count_ = 2;							// 适应度数目
 		psopara.archive_max_count = 100;					// archive数组的最大数目
 		psopara.SetDt(1.0);									// 时间步长
@@ -37,6 +38,14 @@ int main()
 		//不要让设备朝向取到最大值，只能取到3.几
 		psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270 + 1);// position的搜索范围上限
 		#pragma endregion
+
+		#pragma region GPU申请变量
+
+		#pragma endregion
+		#pragma region CPU->GPU
+
+		#pragma endregion
+
 
 		#pragma region 调用PSO算法，并输出结果
 		PSOOptimizer psooptimizer(&psopara, FitnessFunction);//构造函数
@@ -83,6 +92,7 @@ int main()
 				}
 				string f1line = to_string(minFitness1) + "\n";
 				OutFile << f1line;
+				cout << f1line << endl;
 				//OutFile << "\n";
 
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
@@ -93,6 +103,7 @@ int main()
 				}
 				string f2line = to_string(minFitness2) + "\n";
 				OutFile1 << f2line;
+				cout << f2line << endl;
 				//OutFile1 << "\n";
 			}
 			OutFile.close();

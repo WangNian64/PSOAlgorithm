@@ -25,7 +25,7 @@ struct ProblemParas
 	//物料参数列表
 	int CargoTypeNum;
 	CargoType* cargoTypeList;
-	Graph deviceGraph;//设备连的图结构
+	//Graph deviceGraph;//设备连的图结构
 	//输送机参数
 	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;//输送机宽度

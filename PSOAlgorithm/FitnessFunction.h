@@ -38,7 +38,7 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 
 #pragma endregion
 void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle);
-double CalcuTotalArea(Particle& particle, ProblemParas proParas);
+double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
 int FindAxisIndex(double axis, const vector<double>& axisList);
@@ -1091,6 +1091,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				double initDevice1PosX, initDevice1PosY, initDevice2PosX, initDevice2PosY;//保存未增加包围边的坐标
 
 				double deviceDistance = 0.0;//距离
+				double outDSizeL, inDSizeL;
 
 				forwardDeviceIndex = proParas.cargoTypeList[i].deviceLinkList[j].outDeviceIndex;
 				curDeviceIndex = proParas.cargoTypeList[i].deviceLinkList[j].inDeviceIndex;
@@ -1106,6 +1107,8 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 					pathBeginDirect = PathDirection::Vertical;
 					pathEndDirect = (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct % 2 == 0)
 						? PathDirection::Horizon : PathDirection::Vertical;
+					outDSizeL = 0.0;
+					inDSizeL = pathEndDirect == PathDirection::Horizon ? (0.5 * copyDeviceParas[curDeviceIndex].size.x) : (0.5 * copyDeviceParas[curDeviceIndex].size.y);
 
 					device1PosX = proParas.entrancePos.x;
 					device1PosY = proParas.entrancePos.y;
@@ -1147,6 +1150,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 						? PathDirection::Horizon : PathDirection::Vertical;
 					pathEndDirect = PathDirection::Vertical;
 
+					outDSizeL = pathBeginDirect == PathDirection::Horizon ? (0.5 * copyDeviceParas[forwardDeviceIndex].size.x) : (0.5 * copyDeviceParas[forwardDeviceIndex].size.y);
+					inDSizeL = 0.0;
+
 					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
 					device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
 					device2PosX = proParas.exitPos.x;
@@ -1187,6 +1193,10 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 						? PathDirection::Horizon : PathDirection::Vertical;
 					pathEndDirect = (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct % 2 == 0)
 						? PathDirection::Horizon : PathDirection::Vertical;
+
+
+					outDSizeL = pathBeginDirect == PathDirection::Horizon ? (0.5 * copyDeviceParas[forwardDeviceIndex].size.x) : (0.5 * copyDeviceParas[forwardDeviceIndex].size.y);
+					inDSizeL = pathEndDirect == PathDirection::Horizon ? (0.5 * copyDeviceParas[curDeviceIndex].size.x) : (0.5 * copyDeviceParas[curDeviceIndex].size.y);
 
 					device1PosX = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.x + particle.position_[forwardDeviceIndex * 3];
 					device1PosY = copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].pos.y + particle.position_[forwardDeviceIndex * 3 + 1];
@@ -1253,7 +1263,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 					return;
 				}
 				//根据路径计算长度
-				deviceDistance = star->CalcuPathLength(path);
+				deviceDistance = star->CalcuPathLength(path) + outDSizeL + inDSizeL;
 
 
 				#pragma region 计算路径（只带上起始点 + 路径中的转弯点）
@@ -1478,16 +1488,17 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 		}
 		conveyorTotalCost += proParas.curveConveyorUnitCost * tempCurveConveyorList.size();
 		//设置适应度值
-		cout << totalTime << "," << conveyorTotalCost << endl;
 
 		//particle.fitness_[0] = 1000;
 		particle.fitness_[0] = totalTime;
 		//particle.fitness_[0] = totalTime + punishValue1;
 
-		//particle.fitness_[1] = CalcuTotalArea(particle, proParas);
+		//particle.fitness_[1] = CalcuTotalArea(particle, copyDeviceParas);//占地面积？
 		//particle.fitness_[1] = 1000;
 		particle.fitness_[1] = conveyorTotalCost;
 		//particle.fitness_[1] = conveyorTotalCost + punishValue2;
+
+		cout << particle.fitness_[0] << "," << particle.fitness_[1] << endl;
 
 		//根据适应度是否升级选择更新BestPathInfoList
 		for (int i = 0; i < bestPathInfoList.size(); ++i) {
@@ -1548,30 +1559,18 @@ double CalcuDeviceDist(Vector2 pos1, Vector2 pos2)
 	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y);
 }
 //计算占地面积
-double CalcuTotalArea(Particle& particle, ProblemParas proParas) {
+double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 	double area = 0;
 	double min_X, min_Y, max_X, max_Y;
-	int min_X_index, min_Y_index, max_X_index, max_Y_index;
 	min_X = min_Y = INT_MAX;
-	max_X = max_Y = INT_MAX;
-	min_X_index = min_Y_index = max_X_index = max_Y_index = 0;
+	max_X = max_Y = -INT_MAX;
 	for (int i = 0; i < particle.dim_; i += 3) {
-		if (particle.position_[i] - proParas.deviceParaList[i / 2].size.x * 0.5 < min_X) {
-			min_X = particle.position_[i] - proParas.deviceParaList[i / 2].size.x * 0.5;
-			min_X_index = i / 2;
-		}
-		if (particle.position_[i + 1] - proParas.deviceParaList[i / 2].size.y * 0.5 < min_Y) {
-			min_Y = particle.position_[i + 1] - proParas.deviceParaList[i / 2].size.y * 0.5;
-			min_Y_index = i / 2;
-		}
-		if (particle.position_[i] + proParas.deviceParaList[i / 2].size.x * 0.5 > max_X) {
-			max_X = particle.position_[i] + proParas.deviceParaList[i / 2].size.x * 0.5;
-			max_X_index = i / 2;
-		}
-		if (particle.position_[i + 1] + proParas.deviceParaList[i / 2].size.y * 0.5 > max_Y) {
-			max_Y = particle.position_[i + 1] + proParas.deviceParaList[i / 2].size.y * 0.5;
-			max_Y_index = i / 2;
-		}
+		double outSizeLength = copyDeviceParas[i / 3].size.x * 0.5 + copyDeviceParas[i / 3].spaceLength;
+		double outSizeWidth = copyDeviceParas[i / 3].size.y * 0.5 + copyDeviceParas[i / 3].spaceLength;
+		min_X = min(min_X, particle.position_[i] - outSizeLength);
+		max_X = max(max_X, particle.position_[i] + outSizeLength);
+		min_Y = min(min_Y, particle.position_[i + 1] - outSizeWidth);
+		max_Y = max(max_Y, particle.position_[i + 1] + outSizeWidth);
 	}
 	//计算总面积
 	area = (max_X - min_X) * (max_Y - min_Y);

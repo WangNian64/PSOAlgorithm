@@ -100,6 +100,7 @@ void PSOOptimizer::InitialAllParticles()
 	}
 	for (int i = 0; i < particle_num_; ++i)
 	{
+		cout << i << endl;
 		InitialParticle(i);
 	}
 	cout << "初始化完成";
@@ -201,7 +202,7 @@ void PSOOptimizer::UpdateParticle(int i)
 					particles_[i].position_[j] = upper_bound_[j] - 0.5;
 				}
 			}
-			if (particles_[i].position_[j] <= lower_bound_[j])
+			if (particles_[i].position_[j] < lower_bound_[j])
 			{
 				double thre = GetDoubleRand(99);
 				if (last_position == lower_bound_[j])
@@ -245,7 +246,6 @@ void PSOOptimizer::UpdateParticle(int i)
 			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
 
 		}
-		//cout << upper_bound_[j - 2] << ", " << upper_bound_[j - 1] << endl;
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
@@ -305,7 +305,6 @@ void PSOOptimizer::UpdateParticle(int i)
 	//计算更新后粒子的适应度值数组
 	GetFitness(particles_[i]);
 }
-
 
 //更新Pbest
 void PSOOptimizer::UpdatePbest()
@@ -444,6 +443,15 @@ void PSOOptimizer::InitialParticle(int i)
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
 
+	#pragma region 完全随机
+	//for (int j = 0; j < dim_; j += 3) {
+	//	particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+	//	particles_[i].position_[j + 1] = GetDoubleRand() * range_interval_[j + 1] + lower_bound_[j + 1];
+	//	particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+	//	particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
+	//}
+	#pragma endregion
+
 	#pragma region 考虑非重叠约束，这里分块产生随机点
 	//(每隔1米产生一个随机点，只要找到一个随机点满足非重叠约束，就采用）朝向默认为0
 	//新的随机：随机设备的摆放顺序
@@ -454,8 +462,23 @@ void PSOOptimizer::InitialParticle(int i)
 		unmakeDeviceIndexVec.push_back(i);
 	}
 	default_random_engine e;
+
+	clock_t startTime, endTime;
+	startTime = clock();//计时开始
 	while (unmakeDeviceIndexVec.size() > 0)
 	{
+		endTime = clock();
+		if ((static_cast<double>(endTime - startTime) / CLOCKS_PER_SEC) > 1) {
+			#pragma region 完全随机
+			for (int j = 0; j < dim_; j += 3) {
+				particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+				particles_[i].position_[j + 1] = GetDoubleRand() * range_interval_[j + 1] + lower_bound_[j + 1];
+				particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+				particles_[i].velocity_[j + 1] = GetDoubleRand() * range_interval_[j + 1] / 300;
+			}
+			#pragma endregion
+			break;
+		}
 		//微秒级精度的随机数种子
 		e.seed(GetRamdonSeed());
 		uniform_int_distribution<unsigned> u(0, unmakeDeviceIndexVec.size() - 1);
