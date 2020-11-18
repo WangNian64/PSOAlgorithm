@@ -1,9 +1,10 @@
 #pragma once
 #include "Pareto.h"
 #include "Archive.h"
+#include "FitnessFunction.h"
 #include <ctime>
 // 构造函数(初始化各种算法的参数，给数组分配空间)
-PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
+PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 {
 	particle_num_ = pso_para->particle_num_;
 	max_iter_num_ = pso_para->max_iter_num_;
@@ -48,21 +49,12 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun)
 	particles_ = new Particle[particle_num_];
 	//w_ = new double[dim_];
 
-	all_best_position_ = new double*[particle_num_];
-	for (int j = 0; j < particle_num_; j++)
-	{
-		all_best_position_[j] = new double[dim_];
-	}
+	all_best_position_ = new double[particle_num_ * dim_];
 
-	all_best_fitness_ = new double* [particle_num_];
-	for (int j = 0; j < particle_num_; j++)
-	{
-		all_best_fitness_[j] = new double[fitness_count];
-	}
+	all_best_fitness_ = new double[particle_num_ * fitness_count];
 
 	meshDivCount = pso_para->mesh_div_count;
 	problemParas = pso_para->problemParas;//布局问题的参数
-	fitness_fun_ = fitness_fun;
 
 	this->archiveMaxCount = pso_para->archive_max_count;
 
@@ -144,18 +136,18 @@ void PSOOptimizer::InitGbest()
 	{
 		for (int j = 0; j < fitness_count; j++)
 		{
-			this->all_best_fitness_[i][j] = gbestList[i].best_fitness_[j];
+			this->all_best_fitness_[i * fitness_count + j] = gbestList[i].best_fitness_[j];
 		}
 		for (int k = 0; k < dim_; k++)
 		{
-			this->all_best_position_[i][k] = gbestList[i].best_position_[k];
+			this->all_best_position_[i * dim_ + k] = gbestList[i].best_position_[k];
 		}
 	}
 }
 
 void PSOOptimizer::GetFitness(Particle& particle)
 {
-	fitness_fun_(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
+	FitnessFunction(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
 }
 
 void PSOOptimizer::UpdateAllParticles()
@@ -179,7 +171,7 @@ void PSOOptimizer::UpdateParticle(int i)
 
 		particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
 			C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-			C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+			C2_ * GetDoubleRand() * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
 		particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
 
 
@@ -259,7 +251,7 @@ void PSOOptimizer::UpdateParticle(int i)
 
 			particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
 				C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-				C2_ * GetDoubleRand() * (all_best_position_[i][j] - particles_[i].position_[j]);
+				C2_ * GetDoubleRand() * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
 			particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
 
 			// 如果搜索区间有上下限限制
@@ -336,12 +328,12 @@ void PSOOptimizer::UpdateGbest()
 	{
 		for (int j = 0; j < fitness_count; j++)
 		{
-			this->all_best_fitness_[i][j] = gbestList[i].best_fitness_[j];
+			this->all_best_fitness_[i * fitness_count + j] = gbestList[i].best_fitness_[j];
 		}
 		//cout << this->all_best_fitness_[i][0] << "," << this->all_best_fitness_[i][1] << endl; 
 		for (int k = 0; k < dim_; k++)
 		{
-			this->all_best_position_[i][k] = gbestList[i].best_position_[k];
+			this->all_best_position_[i * dim_ + k] = gbestList[i].best_position_[k];
 		}
 	}
 	//cout << endl;

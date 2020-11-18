@@ -186,8 +186,6 @@ struct Particle
 	}
 };
 
-typedef void (*ComputeFitness)(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle);
-
 class PSOOptimizer
 {
 public:
@@ -218,12 +216,10 @@ public:
 	double C1_;									// 加速度因子
 	double C2_;									// 加速度因子
 
-	double** all_best_fitness_ = nullptr;		// 全局最优粒子的适应度数组 100x2
-	double** all_best_position_ = nullptr;		// 全局最优粒子的position 100x12
+	double* all_best_fitness_ = nullptr;		// 全局最优粒子的适应度数组 100x2
+	double* all_best_position_ = nullptr;		// 全局最优粒子的position 100x12
 
 	ProblemParas problemParas;					// 布局问题参数
-
-	ComputeFitness fitness_fun_ = nullptr;		// 适应度函数
 
 	//MOPSO相关参数
 	vector<Particle> archive_list;				// 存放pareto非劣解的数组
@@ -237,7 +233,7 @@ public:
 	PSOOptimizer() {}
 
 	// 构造函数
-	PSOOptimizer(PSOPara* pso_para, ComputeFitness fitness_fun);
+	PSOOptimizer(PSOPara* pso_para);
 
 	// 析构函数
 	~PSOOptimizer();

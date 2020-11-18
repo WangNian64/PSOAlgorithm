@@ -48,7 +48,7 @@ int main()
 
 
 		#pragma region 调用PSO算法，并输出结果
-		PSOOptimizer psooptimizer(&psopara, FitnessFunction);//构造函数
+		PSOOptimizer psooptimizer(&psopara);//构造函数
 		std::srand(GetRamdonSeed());
 
 		string curProblemFolderName = "Problem" + to_string(curProblem + 1);
@@ -74,10 +74,11 @@ int main()
 			for (int i = 0; i < psooptimizer.max_iter_num_; i++)
 			{
 				cout << (i + 1) << endl;
-				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
-				psooptimizer.UpdatePbest();//更新pbest
-				psooptimizer.UpdateArchiveList();//更新外部存档集合
-				psooptimizer.UpdateGbest();//更新gbest
+				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度 并行
+				psooptimizer.UpdatePbest();//更新pbest 并行
+				//这里有一个从GPU到CPU的过程
+				psooptimizer.UpdateArchiveList();//更新外部存档集合 非并行
+				psooptimizer.UpdateGbest();//更新gbest 非并行
 
 				//存储每次迭代的Archive集合
 				//OutFile << to_string(i) + "\n";
