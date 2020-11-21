@@ -939,7 +939,15 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 计算出入口点的集合坐标
-		vector<InoutPoint> tempInoutPoints;
+		//先统计所有ioPoint数目
+		int inoutPointSize = 0;
+		for (int i = 0; i < proParas.DeviceSum; i++) 
+		{
+			inoutPointSize = inoutPointSize + copyDeviceParas[i].adjPInCount + copyDeviceParas[i].adjPOutCount;
+		}
+
+		InoutPoint* tempInoutPoints = new InoutPoint[inoutPointSize];
+		int ioPIndex = 0;
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; ++pointIndex)
@@ -949,7 +957,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				tempInoutPoints.push_back(ioPoint);
+				tempInoutPoints[ioPIndex++] = ioPoint;
 			}
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPOutCount; ++pointIndex)
 			{
@@ -958,7 +966,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				tempInoutPoints.push_back(ioPoint);
+				tempInoutPoints[ioPIndex++] = ioPoint;
 			}
 		}
 
@@ -1509,6 +1517,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		for (int i = 0; i < particle.fitnessCount; ++i) {
 			if (particle.fitness_[i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
 				bestPathInfoList[i].inoutPoints = tempInoutPoints;
+				bestPathInfoList[i].inoutPSize = inoutPointSize;
 				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
 				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
 				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];

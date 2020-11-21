@@ -170,27 +170,23 @@ int main()
 			#pragma endregion
 
 			int fitnessIndex = 0;
-			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
-			vector<InoutPoint> ioPoints = psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints;
-			OutFile << to_string(ioPoints.size()) + "\n";//出入口数目
-			for (int i = 0; i < ioPoints.size(); i++)
+			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）//也要改，待定
+			InoutPoint* ioPoints = psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints;
+			int ioPointsSize = psooptimizer.bestPathInfoList[fitnessIndex].inoutPSize;
+			OutFile << to_string(ioPointsSize) + "\n";//出入口数目
+			for (int i = 0; i < ioPointsSize; i++)
 			{
-				//string line = "";
 				if (ioPoints[i].pointDirect == PointDirect::Up || ioPoints[i].pointDirect == PointDirect::Down)
 				{
-					//line += "Vertical ";
 					OutFile << "Vertical ";
 				}
 				else
 				{
-					//line += "Horizon ";
 					OutFile << "Horizon ";
 				}
-				//line += to_string(ioPoints[i].pointAxis.x) + " " + to_string(ioPoints[i].pointAxis.y) + " \n";
-				//OutFile << line;
-				OutFile /*<< fixed << setprecision(1)*/ << ioPoints[i].pointAxis.x;
+				OutFile << ioPoints[i].pointAxis.x;
 				OutFile << " ";
-				OutFile /*<< fixed << setprecision(1)*/ << ioPoints[i].pointAxis.y;
+				OutFile << ioPoints[i].pointAxis.y;
 				OutFile << "\n";
 			}
 			#pragma endregion

@@ -127,14 +127,14 @@ struct PSOPara
 struct BestPathInfo
 {
 	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新
-	vector<InoutPoint> inoutPoints;//出入口集合
+	int inoutPSize;//出入口数目
+	InoutPoint* inoutPoints;//出入口集合
 	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
 	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
 	BestPathInfo() {
 		curBestFitnessVal = INT_MAX;
 	}
 	void Clear() {
-		inoutPoints.clear();
 		strConveyorList.clear();
 		curveConveyorList.clear();
 	}

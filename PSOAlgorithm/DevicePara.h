@@ -266,14 +266,14 @@ struct DeviceLink
 //物料信息
 struct CargoType
 {
-	string cargoName;	//物料名
-	int deviceSum;		//经过的设备数目
-	int linkSum;		//设备配对的数目
+	string cargoName;			//物料名
+	int deviceSum;				//经过的设备数目
+	int linkSum;				//设备配对的数目
 	DeviceLink* deviceLinkList;	//设备连接列表
-	double totalVolume;	//该物料的总物流量
+	double totalVolume;			//该物料的总物流量
 };
 //一小段路径的数据结构
-struct SegPath
+struct SegPath 
 {
 	Vector2Int p1;
 	Vector2Int p2;
@@ -302,7 +302,7 @@ struct SegPath
 			else
 			{
 				return this->p1 < sg.p1;
-			}
+			} 
 		}
 	}
 };
