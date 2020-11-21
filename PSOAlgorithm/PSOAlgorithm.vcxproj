@@ -127,6 +127,7 @@
     <ClCompile Include="Archive.cpp" />
     <ClCompile Include="AStar.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="main1.cu" />
     <ClCompile Include="Pareto.cpp" />
     <ClCompile Include="PSO.cpp" />
   </ItemGroup>

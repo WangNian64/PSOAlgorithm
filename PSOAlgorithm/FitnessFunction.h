@@ -37,7 +37,7 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 }
 
 #pragma endregion
-void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle);
+void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, Particle& particle);
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -50,7 +50,7 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //默认的适应度计算函数，可以替换
-void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestPathInfoList, ProblemParas proParas, Particle& particle)
+void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, Particle& particle)
 {
 	double punishValue1 = 0;
 	double punishValue2 = 0;
@@ -58,7 +58,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 	double deviceDist = 0;
 	particle.fitness_[0] = particle.fitness_[1] = 0;
 
-	#pragma region 深拷贝一份设备参数
+#pragma region 深拷贝一份设备参数
 	DevicePara* copyDeviceParas = new DevicePara[proParas.DeviceSum];
 	for (int i = 0; i < proParas.DeviceSum; i++)
 	{
@@ -71,9 +71,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 		copyDeviceParas[i].adjPointsIn = proParas.deviceParaList[i].adjPointsIn;
 		copyDeviceParas[i].adjPointsOut = proParas.deviceParaList[i].adjPointsOut;
 	}
-	#pragma endregion
+#pragma endregion
 
-	#pragma region 根据设备朝向，调整设备尺寸xy和出入口坐标
+#pragma region 根据设备朝向，调整设备尺寸xy和出入口坐标
 	for (int i = 2; i < particle.dim_; i += 3)
 	{
 		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
@@ -101,9 +101,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			point.direct = (newDirect == 4) ? (PointDirect)4 : (PointDirect)(newDirect % 4);
 		}
 	}
-	#pragma endregion
+#pragma endregion
 
-	#pragma region 检查设备是否重叠
+#pragma region 检查设备是否重叠
 	//如果重叠，进行调整
 	//降低标准会发生什么？
 	double outSizeLength, outSizeWidth;
@@ -129,11 +129,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			}
 		}
 	}
-	#pragma endregion
+#pragma endregion
 
-	#pragma region 如果设备重叠，调整设备位置，尽力减少重叠，否则直接布线
+#pragma region 如果设备重叠，调整设备位置，尽力减少重叠，否则直接布线
 
-	#pragma region 调整设备位置
+#pragma region 调整设备位置
 	if (IsDeviceOverlap == true) {
 		//1.用一个设备的尺寸数组存储所有设备
 		//2.每次从第一个设备开始，并且从编号为1的设备开始检测是否和该设备重叠
@@ -259,11 +259,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			return;
 		}
 	}
-	#pragma endregion
+#pragma endregion
 
 	if (IsDeviceOverlap == false)
 	{
-		#pragma region 对齐方案1：对齐设备中心点x和y
+#pragma region 对齐方案1：对齐设备中心点x和y
 		////if (curIterNum == 199)
 		////{
 		//for (int i = 0; i < proParas.DeviceSum; i++)
@@ -298,10 +298,10 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 		//	}
 		//}
 		////}
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 对齐方案2：检测设备出入口点坐标并进行对齐操作
-		//遍历所有cargoTypeList
+#pragma region 对齐方案2：检测设备出入口点坐标并进行对齐操作
+//遍历所有cargoTypeList
 		for (int j = 0; j < proParas.CargoTypeNum; j++)
 		{
 			for (int k = 0; k < proParas.cargoTypeList[j].linkSum; k++)
@@ -374,9 +374,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				}
 			}
 		}
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 对齐方案3：根据配对的出入口点的朝向分情况优化
+#pragma region 对齐方案3：根据配对的出入口点的朝向分情况优化
 		//遍历所有cargoTypeList
 		//if 有一个是出口为i设备，且不是最后一个，那么就可以拿出这一对出入口点
 		for (int j = 0; j < proParas.CargoTypeNum; j++)
@@ -934,9 +934,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				}
 			}
 		}
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 计算出入口点的集合坐标
+#pragma region 计算出入口点的集合坐标
 		vector<InoutPoint> tempInoutPoints;
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
@@ -958,9 +958,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			}
 		}
 
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 根据设备坐标和出入口坐标构造路径点图
+#pragma region 根据设备坐标和出入口坐标构造路径点图
 		vector< vector<APoint*> > pathPointMap;
 		vector<double> horizonAxisList;
 		vector<double> verticalAxisList;
@@ -1066,9 +1066,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 			pathPointMap.push_back(tmp);
 		}
 
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 寻路
+#pragma region 寻路
 		auto star = new CAstar();
 		star->_allPoints = pathPointMap;
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
@@ -1266,7 +1266,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				deviceDistance = star->CalcuPathLength(path) + outDSizeL + inDSizeL;
 
 
-				#pragma region 计算路径（只带上起始点 + 路径中的转弯点）
+#pragma region 计算路径（只带上起始点 + 路径中的转弯点）
 				//路径保存下来
 				vector<Vector2> points1;
 
@@ -1346,11 +1346,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 
 				//PointLink pointLink(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points);
 				//particle.pointLinks.push_back(pointLink);
-				#pragma endregion
+#pragma endregion
 
 
 
-				//计算输送时间(物料总量 * 路线长度 * 输送效率)
+//计算输送时间(物料总量 * 路线长度 * 输送效率)
 				totalTime += curCargoType.totalVolume * deviceDistance * proParas.conveySpeed;
 				//计算设备处理时间(物料总量 * 处理效率)
 				//totalTime += curCargoType.totalVolume * curDevice.workSpeed;
@@ -1363,9 +1363,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				}
 			}
 		}
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
+#pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
 
 		//particle.strConveyorList.clear();
 		//particle.curveConveyorList.clear();
@@ -1477,9 +1477,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				}
 			}
 		}
-		#pragma endregion
+#pragma endregion
 
-		#pragma region 计算目标函数值
+#pragma region 计算目标函数值
 		//遍历直线和转弯输送机的set，得到输送机的总成本
 		double conveyorTotalCost = 0.0;
 		for (StraightConveyorInfo sci : tempStrConveyorList)
@@ -1501,7 +1501,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 		cout << particle.fitness_[0] << "," << particle.fitness_[1] << endl;
 
 		//根据适应度是否升级选择更新BestPathInfoList
-		for (int i = 0; i < bestPathInfoList.size(); ++i) {
+		for (int i = 0; i < particle.fitnessCount; ++i) {
 			if (particle.fitness_[i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
 				bestPathInfoList[i].inoutPoints = tempInoutPoints;
 				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
@@ -1509,7 +1509,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, vector<BestPathInfo>& bestP
 				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];
 			}
 		}
-		#pragma endregion
+#pragma endregion
 
 		delete[] DeviceLowXList;
 		delete[] DeviceHighXList;

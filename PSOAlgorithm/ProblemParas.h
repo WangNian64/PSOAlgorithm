@@ -16,11 +16,11 @@ struct ProblemParas
 	int DeviceSum;					//设备总数
 	DevicePara* deviceParaList;		//设备参数列表
 
-	double workShopLength;//车间长度
-	double workShopWidth;//车间宽度
+	double workShopLength;			//车间长度
+	double workShopWidth;			//车间宽度
 
-	Vector2 entrancePos;//仓库入口坐标	
-	Vector2 exitPos;//仓库出口坐标
+	Vector2 entrancePos;			//仓库入口坐标	
+	Vector2 exitPos;				//仓库出口坐标
 
 	//物料参数列表
 	int CargoTypeNum;

@@ -7,7 +7,6 @@
 #include "FitnessFunction.h"
 int main()
 {
-
 	int problemSum = 1;//问题的数目
 	int testSum = 1;//每个实验跑的实验次数
 	for (int curProblem = 0; curProblem < problemSum; curProblem++)//跑多个问题
@@ -42,6 +41,7 @@ int main()
 		#pragma region GPU申请变量
 
 		#pragma endregion
+
 		#pragma region CPU->GPU
 
 		#pragma endregion
@@ -71,7 +71,7 @@ int main()
 			string curTestFolderName = "Test" + to_string(curTest + 1);
 			OutFile.open("../../Results/" + curProblemFolderName + "/" + curTestFolderName + "/archiveList1.txt");
 			OutFile1.open("../../Results/" + curProblemFolderName + "/" + curTestFolderName + "/archiveList2.txt");
-			for (int i = 0; i < psooptimizer.max_iter_num_; i++)
+			for (int i = 0; i < psooptimizer.max_iter_num_; i++)//开始并行操作
 			{
 				cout << (i + 1) << endl;
 				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度 并行

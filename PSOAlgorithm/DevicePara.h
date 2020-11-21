@@ -208,15 +208,14 @@ class DevicePara
 {
 public:
 	int ID;					//设备ID
-	//DeviceType type;		//设备种类相关参数 
 	double workSpeed;		//加工/处理1单位物料的时间
 	Vector2 size;			//设备尺寸（分别是x轴和y轴的长度）
 	Vector2 axis;			//设备坐标
 	DeviceDirect direct;	//设备朝向
 	double spaceLength;		//空隙（为了实现距离约束）
 	//出入口点的数组（会影响输送线的布局）
-	vector<AdjPoint> adjPointsIn;//入口
-	vector<AdjPoint> adjPointsOut;//出口
+	vector<AdjPoint> adjPointsIn;	//入口
+	vector<AdjPoint> adjPointsOut;	//出口
 	DevicePara() {}
 	~DevicePara() {
 		vector<AdjPoint>().swap(adjPointsIn);

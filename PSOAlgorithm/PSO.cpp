@@ -58,9 +58,48 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 
 	this->archiveMaxCount = pso_para->archive_max_count;
 
-	this->bestPathInfoList = vector<BestPathInfo>(fitness_count);//默认初始化
+	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化
 }
 
+//用另一个pso对象初始化一个GPU上的pso对象
+PSOOptimizer::PSOOptimizer(const PSOOptimizer& obj, int index)
+{
+	//分配内存
+	particle_num_ = obj.particle_num_;
+	max_iter_num_ = obj.max_iter_num_;
+	dim_ = obj.dim_;
+	fitness_count = obj.fitness_count;
+	curr_iter_ = 0;
+
+	//dt_ = new double[dim_];
+	//wstart_ = new double[dim_];
+	//wend_ = new double[dim_];
+	//C1_ = new double[dim_];
+	//C2_ = new double[dim_];
+	dt_ = obj.dt_;
+	wstart_ = obj.wstart_;
+	wend_ = obj.wend_;
+	C1_ = obj.C1_;
+	C2_ = obj.C2_;
+
+	//相当于重新分配内存了
+	CUDA_SAFE_CALL(cudaMalloc((void**)& upper_bound_, sizeof(double) * dim_));
+	CUDA_SAFE_CALL(cudaMalloc((void**)& lower_bound_, sizeof(double) * dim_));
+	CUDA_SAFE_CALL(cudaMalloc((void**)& range_interval_, sizeof(double) * dim_));
+
+	CUDA_SAFE_CALL(cudaMalloc((void**)& all_best_position_, sizeof(double) * particle_num_ * dim_));
+	CUDA_SAFE_CALL(cudaMalloc((void**)& all_best_fitness_, sizeof(double) * particle_num_ * fitness_count));
+	//只有并行的数据用GPU分配内存
+
+
+	meshDivCount = obj.meshDivCount;
+	this->archiveMaxCount = obj.archiveMaxCount;
+
+
+	problemParas = obj.problemParas;//布局问题的参数,也需要在GPU中
+
+	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化
+}
 PSOOptimizer::~PSOOptimizer()
 {
 	if (particles_) { delete[]particles_; }

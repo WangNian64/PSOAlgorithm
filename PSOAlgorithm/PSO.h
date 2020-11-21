@@ -35,7 +35,7 @@ struct PSOPara
 	double* range_interval_ = nullptr;			// position搜索区间长度
 
 	int archive_max_count;						// pareto最优解数组的最大值
-	ProblemParas problemParas;					//和粒子对应的设备布局参数
+	ProblemParas problemParas;					//和粒子对应的设备布局参数 全局参数
 
 	PSOPara() {}
 
@@ -221,12 +221,10 @@ public:
 
 	ProblemParas problemParas;					// 布局问题参数
 
-	//MOPSO相关参数
+	//MOPSO相关参数,不需要传到GPU 
 	vector<Particle> archive_list;				// 存放pareto非劣解的数组
 	int archiveMaxCount;						// archive数组的最大数目
-
-
-	vector<BestPathInfo> bestPathInfoList;		//最优路径信息
+	BestPathInfo* bestPathInfoList;				//最优路径信息
 
 public:
 	// 默认构造函数
@@ -235,6 +233,8 @@ public:
 	// 构造函数
 	PSOOptimizer(PSOPara* pso_para);
 
+	//用另一个pso对象初始化一个GPU上的pso对象
+	PSOOptimizer(const PSOOptimizer &obj, int index);
 	// 析构函数
 	~PSOOptimizer();
 
