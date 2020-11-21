@@ -214,12 +214,13 @@ public:
 	DeviceDirect direct;	//设备朝向
 	double spaceLength;		//空隙（为了实现距离约束）
 	//出入口点的数组（会影响输送线的布局）
-	vector<AdjPoint> adjPointsIn;	//入口
-	vector<AdjPoint> adjPointsOut;	//出口
+	int adjPInCount;
+	int adjPOutCount;
+	AdjPoint* adjPointsIn;	//入口
+	AdjPoint* adjPointsOut;	//出口
 	DevicePara() {}
 	~DevicePara() {
-		vector<AdjPoint>().swap(adjPointsIn);
-		vector<AdjPoint>().swap(adjPointsOut);
+
 	}
 };
 //出入口相连的数据结构

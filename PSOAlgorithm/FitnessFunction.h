@@ -88,14 +88,16 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		Vector2 deviceCenterPos(0, 0);
 		double rotateAngle = curDirect * 90;
 		int newDirect = 0;
-		for (AdjPoint& point : copyDeviceParas[i / 3].adjPointsIn)
+		for (int pointIndex = 0; pointIndex < copyDeviceParas[i / 3].adjPInCount; ++pointIndex)
 		{
+			AdjPoint& point = copyDeviceParas[i / 3].adjPointsIn[pointIndex];
 			point.pos = Rotate(point.pos, deviceCenterPos, rotateAngle);
 			newDirect = point.direct + (int)curDirect;
 			point.direct = (newDirect == 4) ? (PointDirect)4 : (PointDirect)(newDirect % 4);
 		}
-		for (AdjPoint& point : copyDeviceParas[i / 3].adjPointsOut)
+		for (int pointIndex = 0; pointIndex < copyDeviceParas[i / 3].adjPOutCount; ++pointIndex)
 		{
+			AdjPoint& point = copyDeviceParas[i / 3].adjPointsOut[pointIndex];
 			point.pos = Rotate(point.pos, deviceCenterPos, rotateAngle);
 			newDirect = point.direct + (int)curDirect;
 			point.direct = (newDirect == 4) ? (PointDirect)4 : (PointDirect)(newDirect % 4);
@@ -940,16 +942,18 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		vector<InoutPoint> tempInoutPoints;
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
-			for (AdjPoint point : copyDeviceParas[i].adjPointsIn)
+			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; ++pointIndex)
 			{
+				AdjPoint& point = copyDeviceParas[i].adjPointsIn[pointIndex];
 				InoutPoint ioPoint;
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
 				ioPoint.pointAxis = axis;
 				tempInoutPoints.push_back(ioPoint);
 			}
-			for (AdjPoint point : copyDeviceParas[i].adjPointsOut)
+			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPOutCount; ++pointIndex)
 			{
+				AdjPoint& point = copyDeviceParas[i].adjPointsOut[pointIndex];
 				InoutPoint ioPoint;
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + particle.position_[3 * i], point.pos.y + particle.position_[3 * i + 1]);
@@ -967,8 +971,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		//先对出入口点水平和垂直进行分类(注意加上偏移量)
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
-			for (AdjPoint p : copyDeviceParas[i].adjPointsIn)
+			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; pointIndex++)
 			{
+				AdjPoint& p = copyDeviceParas[i].adjPointsIn[pointIndex];
 				if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 				{
 					horizonAxisList.push_back(p.pos.x + particle.position_[i * 3]);
@@ -977,9 +982,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 					verticalAxisList.push_back(p.pos.y + particle.position_[i * 3 + 1]);
 				}
 			}
-			for (AdjPoint p : copyDeviceParas[i].adjPointsOut)
+			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPOutCount; pointIndex++)
 			{
-				//cout << p.pos.x << "," << p.pos.y << endl;
+				AdjPoint& p = copyDeviceParas[i].adjPointsOut[pointIndex];
 				if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 				{
 					horizonAxisList.push_back(p.pos.x + particle.position_[i * 3]);

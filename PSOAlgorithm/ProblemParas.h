@@ -99,6 +99,10 @@ struct ProblemParas
 			deviceParaList = new DevicePara[DeviceSum];
 			for (int i = 0; i < DeviceSum; i++)
 			{
+				//用temp vector中转
+				vector<AdjPoint> tempAdjPInList;
+				vector<AdjPoint> tempAdjPOutList;
+
 				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
 
@@ -125,11 +129,25 @@ struct ProblemParas
 						adjPoint.pos.y = atof(adjStr[3].c_str());
 						if (adjPoint.inoutType == 0) {
 							adjPoint.index = InIndex++;
-							deviceParaList[i].adjPointsIn.push_back(adjPoint);
+							tempAdjPInList.push_back(adjPoint);
 						} else {
 							adjPoint.index = OutIndex++;
-							deviceParaList[i].adjPointsOut.push_back(adjPoint);
+							tempAdjPOutList.push_back(adjPoint);
 						}
+					}
+					//将temp的存到*数组中
+					deviceParaList[i].adjPInCount = tempAdjPInList.size();
+					deviceParaList[i].adjPointsIn = new AdjPoint[deviceParaList[i].adjPInCount];
+					for (int index = 0; index < deviceParaList[i].adjPInCount; index++) 
+					{
+						deviceParaList[i].adjPointsIn[index] = tempAdjPInList[index];
+					}
+
+					deviceParaList[i].adjPOutCount = tempAdjPOutList.size();
+					deviceParaList[i].adjPointsOut = new AdjPoint[deviceParaList[i].adjPOutCount];
+					for (int index = 0; index < deviceParaList[i].adjPOutCount; index++)
+					{
+						deviceParaList[i].adjPointsOut[index] = tempAdjPOutList[index];
 					}
 				}
 			}
