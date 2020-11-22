@@ -59,3 +59,31 @@ static unsigned GetRamdonSeed()
 	}
 	return res;
 }
+
+//自定义排序算法
+//快速排序
+static void DeviceSizeSort(DeviceIDSize* sizeArray, int start, int end)
+{
+	if (start < end) {
+		int pivot = Partition(sizeArray, start, end);
+		DeviceSizeSort(sizeArray, start, pivot - 1);
+		DeviceSizeSort(sizeArray, pivot + 1, end);
+	}
+}
+int Partition(DeviceIDSize* sizeArray, int start, int end)
+{
+	DeviceIDSize temp = sizeArray[start];
+	double tempSize = temp.size.x * temp.size.y;
+	int i = start;
+	int j = end;
+	while (i < j) {
+		while (i < j && sizeArray[j].size.x * sizeArray[j].size.y >= tempSize)
+			--j;
+		sizeArray[i] = sizeArray[j];
+		while (i < j && sizeArray[j].size.x * sizeArray[j].size.y <= tempSize)
+			++i;
+		sizeArray[j] = sizeArray[i];
+	}
+	sizeArray[i] = temp;//插入到正确位置
+	return i;
+}

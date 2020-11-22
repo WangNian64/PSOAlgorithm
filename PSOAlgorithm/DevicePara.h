@@ -195,12 +195,13 @@ struct DeviceIDSize
 {
 	int ID;
 	Vector2 size;
+	DeviceIDSize() {}
 	DeviceIDSize(int id, Vector2 s) {
 		ID = id;
 		size = s;
 	}
 	bool operator<(const DeviceIDSize& rhs) const {
-		return (this->size.x * this->size.y) < (rhs.size.x * rhs.size.y);
+		return (this->size.x * this->size.y) < (rhs.size.x * rhs.size.y);//按照面积大小排序
 	}
 };
 //单个设备的参数

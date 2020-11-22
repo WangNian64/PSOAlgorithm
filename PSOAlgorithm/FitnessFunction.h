@@ -148,17 +148,18 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		//5.然后计算出所有设备位置的包络矩形，如果小于车间尺寸，移动到车间内的一个随机位置
 		//然后根据这个移动前后的位置差修改所有设备的位置
 		//用比例计算这个并不是特别靠谱，可以试试维护一个大的包络矩形
-
-		vector<DeviceIDSize> deviceIDSizeList;//按照设备大小排序的ID数组
+		int deviceIDSizeCount = proParas.DeviceSum;
+		DeviceIDSize* deviceIDSizeList = new DeviceIDSize[proParas.DeviceSum];//按照设备大小排序的ID数组
 		//先用其他结构存设备坐标，因为可能会修改失败
-		vector<double> particlePosList;
+		double* particlePosList = new double[particle.dim_];
 		for (int i = 0; i < particle.dim_; ++i) {
-			particlePosList.push_back(particle.position_[i]);
+			particlePosList[i] = particle.position_[i];
 		}
-		for (int i = 0; i < proParas.DeviceSum; ++i) {
-			deviceIDSizeList.push_back(DeviceIDSize(i, copyDeviceParas[i].size));
+		for (int i = 0; i < deviceIDSizeCount; ++i) {
+			deviceIDSizeList[i] = DeviceIDSize(i, copyDeviceParas[i].size);
 		}
-		sort(deviceIDSizeList.begin(), deviceIDSizeList.end());
+		//sort(deviceIDSizeList.begin(), deviceIDSizeList.end());//这个函数得自己写
+		DeviceSizeSort(deviceIDSizeList, 0, deviceIDSizeCount - 1);//按照设备的尺寸排序
 
 		double outSizeLength1, outSizeWidth1;
 		double outSizeLength2, outSizeWidth2;
@@ -166,7 +167,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		int maxIter = 1000;
 		int curIter = 0;
 		bool tooMuch = false;
-		for (int i = 0; i < deviceIDSizeList.size(); ++i) {
+		for (int i = 0; i < deviceIDSizeCount; ++i) {
 			//检测其他的设备是否和它重叠
 			firstID = deviceIDSizeList[i].ID;
 			outSizeLength1 = 0.5 * copyDeviceParas[firstID].size.x + copyDeviceParas[firstID].spaceLength;
@@ -175,7 +176,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 			double firstUpX = particlePosList[3 * firstID] + outSizeLength1;
 			double firstLowY = particlePosList[3 * firstID + 1] - outSizeWidth1;
 			double firstUpY = particlePosList[3 * firstID + 1] + outSizeWidth1;
-			for (int j = 0; j < deviceIDSizeList.size();) {
+			for (int j = 0; j < deviceIDSizeCount;) {
 				++curIter;
 				if (curIter > maxIter) {
 					particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
