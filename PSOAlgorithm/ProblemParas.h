@@ -15,6 +15,10 @@ struct ProblemParas
 {	
 	int DeviceSum;					//设备总数
 	DevicePara* deviceParaList;		//设备参数列表
+	int inoutPointCount;			//出入口点的总数目
+
+	int horiPointCount = 0;			//未去重前所有水平方向的点的数目
+	int vertPointCount = 0;			//未去重前所有垂直方向的点的数目
 
 	double workShopLength;			//车间长度
 	double workShopWidth;			//车间宽度
@@ -64,9 +68,6 @@ struct ProblemParas
 			//}
 			#pragma endregion
 
-
-
-
 			#pragma region 车间尺寸	
 			getline(inputFile, line);//空一行
 			getline(inputFile, line);
@@ -97,6 +98,8 @@ struct ProblemParas
 			DeviceSum = atoi(line.c_str());//设备数目
 
 			deviceParaList = new DevicePara[DeviceSum];
+			
+			inoutPointCount = 0;
 			for (int i = 0; i < DeviceSum; i++)
 			{
 				//用temp vector中转
@@ -135,7 +138,7 @@ struct ProblemParas
 							tempAdjPOutList.push_back(adjPoint);
 						}
 					}
-					//将temp的存到*数组中
+					//将temp的数据存到*数组中
 					deviceParaList[i].adjPInCount = tempAdjPInList.size();
 					deviceParaList[i].adjPointsIn = new AdjPoint[deviceParaList[i].adjPInCount];
 					for (int index = 0; index < deviceParaList[i].adjPInCount; index++) 
@@ -143,14 +146,56 @@ struct ProblemParas
 						deviceParaList[i].adjPointsIn[index] = tempAdjPInList[index];
 					}
 
+
 					deviceParaList[i].adjPOutCount = tempAdjPOutList.size();
 					deviceParaList[i].adjPointsOut = new AdjPoint[deviceParaList[i].adjPOutCount];
 					for (int index = 0; index < deviceParaList[i].adjPOutCount; index++)
 					{
 						deviceParaList[i].adjPointsOut[index] = tempAdjPOutList[index];
 					}
+
+					//累加inoutPoint数目
+					inoutPointCount = inoutPointCount + deviceParaList[i].adjPInCount + deviceParaList[i].adjPOutCount;
 				}
 			}
+
+
+			#pragma region 计算水平和垂直点的数目（未考虑重合的点）
+			//求出水平和垂直出入口点的数目（一部分horiCount和vertCount）
+			for (int i = 0; i < DeviceSum; i++)
+			{
+				for (int pointIndex = 0; pointIndex < deviceParaList[i].adjPInCount; pointIndex++)
+				{
+					AdjPoint& p = deviceParaList[i].adjPointsIn[pointIndex];
+					if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
+					{
+						horiPointCount++;
+					}
+					else {//左右
+						vertPointCount++;
+					}
+				}
+				for (int pointIndex = 0; pointIndex < deviceParaList[i].adjPOutCount; pointIndex++)
+				{
+					AdjPoint& p = deviceParaList[i].adjPointsOut[pointIndex];
+					if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
+					{
+						horiPointCount++;
+					}
+					else {//左右
+						vertPointCount++;
+					}
+				}
+			}
+			//仓库入口&出口2个点（horiCount和vertCount+=2）
+			horiPointCount += 2;
+			vertPointCount += 2;
+			//每个设备坐标的四个范围
+			horiPointCount = horiPointCount + 4 * DeviceSum;
+			vertPointCount = vertPointCount + 4 * DeviceSum;
+			#pragma endregion
+
+			
 			#pragma endregion
 
 			#pragma region 输送线参数

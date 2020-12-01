@@ -159,7 +159,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 			deviceIDSizeList[i] = DeviceIDSize(i, copyDeviceParas[i].size);
 		}
 		//sort(deviceIDSizeList.begin(), deviceIDSizeList.end());//这个函数得自己写
-		DeviceSizeSort(deviceIDSizeList, 0, deviceIDSizeCount - 1);//按照设备的尺寸排序
+		DeviceIDSize_Sort(deviceIDSizeList, 0, deviceIDSizeCount - 1);//按照设备的尺寸排序
 
 		double outSizeLength1, outSizeWidth1;
 		double outSizeLength2, outSizeWidth2;
@@ -940,14 +940,8 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 计算出入口点的集合坐标
-		//先统计所有ioPoint数目
-		int inoutPointSize = 0;
-		for (int i = 0; i < proParas.DeviceSum; i++) 
-		{
-			inoutPointSize = inoutPointSize + copyDeviceParas[i].adjPInCount + copyDeviceParas[i].adjPOutCount;
-		}
-
-		InoutPoint* tempInoutPoints = new InoutPoint[inoutPointSize];
+		//然后给所有的inoutPoint赋值
+		InoutPoint* tempInoutPoints = new InoutPoint[proParas.inoutPointCount];
 		int ioPIndex = 0;
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
@@ -975,9 +969,12 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 
 #pragma region 根据设备坐标和出入口坐标构造路径点图
 		vector< vector<APoint*> > pathPointMap;
-		vector<double> horizonAxisList;
-		vector<double> verticalAxisList;
+		double* horizonAxisList = new double[proParas.horiPointCount];
+		double* verticalAxisList = new double[proParas.vertPointCount];
+		int curHoriIndex = 0;
+		int curVertIndex = 0;
 		//先对出入口点水平和垂直进行分类(注意加上偏移量)
+		//先求出水平和垂直出入口点的数目（一部分horiCount和vertCount）
 		for (int i = 0; i < proParas.DeviceSum; i++)
 		{
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; pointIndex++)
@@ -985,10 +982,10 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				AdjPoint& p = copyDeviceParas[i].adjPointsIn[pointIndex];
 				if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 				{
-					horizonAxisList.push_back(p.pos.x + particle.position_[i * 3]);
+					horizonAxisList[curHoriIndex++] = p.pos.x + particle.position_[i * 3];
 				}
 				else {//左右
-					verticalAxisList.push_back(p.pos.y + particle.position_[i * 3 + 1]);
+					verticalAxisList[curVertIndex++] = p.pos.y + particle.position_[i * 3 + 1];
 				}
 			}
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPOutCount; pointIndex++)
@@ -996,19 +993,19 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				AdjPoint& p = copyDeviceParas[i].adjPointsOut[pointIndex];
 				if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 				{
-					horizonAxisList.push_back(p.pos.x + particle.position_[i * 3]);
+					horizonAxisList[curHoriIndex++] = p.pos.x + particle.position_[i * 3];
 				}
 				else {//左右
-					verticalAxisList.push_back(p.pos.y + particle.position_[i * 3 + 1]);
+					verticalAxisList[curVertIndex++] = p.pos.y + particle.position_[i * 3 + 1];
 				}
 			}
 		}
-		//仓库入口2个点&出口
-		horizonAxisList.push_back(proParas.entrancePos.x);
-		verticalAxisList.push_back(proParas.entrancePos.y);
+		//仓库入口2个点&出口（horiCount和vertCount+=2）
+		horizonAxisList[curHoriIndex++] = proParas.entrancePos.x;
+		verticalAxisList[curVertIndex++] = proParas.entrancePos.y;
 
-		horizonAxisList.push_back(proParas.exitPos.x);
-		verticalAxisList.push_back(proParas.exitPos.y);
+		horizonAxisList[curHoriIndex++] = proParas.exitPos.x;
+		verticalAxisList[curVertIndex++] = proParas.exitPos.y;
 		//存下每个设备坐标的四个范围（作为后面障碍点的范围）
 		double* DeviceLowXList = new double[proParas.DeviceSum];
 		double* DeviceHighXList = new double[proParas.DeviceSum];
@@ -1016,19 +1013,17 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		double* DeviceHighYList = new double[proParas.DeviceSum];
 		//每个设备周围的4个点
 		for (int i = 0; i < particle.dim_; i += 3) {
-			//outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + copyDeviceParas[i / 3].spaceLength;
 			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + proParas.convey2DeviceDist;
-			//outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + copyDeviceParas[i / 3].spaceLength;
 			outSizeWidth = 0.5 * copyDeviceParas[i / 3].size.y + proParas.convey2DeviceDist;
 			double LowX = particle.position_[i] - outSizeLength;
 			double HighX = particle.position_[i] + outSizeLength;
 			double LowY = particle.position_[i + 1] - outSizeWidth;
 			double HighY = particle.position_[i + 1] + outSizeWidth;
 
-			verticalAxisList.push_back(LowY);
-			verticalAxisList.push_back(HighY);
-			horizonAxisList.push_back(LowX);
-			horizonAxisList.push_back(HighX);
+			verticalAxisList[curVertIndex++] = LowY;
+			verticalAxisList[curVertIndex++] = HighY;
+			horizonAxisList[curHoriIndex++] = LowX;
+			horizonAxisList[curHoriIndex++] = HighX;
 
 			//每个设备的四个范围
 			DeviceLowXList[i / 3] = LowX;
@@ -1037,27 +1032,35 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 			DeviceHighYList[i / 3] = HighY;
 
 			//防止路径进入设备内部
-			horizonAxisList.push_back(particle.position_[i]);
-			verticalAxisList.push_back(particle.position_[i + 1]);
+			horizonAxisList[curHoriIndex++] = particle.position_[i];
+			verticalAxisList[curVertIndex++] = particle.position_[i + 1];
 
 		}
+		//进一步处理这些点
 		//对这些点的坐标按照从小到大排序
-		sort(verticalAxisList.begin(), verticalAxisList.end());
-		sort(horizonAxisList.begin(), horizonAxisList.end());
-		//只保留不重复的点
-		auto unique_end1 = unique(verticalAxisList.begin(), verticalAxisList.end());
-		verticalAxisList.erase(unique_end1, verticalAxisList.end());
-		auto unique_end2 = unique(horizonAxisList.begin(), horizonAxisList.end());
-		horizonAxisList.erase(unique_end2, horizonAxisList.end());
+		//sort函数需要自己实现，或者使用cuda库函数的
+		Double_Sort(horizonAxisList, 0, proParas.horiPointCount - 1);
+		Double_Sort(verticalAxisList, 0, proParas.vertPointCount - 1);
+		//只保留不重复的点（自己实现）
+
+		int uniqueHoriPCount = proParas.horiPointCount;
+		int uniqueVertPCount = proParas.vertPointCount;
+		int unique_end1 = Double_Unique(horizonAxisList, 0, uniqueHoriPCount - 1);
+		uniqueHoriPCount = unique_end1;
+		//verticalAxisList.erase(unique_end1, verticalAxisList.end());
+		int unique_end2 = Double_Unique(verticalAxisList, 0, uniqueVertPCount - 1);
+		uniqueVertPCount = unique_end2;
+		//horizonAxisList.erase(unique_end2, horizonAxisList.end());
 
 		//存所有的障碍点的下标
 		vector<int> barrierRowIndexs;
 		vector<int> barrierColIndexs;
+
 		//用这些坐标去组成路径点map
-		for (int i = 0; i < verticalAxisList.size(); i++)
+		for (int i = 0; i < uniqueVertPCount; i++)
 		{
 			vector<APoint*> tmp;
-			for (int j = 0; j < horizonAxisList.size(); j++)
+			for (int j = 0; j < uniqueHoriPCount; j++)
 			{
 				APoint* p = new APoint();
 				p->x = horizonAxisList[j];
@@ -1088,7 +1091,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
 		double totalTime = 0.0;
-		//vector<PointLink>().swap(particle.pointLinks);
 
 		vector<PointLink> copyPLinks;
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
@@ -1263,10 +1265,10 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 					}
 				}
 				//计算最短路径
-				beginRowIndex = FindAxisIndex(device1PosY, verticalAxisList);
-				beginColIndex = FindAxisIndex(device1PosX, horizonAxisList);
-				endRowIndex = FindAxisIndex(device2PosY, verticalAxisList);
-				endColIndex = FindAxisIndex(device2PosX, horizonAxisList);
+				beginRowIndex = FindAxisIndex(device1PosY, verticalAxisList, uniqueVertPCount);
+				beginColIndex = FindAxisIndex(device1PosX, horizonAxisList, uniqueHoriPCount);
+				endRowIndex = FindAxisIndex(device2PosY, verticalAxisList, uniqueVertPCount);
+				endColIndex = FindAxisIndex(device2PosX, horizonAxisList, uniqueHoriPCount);
 
 				//得到路径，path是第一个节点
 				APoint* path = star->findWay(pathBeginDirect, beginRowIndex, beginColIndex, endRowIndex, endColIndex);
@@ -1518,7 +1520,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		for (int i = 0; i < particle.fitnessCount; ++i) {
 			if (particle.fitness_[i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
 				bestPathInfoList[i].inoutPoints = tempInoutPoints;
-				bestPathInfoList[i].inoutPSize = inoutPointSize;
+				bestPathInfoList[i].inoutPSize = proParas.inoutPointCount;
 				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
 				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
 				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];
@@ -1543,11 +1545,11 @@ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle)
 	Vector2 result(xx, yy);
 	return result;
 }
-int FindAxisIndex(double axis, const vector<double>& axisList)
+int FindAxisIndex(double axis, const double* axisList, int axisCount)
 {
 	//用二分法更快
 	int low = 0;
-	int high = axisList.size() - 1;
+	int high = axisCount - 1;
 	int result = 0;
 	while (low <= high)
 	{

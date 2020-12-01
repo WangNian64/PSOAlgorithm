@@ -60,17 +60,16 @@ static unsigned GetRamdonSeed()
 	return res;
 }
 
-//自定义排序算法
-//快速排序
-static void DeviceSizeSort(DeviceIDSize* sizeArray, int start, int end)
+//快速排序（DeviceIDSize版本）
+static void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
 {
 	if (start < end) {
-		int pivot = Partition(sizeArray, start, end);
-		DeviceSizeSort(sizeArray, start, pivot - 1);
-		DeviceSizeSort(sizeArray, pivot + 1, end);
+		int pivot = Double_Partition(sizeArray, start, end);
+		DeviceIDSize_Sort(sizeArray, start, pivot - 1);
+		DeviceIDSize_Sort(sizeArray, pivot + 1, end);
 	}
 }
-int Partition(DeviceIDSize* sizeArray, int start, int end)
+int Double_Partition(DeviceIDSize* sizeArray, int start, int end)
 {
 	DeviceIDSize temp = sizeArray[start];
 	double tempSize = temp.size.x * temp.size.y;
@@ -86,4 +85,48 @@ int Partition(DeviceIDSize* sizeArray, int start, int end)
 	}
 	sizeArray[i] = temp;//插入到正确位置
 	return i;
+}
+
+//快速排序（double版本）
+static void Double_Sort(double* numArray, int start, int end)
+{
+	if (start < end) {
+		int pivot = Double_Partition(numArray, start, end);
+		Double_Sort(numArray, start, pivot - 1);
+		Double_Sort(numArray, pivot + 1, end);
+	}
+}
+int Double_Partition(double* numArray, int start, int end)
+{
+
+	double temp = numArray[start];
+	int i = start;
+	int j = end;
+	while (i < j) {
+		while (i < j && numArray[j] >= temp)
+			--j;
+		numArray[i] = numArray[j];
+		while (i < j && numArray[i] <= temp)
+			++i;
+		numArray[j] = numArray[i];
+	}
+	numArray[i] = temp;//插入到正确位置
+	return i;
+}        
+
+//自定义unique函数（对于已经排好序的数组，去除其中的重复部分，返回新数组的大小)
+static int Double_Unique(double* numArray, int start, int end)
+{
+	int l = 0; 
+	int r = 1;
+	while (r <= end)
+	{
+		if (numArray[r] != numArray[l]) 
+		{
+			l++;
+			numArray[l] = numArray[r];
+		}
+		r++;
+	}
+	return l + 1;
 }
