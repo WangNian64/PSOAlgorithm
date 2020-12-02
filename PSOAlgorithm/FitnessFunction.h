@@ -968,7 +968,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 根据设备坐标和出入口坐标构造路径点图
-		vector< vector<APoint*> > pathPointMap;
 		double* horizonAxisList = new double[proParas.horiPointCount];
 		double* verticalAxisList = new double[proParas.vertPointCount];
 		int curHoriIndex = 0;
@@ -1053,41 +1052,51 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		//horizonAxisList.erase(unique_end2, horizonAxisList.end());
 
 		//存所有的障碍点的下标
-		vector<int> barrierRowIndexs;
-		vector<int> barrierColIndexs;
+		int barrierRowNum = 200;//用一个固定大小分配内存
+		int* barrierRowIndexList = new int[barrierRowNum];
+		int barrierColNum = 200;
+		int* barrierColIndexList = new int[barrierColNum];
+		int totalBarRowNum = 0;//记录barrier的实际行数目
+		int totalBarColNum = 0;//记录barrier的实际列数目
+		//vector<int> barrierRowIndexList;
+		//vector<int> barrierColIndexList;
 
-		//用这些坐标去组成路径点map
-		for (int i = 0; i < uniqueVertPCount; i++)
+		//用这些坐标去组成路径点map，map是二维的，相当于二维点矩阵
+		//用一维代替二维
+		//horiNum对应colNum，vertNum对应rowNum
+		int pathColNum = uniqueHoriPCount;
+		int pathRowNum = uniqueVertPCount;
+		APoint** pathPointMap = new APoint*[pathColNum * pathRowNum];
+		
+		for (int i = 0; i < pathColNum * pathRowNum; i++)
 		{
-			vector<APoint*> tmp;
-			for (int j = 0; j < uniqueHoriPCount; j++)
+			pathPointMap[i] = new APoint();
+			int rowIndex = i / pathColNum;//对应下面的i
+			int colIndex = i % pathColNum;//对应下面的j
+			pathPointMap[i]->x = horizonAxisList[colIndex];
+			pathPointMap[i]->y = verticalAxisList[rowIndex];
+			//遍历所有设备，看是否有和这个点重叠的（实现标记障碍点）
+			for (int k = 0; k < proParas.DeviceSum; k++)
 			{
-				APoint* p = new APoint();
-				p->x = horizonAxisList[j];
-				p->y = verticalAxisList[i];
-				for (int k = 0; k < proParas.DeviceSum; k++)
+				if (pathPointMap[i]->x - DeviceLowXList[k] >= 0.01 && DeviceHighXList[k] - pathPointMap[i]->x >= 0.01
+					&& pathPointMap[i]->y - DeviceLowYList[k] >= 0.01 && DeviceHighYList[k] - pathPointMap[i]->y >= 0.01)
 				{
-					if (p->x - DeviceLowXList[k] >= 0.01 && DeviceHighXList[k] - p->x >= 0.01
-						&& p->y - DeviceLowYList[k] >= 0.01 && DeviceHighYList[k] - p->y >= 0.01)
-					{
-						p->type = AType::ATYPE_BARRIER;
-						//障碍点在图中的下标
-						barrierRowIndexs.push_back(i);
-						barrierColIndexs.push_back(j);
-					}
+					pathPointMap[i]->type = AType::ATYPE_BARRIER;
+					//障碍点在图中的下标
+					barrierRowIndexList[totalBarRowNum++] = rowIndex;
+					barrierColIndexList[totalBarColNum++] = colIndex;
 				}
-				p->rowIndex = i;
-				p->colIndex = j;
-				tmp.push_back(p);
 			}
-			pathPointMap.push_back(tmp);
+			pathPointMap[i]->colIndex = colIndex;//记录下点在路径点map中的下标
+			pathPointMap[i]->rowIndex = rowIndex;
 		}
-
 #pragma endregion
 
 #pragma region 寻路
 		auto star = new CAstar();
 		star->_allPoints = pathPointMap;
+		star->pointColNum = pathColNum;
+		star->pointRowNum = pathRowNum;
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
 		double totalTime = 0.0;
@@ -1139,28 +1148,21 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 					switch (copyDeviceParas[curDeviceIndex].adjPointsIn[curInIndex].direct)
 					{
 					case PointDirect::Up:
-						//device2PosY += copyDeviceParas[curDeviceIndex].spaceLength;
 						device2PosY += proParas.convey2DeviceDist;
 						break;
 					case PointDirect::Down:
-						//device2PosY -= copyDeviceParas[curDeviceIndex].spaceLength;
 						device2PosY -= proParas.convey2DeviceDist;
 						break;
 					case PointDirect::Left:
-						//device2PosX -= copyDeviceParas[curDeviceIndex].spaceLength;
 						device2PosX -= proParas.convey2DeviceDist;
 						break;
 					case PointDirect::Right:
-						//device2PosX += copyDeviceParas[curDeviceIndex].spaceLength;
 						device2PosX += proParas.convey2DeviceDist;
 						break;
 					}
 				}
 				else if (curDeviceIndex == -2)//说明是出口
 				{
-					//forwardOutIndex = proParas.cargoTypeList[i].deviceLinkList[j].outPointIndex;
-					//curInIndex = 0;
-
 					//开头和结尾点的朝向方向
 					pathBeginDirect = (copyDeviceParas[forwardDeviceIndex].adjPointsOut[forwardOutIndex].direct % 2 == 0)
 						? PathDirection::Horizon : PathDirection::Vertical;
@@ -1307,7 +1309,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				//vector<Vector2> points;
 				//Vector2 endP(initDevice2PosX, initDevice2PosY);//从终点开始计算
 				//points.push_back(endP);
-
 				//PathDirection pathCurDirect = pathEndDirect;//因为这个路径是反向的
 
 				//Vector2 lastP(path->x, path->y);//从最后一个点开始
@@ -1373,19 +1374,15 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 
 				star->resetAStar();
 				//给障碍点重新标记
-				for (int i = 0; i < barrierRowIndexs.size(); i++)
+				for (int i = 0; i < totalBarRowNum; i++)
 				{
-					star->_allPoints[barrierRowIndexs[i]][barrierColIndexs[i]]->type = AType::ATYPE_BARRIER;
+					star->_allPoints[barrierRowIndexList[i] * pathColNum + barrierColIndexList[i]]->type = AType::ATYPE_BARRIER;
 				}
 			}
 		}
 #pragma endregion
 
 #pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
-
-		//particle.strConveyorList.clear();
-		//particle.curveConveyorList.clear();
-		//particle.pathPointInfoMap.clear();
 		set<StraightConveyorInfo> tempStrConveyorList;//直线输送机信息列表
 		set<Vector2Int> tempCurveConveyorList;//转弯输送机信息列表
 

@@ -44,7 +44,6 @@ CAstar::~CAstar()
     _openList.clear();
     _closeList.clear();
     _neighbourList.clear();
-    _allPoints.clear();
 }
 //计算一条路径的总长度
 double CAstar::CalcuPathLength(APoint* point)
@@ -59,11 +58,11 @@ double CAstar::CalcuPathLength(APoint* point)
 }
 void CAstar::resetAStar()
 {
-    for (int i = 0; i < _allPoints.size(); i++)
+    for (int i = 0; i < pointRowNum; i++)
     {
-        for (int j = 0; j < _allPoints[i].size(); j++)
+        for (int j = 0; j < pointColNum; j++)
         {
-            _allPoints[i][j]->resetAPoint();
+            _allPoints[i * pointColNum + j]->resetAPoint();
         }
     }
     vector<APoint*>().swap(_openList);
@@ -73,8 +72,8 @@ void CAstar::resetAStar()
 APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
     curPathDirect = beginDirect;
-    _endPoint = _allPoints[endRowIndex][endColIndex];
-    APoint* beginPoint = _allPoints[beginRowIndex][beginColIndex];
+    _endPoint = _allPoints[endRowIndex * pointColNum + endColIndex];
+    APoint* beginPoint = _allPoints[beginRowIndex * pointColNum + beginColIndex];
 
     if (_endPoint->type == AType::ATYPE_BARRIER)
     {
@@ -220,63 +219,63 @@ vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
     if (curPathDirect == PathDirection::Vertical)//路线方向垂直，先检查垂直方向
     {
 
-        if (point->rowIndex < _allPoints.size() - 1)
+        if (point->rowIndex < pointRowNum - 1)
         {
-            if (_allPoints[point->rowIndex + 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex + 1][point->colIndex]);
+                _neighbourList.push_back(_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]);
             }
         }
         if (point->rowIndex > 0)
         {
-            if (_allPoints[point->rowIndex - 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex - 1][point->colIndex]);
+                _neighbourList.push_back(_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]);
             }
         }
-        if (point->colIndex < _allPoints[0].size() - 1)
+        if (point->colIndex < pointColNum - 1)
         {
-            if (_allPoints[point->rowIndex][point->colIndex + 1]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex + 1]);
+                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]);
             }
         }
         if (point->colIndex > 0)
         {
-            if (_allPoints[point->rowIndex][point->colIndex - 1]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
+                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]);
             }
         }
     }  
     else//水平方向，先检查水平方向的节点
     {
-        if (point->colIndex < _allPoints[0].size() - 1)
+        if (point->colIndex < pointColNum - 1)
         {
-            if (_allPoints[point->rowIndex][point->colIndex + 1]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex + 1]);
+                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]);
             }
         }
         if (point->colIndex > 0)
         {
-            if (_allPoints[point->rowIndex][point->colIndex - 1]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex][point->colIndex - 1]);
+                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]);
             }
         }
-        if (point->rowIndex < _allPoints.size() - 1)
+        if (point->rowIndex < pointColNum - 1)
         {
-            if (_allPoints[point->rowIndex + 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex + 1][point->colIndex]);
+                _neighbourList.push_back(_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]);
             }
         }
         if (point->rowIndex > 0)
         {
-            if (_allPoints[point->rowIndex - 1][point->colIndex]->type != AType::ATYPE_BARRIER)
+            if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex - 1][point->colIndex]);
+                _neighbourList.push_back(_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]);
             }
         }
     }
