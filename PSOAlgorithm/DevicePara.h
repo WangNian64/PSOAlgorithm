@@ -232,9 +232,12 @@ public:
 	int device1PointIndex;
 	int device2Index;
 	int device2PointIndex;
-	vector<Vector2> points;
+	//vector<Vector2> points;
+	Vector2* points;
+	int pointNum;//点的数目
+
 	PointLink() {}
-	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, vector<Vector2> points)
+	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, Vector2* points)
 	{
 		this->device1Index = device1Index;
 		this->device1PointIndex = device1PointIndex;

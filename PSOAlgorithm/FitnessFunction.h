@@ -164,7 +164,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		double outSizeLength1, outSizeWidth1;
 		double outSizeLength2, outSizeWidth2;
 		int firstID, secondID;
-		int maxIter = 1000;
+		int maxIter = 1000;//防止死循环
 		int curIter = 0;
 		bool tooMuch = false;
 		for (int i = 0; i < deviceIDSizeCount; ++i) {
@@ -1100,8 +1100,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
 		double totalTime = 0.0;
-
-		vector<PointLink> copyPLinks;
+		//存所有的路径信息
+		PointLink* copyPLinks = new PointLink[proParas.totalLinkSum];
+		int curLinkIndex = 0;
 		for (int i = 0; i < proParas.CargoTypeNum; i++)
 		{
 			CargoType curCargoType = proParas.cargoTypeList[i];
@@ -1286,22 +1287,25 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 
 #pragma region 计算路径（只带上起始点 + 路径中的转弯点）
 				//路径保存下来
-				vector<Vector2> points1;
+				//这个路径中的点还没有简化
+				//先给每个路径设置大小为50
 
+				Vector2* points1 = new Vector2[proParas.fixedLinkPointSum];
+				int points1Index = 0;
 				Vector2 endP1(initDevice2PosX, initDevice2PosY);
-				points1.push_back(endP1);
+				points1[points1Index++] = endP1;
 				APoint* copyPath = path;
 				while (copyPath)
 				{
 					Vector2 tempP(copyPath->x, copyPath->y);
-					points1.push_back(tempP);
+					points1[points1Index++] = tempP;
 					copyPath = copyPath->parent;
 				}
 				Vector2 startP1(initDevice1PosX, initDevice1PosY);
-				points1.push_back(startP1);
+				points1[points1Index++] = startP1;
 
 				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1);
-				copyPLinks.push_back(pointLink1);
+				copyPLinks[curLinkIndex++] = pointLink1;
 
 
 				//保存路径（只保存每段的起始点）

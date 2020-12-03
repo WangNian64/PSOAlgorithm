@@ -27,9 +27,11 @@ struct ProblemParas
 	Vector2 exitPos;				//仓库出口坐标
 
 	//物料参数列表
-	int CargoTypeNum;
-	CargoType* cargoTypeList;
-	//Graph deviceGraph;//设备连的图结构
+	int CargoTypeNum;				//货物类型数目
+	CargoType* cargoTypeList;		//货物类型列表
+	int totalLinkSum;				//总的连接线数目
+	
+	int fixedLinkPointSum = 50;		//每一条link的固定点数目为50
 	//输送机参数
 	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;//输送机宽度
@@ -225,6 +227,8 @@ struct ProblemParas
 				cargoTypeList[i].linkSum = atoi(strSplit[0].c_str());
 				cargoTypeList[i].deviceSum = cargoTypeList[i].linkSum + 1;
 				cargoTypeList[i].deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];
+
+				totalLinkSum += cargoTypeList[i].linkSum;//累加
 				for (int j = 0; j < cargoTypeList[i].linkSum; j++)
 				{
 					vector<string> deviceLinkStr = split(strSplit[j + 1], "-");
