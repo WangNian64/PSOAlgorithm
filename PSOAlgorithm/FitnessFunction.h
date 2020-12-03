@@ -1,11 +1,8 @@
 #pragma once
 #include "PSO.h"
 #include "AStar.h"
-#include <math.h>
 #include <algorithm>
-#include <cmath>
-#include <set>
-#include <map>
+#include <math.h>
 //Up = 1, Right = 2, Down = 3, Left = 4
 //一共10种情况：上下，左右，下下，上上，左左，右右，
 //上左，上右，下左，下右
@@ -1391,12 +1388,14 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		set<Vector2Int> tempCurveConveyorList;//转弯输送机信息列表
 
 		set<SegPath> segPathSet;
-		for (PointLink pl : copyPLinks)//过滤所有重复的路线段
+		//for (PointLink pl : copyPLinks)
+		//过滤所有重复的路线段
+		for (int i = 0; i < proParas.totalLinkSum; i++)
 		{
-			for (int i = pl.points.size() - 1; i > 0; i--)
+			for (int j = copyPLinks[i].pointNum - 1; j > 0; j--)
 			{
-				Vector2Int p1 = Multi10000ToInt(pl.points[i]);
-				Vector2Int p2 = Multi10000ToInt(pl.points[i - 1]);
+				Vector2Int p1 = Multi10000ToInt(copyPLinks[i].points[j]);
+				Vector2Int p2 = Multi10000ToInt(copyPLinks[i].points[j - 1]);
 				if (p1 != p2)//坐标不能一样
 				{
 					SegPath temp(p1, p2);
@@ -1459,13 +1458,14 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				it->second.isKeep = true;
 			}
 		}
-		for (PointLink pl : copyPLinks) {
+		//for (PointLink pl : copyPLinks) {
+		for (int i = 0; i < proParas.totalLinkSum; i++) {
 			StraightConveyorInfo tempStrInfo;
-			tempStrInfo.startPos = Multi10000ToInt(pl.points[pl.points.size() - 1]);//开头
+			tempStrInfo.startPos = Multi10000ToInt(copyPLinks[i].points[copyPLinks[i].pointNum - 1]);//开头
 			tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
 			tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
-			for (int i = pl.points.size() - 2; i >= 0; i--) {
-				Vector2Int p = Multi10000ToInt(pl.points[i]);
+			for (int j = copyPLinks[i].pointNum - 2; j >= 0; j--) {
+				Vector2Int p = Multi10000ToInt(copyPLinks[i].points[j]);
 				if (pathPointInfoMap[p].isKeep == true) {//这里会出现重复的
 					//先更新直线输送机
 					if (tempStrInfo.startPos != p) {
@@ -1597,7 +1597,8 @@ double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 //先乘以10000，然后四舍五入到Int
 int Multi10000ToInt(double num)
 {
-	return round(num * 10000);
+	return MyRound(num * 10000);//由于VS版本原因，导致这个round不能用
+	//需要自定义一个round函数
 }
 Vector2Int Multi10000ToInt(Vector2 v)
 {

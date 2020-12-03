@@ -130,3 +130,8 @@ static int Double_Unique(double* numArray, int start, int end)
 	}
 	return l + 1;
 }
+
+static int MyRound(double num) 
+{
+	return (num > 0.0) ? floor(num + 0.5) : ceil(num - 0.5);
+}
