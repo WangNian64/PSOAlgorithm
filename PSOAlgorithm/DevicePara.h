@@ -175,15 +175,49 @@ enum PathPointDirect
 //路径点的信息
 struct PointInfo
 {
-	int vertDirNum;
-	int horiDirNum;
+	Vector2Int pointAxis;//点的坐标
+	int vertDirNum;//点的垂直连线数目
+	int horiDirNum;//点的水平连线数目
 	bool isKeep;//是否保留
 	PointInfo() = default;
-	PointInfo(int vDirNum, int hDirNum, bool iK) 
+	PointInfo(Vector2Int pointAxis, int vDirNum, int hDirNum, bool iK) 
 	{
+		this->pointAxis = pointAxis;
 		vertDirNum = vDirNum;
 		horiDirNum = hDirNum;
 		isKeep = iK;
+	}
+	bool AEqualB(const PointInfo& obj)//A==B
+	{
+		return this->pointAxis == obj.pointAxis;
+	}
+	bool ABigB(const PointInfo& obj)//A>B
+	{
+		if (this->pointAxis == obj.pointAxis)
+			return false;
+		else//A!=B
+		{
+			if (this->pointAxis.x == obj.pointAxis.x)
+			{
+				return this->pointAxis.y > obj.pointAxis.y;
+			}
+			else
+			{
+				return this->pointAxis.x > obj.pointAxis.x;
+			}
+		}
+	}
+	bool ABigEqualB(const PointInfo& obj) //A>=B
+	{
+		return this->AEqualB(obj) || this->ABigB(obj);
+	}
+	bool ASmallB(const PointInfo& obj)//A<B
+	{
+		return !this->ABigEqualB(obj);
+	}
+	bool ASmallEqualB(const PointInfo& obj)//A<=B
+	{
+		return !this->ABigB(obj);
 	}
 };
 //设备相关性(从0到5依次增大）
@@ -232,18 +266,18 @@ public:
 	int device1PointIndex;
 	int device2Index;
 	int device2PointIndex;
-	//vector<Vector2> points;
 	Vector2* points;
 	int pointNum;//点的数目
 
 	PointLink() {}
-	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, Vector2* points)
+	PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, Vector2* points, int pointNum)
 	{
 		this->device1Index = device1Index;
 		this->device1PointIndex = device1PointIndex;
 		this->device2Index = device2Index;
 		this->device2PointIndex = device2PointIndex;
 		this->points = points;
+		this->pointNum = pointNum;
 	}
 };
 struct InoutPoint
@@ -276,12 +310,16 @@ struct CargoType
 	DeviceLink* deviceLinkList;	//设备连接列表
 	double totalVolume;			//该物料的总物流量
 };
-//一小段路径的数据结构
+//一小段路径的数据结构（起点，终点，连线的方向）
 struct SegPath 
 {
 	Vector2Int p1;
 	Vector2Int p2;
 	PathPointDirect direct;
+	SegPath()
+	{
+
+	}
 	SegPath(Vector2Int p1, Vector2Int p2)
 	{
 		this->p1 = p1;
@@ -293,6 +331,39 @@ struct SegPath
 			direct = PathPointDirect::Vert;
 		}
 	}
+	bool AEqualB(const SegPath& sg)//A==B
+	{
+		return (this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1);
+	}
+	bool ABigB(const SegPath& sg)//A>B
+	{
+		if ((this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1))
+			return false;
+		else//A!=B
+		{
+			if (this->p1 == sg.p1)
+			{
+				return this->p2 > sg.p2;
+			}
+			else
+			{
+				return this->p1 > sg.p1;
+			}
+		}
+	}
+	bool ABigEqualB(const SegPath& sg) //A>=B
+	{
+		return this->AEqualB(sg) || this->ABigB(sg);
+	}
+	bool ASmallB(const SegPath& sg)//A<B
+	{
+		return !this->ABigEqualB(sg);
+	}
+	bool ASmallEqualB(const SegPath& sg)//A<=B
+	{
+		return !this->ABigB(sg);
+	}
+
 	bool operator<(const SegPath& sg) const
 	{
 		if ((this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1))

@@ -1098,13 +1098,15 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 
 		double totalTime = 0.0;
 		//存所有的路径信息
-		PointLink* copyPLinks = new PointLink[proParas.totalLinkSum];
-		int curLinkIndex = 0;
-		for (int i = 0; i < proParas.CargoTypeNum; i++)
+		PointLink* copyPLinks = new PointLink[proParas.totalLinkSum];//此时每条路径有50个点
+		int curLinkIndex = 0;//当前的link下标
+		int totalLinkPointSum = 0;//所有link的所有点的数目（每个link有很多点）
+		for (int i = 0; i < proParas.CargoTypeNum; i++)//货物类型
 		{
 			CargoType curCargoType = proParas.cargoTypeList[i];
 
-			for (int j = 0; j < proParas.cargoTypeList[i].linkSum; j++)//遍历物料经过的设备列表
+			//每种货物可能经过多个设备，也就是一个Type对应多个link
+			for (int j = 0; j < proParas.cargoTypeList[i].linkSum; j++)
 			{
 				PathDirection pathBeginDirect;
 				PathDirection pathEndDirect;
@@ -1284,9 +1286,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 
 #pragma region 计算路径（只带上起始点 + 路径中的转弯点）
 				//路径保存下来
-				//这个路径中的点还没有简化
-				//先给每个路径设置大小为50
-
+				//这个路径中的点还没有简化，先给每个路径设置大小为50
 				Vector2* points1 = new Vector2[proParas.fixedLinkPointSum];
 				int points1Index = 0;
 				Vector2 endP1(initDevice2PosX, initDevice2PosY);
@@ -1299,18 +1299,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 					copyPath = copyPath->parent;
 				}
 				Vector2 startP1(initDevice1PosX, initDevice1PosY);
-				points1[points1Index++] = startP1;
+				points1[points1Index++] = startP1;//points1Index是某一个link的实际点的数目
+				totalLinkPointSum += points1Index;//统计link中所有的实际点的数目（方便之后分配空间）
 
-				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1);
+				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1, points1Index);
 				copyPLinks[curLinkIndex++] = pointLink1;
-
-
-				//保存路径（只保存每段的起始点）
-				//if (curIterNum != 0) 
-				//vector<Vector2> points;
-				//Vector2 endP(initDevice2PosX, initDevice2PosY);//从终点开始计算
-				//points.push_back(endP);
-				//PathDirection pathCurDirect = pathEndDirect;//因为这个路径是反向的
 
 				//Vector2 lastP(path->x, path->y);//从最后一个点开始
 				//points.push_back(lastP);
@@ -1384,12 +1377,21 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
-		set<StraightConveyorInfo> tempStrConveyorList;//直线输送机信息列表
-		set<Vector2Int> tempCurveConveyorList;//转弯输送机信息列表
+		//直线输送机信息列表
+		int tempStrConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
+		StraightConveyorInfo* tempStrConveyorList = new StraightConveyorInfo[tempStrConveyorList_PointSum];
 
-		set<SegPath> segPathSet;
-		//for (PointLink pl : copyPLinks)
-		//过滤所有重复的路线段
+		//转弯输送机信息列表
+		int tempCurveConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
+		Vector2Int* tempCurveConveyorList = new Vector2Int[tempCurveConveyorList_PointSum];
+		 
+		//只保留转弯点的数组
+		int segPathSet_PointSum = proParas.fixedLinkPointSum * proParas.totalLinkSum;//50个点
+		int segPathSet_CurIndex = 0;
+		SegPath* segPathSet = new SegPath[segPathSet_PointSum];
+
+		//////过滤所有重复的路线段，获取segPathSet//////
+		//1.将copyPLinks里的所有点放到seg数组里
 		for (int i = 0; i < proParas.totalLinkSum; i++)
 		{
 			for (int j = copyPLinks[i].pointNum - 1; j > 0; j--)
@@ -1399,66 +1401,59 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				if (p1 != p2)//坐标不能一样
 				{
 					SegPath temp(p1, p2);
-					segPathSet.insert(temp);
+					segPathSet[segPathSet_CurIndex++] = temp;
 				}
 			}
 		}
-		map<Vector2Int, PointInfo> pathPointInfoMap;//路径点信息map
-		//遍历set，计算出所有set中 点的出入度&点所在路线的垂直水平数目&是否保留 信息
-		for (SegPath sp : segPathSet)
-		{
-			//在map中找sp的p1
-			if (pathPointInfoMap.count(sp.p1)) {
-				//找到，更新信息
-				Vector2Int startP = sp.p1;
-				if (sp.direct == PathPointDirect::Vert) {
-					++pathPointInfoMap[startP].vertDirNum;
-				}
-				else {
-					++pathPointInfoMap[startP].horiDirNum;
-				}
-			}
-			else {
-				if (sp.direct == PathPointDirect::Vert) {
-					pathPointInfoMap.insert({ sp.p1, PointInfo(1, 0, false) });
-				}
-				else {
-					pathPointInfoMap.insert({ sp.p1, PointInfo(0, 1, false) });
-				}
-			}
+		//2.对seg数组进行排序+去重
+		SegPath_Sort(segPathSet, 0, segPathSet_CurIndex - 1);
+		//去重后的点的数目
+		int segPathSet_UniqueSum = SegPath_Unique(segPathSet, 0, segPathSet_CurIndex - 1);
 
-			//在map中找sp的p2
-			if (pathPointInfoMap.count(sp.p2)) {
-				//找到，更新信息
-				Vector2Int endP = sp.p2;
-				if (sp.direct == PathPointDirect::Vert) {
-					++pathPointInfoMap[endP].vertDirNum;
-				}
-				else {
-					++pathPointInfoMap[endP].horiDirNum;
-				}
+		//////遍历set，计算出set中所有的 点所在路线的垂直水平数目（类似出入度）&是否保留 信息//////
+		//这些信息存到pathPointInfoMap中
+		//map<Vector2Int, PointInfo> pathPointInfoMap;
+
+
+		//路径点信息map(每个点的坐标:每个点的信息)
+		int pathPointInfoMap_PointSum = segPathSet_UniqueSum * 2;//每个seg对应两个点
+		PointInfo* pathPointInfoMap = new PointInfo[pathPointInfoMap_PointSum];
+		int pathPointInfoMap_CurIndex = 0;//当前下标
+
+		//同样的，只能用数组代替map
+		//如何实现？
+		//1.现将segPath里所有的点放到PointInfo里
+		for (int segIndex = 0; segIndex < segPathSet_UniqueSum; segIndex++)
+		{
+			if (segPathSet[segIndex].direct == PathPointDirect::Vert) {
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 1, 0, false);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 1, 0, false);
 			}
-			else {
-				if (sp.direct == PathPointDirect::Vert) {
-					pathPointInfoMap.insert({ sp.p2, PointInfo(1, 0, false) });
-				}
-				else {
-					pathPointInfoMap.insert({ sp.p2, PointInfo(0, 1, false) });
-				}
+			else
+			{
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 0, 1, false);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 0, 1, false);
+			}
+		}
+		//2.对所有点进行排序，目的是将所有相同的点聚集到一起
+		PointInfo_Sort(pathPointInfoMap, 0, pathPointInfoMap_CurIndex - 1);
+		//3.根据排序的数组，更新每个点的vertNum和horiNum数目,顺便去重
+		int pathPointInfoMap_UniqueSum = PointInfo_CalcuAndUnique(pathPointInfoMap, 0, pathPointInfoMap_CurIndex - 1);
+		
+
+		//4.根据点的vertNum和horiNum，判断每个点是否被保留
+		for (int i = 0; i < pathPointInfoMap_UniqueSum; i++)
+		{
+			if ((pathPointInfoMap[i].horiDirNum == 1 && pathPointInfoMap[i].vertDirNum == 0)
+				|| (pathPointInfoMap[i].horiDirNum == 0 && pathPointInfoMap[i].vertDirNum == 1)) {
+				pathPointInfoMap[i].isKeep = true;
+			}
+			if (pathPointInfoMap[i].horiDirNum >= 1 && pathPointInfoMap[i].vertDirNum >= 1) {
+				pathPointInfoMap[i].isKeep = true;
 			}
 		}
 
-		for (auto it = pathPointInfoMap.begin(); it != pathPointInfoMap.end(); it++)
-		{
-			if ((it->second.horiDirNum == 1 && it->second.vertDirNum == 0)
-				|| (it->second.horiDirNum == 0 && it->second.vertDirNum == 1)) {
-				it->second.isKeep = true;
-			}
-			if (it->second.horiDirNum >= 1 && it->second.vertDirNum >= 1) {
-				it->second.isKeep = true;
-			}
-		}
-		//for (PointLink pl : copyPLinks) {
+		//从pathPointInfoMap中得到tempStrConveyorList和tempCurveConveyorList
 		for (int i = 0; i < proParas.totalLinkSum; i++) {
 			StraightConveyorInfo tempStrInfo;
 			tempStrInfo.startPos = Multi10000ToInt(copyPLinks[i].points[copyPLinks[i].pointNum - 1]);//开头
@@ -1481,7 +1476,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 						}
 						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
 						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
-						tempStrConveyorList.insert(tempStrInfo);
+						//这个地方进行去重的
+						//如果没有set，只能先排序+去重复了
+						tempStrConveyorList.insert(tempStrInfo);////
 						tempStrInfo.startPos = p;
 						tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
 						tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
@@ -1489,7 +1486,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 					//只要不是始终点，都需要更新转弯输送机
 					if (!(pathPointInfoMap[p].horiDirNum == 1 && pathPointInfoMap[p].vertDirNum == 0)
 						&& !(pathPointInfoMap[p].horiDirNum == 0 && pathPointInfoMap[p].vertDirNum == 1)) {
-						tempCurveConveyorList.insert(p);
+						tempCurveConveyorList.insert(p);////
 					}
 				}
 			}
@@ -1597,8 +1594,8 @@ double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 //先乘以10000，然后四舍五入到Int
 int Multi10000ToInt(double num)
 {
-	return MyRound(num * 10000);//由于VS版本原因，导致这个round不能用
-	//需要自定义一个round函数
+	//使用自定义的Round函数
+	return MyRound(num * 10000);
 }
 Vector2Int Multi10000ToInt(Vector2 v)
 {

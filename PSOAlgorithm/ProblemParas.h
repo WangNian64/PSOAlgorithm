@@ -13,25 +13,26 @@ struct CostPara {
 };
 struct ProblemParas
 {	
-	int DeviceSum;					//设备总数
-	DevicePara* deviceParaList;		//设备参数列表
-	int inoutPointCount;			//出入口点的总数目
+	int DeviceSum;						//设备总数
+	DevicePara* deviceParaList;			//设备参数列表
+	int inoutPointCount;				//出入口点的总数目
 
-	int horiPointCount = 0;			//未去重前所有水平方向的点的数目
-	int vertPointCount = 0;			//未去重前所有垂直方向的点的数目
+	int horiPointCount = 0;				//未去重前所有水平方向的点的数目
+	int vertPointCount = 0;				//未去重前所有垂直方向的点的数目
 
-	double workShopLength;			//车间长度
-	double workShopWidth;			//车间宽度
+	double workShopLength;				//车间长度
+	double workShopWidth;				//车间宽度
 
-	Vector2 entrancePos;			//仓库入口坐标	
-	Vector2 exitPos;				//仓库出口坐标
+	Vector2 entrancePos;				//仓库入口坐标	
+	Vector2 exitPos;					//仓库出口坐标
 
 	//物料参数列表
-	int CargoTypeNum;				//货物类型数目
-	CargoType* cargoTypeList;		//货物类型列表
-	int totalLinkSum;				//总的连接线数目
+	int CargoTypeNum;					//货物类型数目
+	CargoType* cargoTypeList;			//货物类型列表
+	int totalLinkSum;					//总的连接线数目
 	
-	int fixedLinkPointSum = 50;		//每一条link的固定点数目为50
+	int fixedLinkPointSum = 50;			//每一条link的固定点数目为50(没有去重之前的)
+	int fixedUniqueLinkPointSum = 20;	//去重后的每一条link的固定点数目为20
 	//输送机参数
 	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;//输送机宽度

@@ -30,9 +30,6 @@
     <ClCompile Include="AStar.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="main1.cu">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PSO.h">

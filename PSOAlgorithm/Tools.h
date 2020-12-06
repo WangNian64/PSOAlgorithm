@@ -71,7 +71,7 @@ static void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
 }
 int Double_Partition(DeviceIDSize* sizeArray, int start, int end)
 {
-	DeviceIDSize temp = sizeArray[start];
+	DeviceIDSize& temp = sizeArray[start];
 	double tempSize = temp.size.x * temp.size.y;
 	int i = start;
 	int j = end;
@@ -131,7 +131,117 @@ static int Double_Unique(double* numArray, int start, int end)
 	return l + 1;
 }
 
+//自定义四舍五入算法
 static int MyRound(double num) 
 {
 	return (num > 0.0) ? floor(num + 0.5) : ceil(num - 0.5);
+}
+
+//快速排序（SegPath版本）
+static void SegPath_Sort(SegPath* objArray, int start, int end)
+{
+	if (start < end) {
+		int pivot = SegPath_Partition(objArray, start, end);
+		SegPath_Sort(objArray, start, pivot - 1);
+		SegPath_Sort(objArray, pivot + 1, end);
+	}
+}
+int SegPath_Partition(SegPath* objArray, int start, int end)
+{
+	SegPath& temp = objArray[start];
+	int i = start;
+	int j = end;
+	while (i < j) {
+		while (i < j && objArray[j].ABigEqualB(temp))
+			--j;
+		objArray[i] = objArray[j];
+		while (i < j && objArray[i].ASmallEqualB(temp))
+			++i;
+		objArray[j] = objArray[i];
+	}
+	objArray[i] = temp;//插入到正确位置
+	return i;
+}
+
+//自定义unique函数（对于已经排好序的数组，去除其中的重复部分，返回新数组的大小)
+static int SegPath_Unique(SegPath* objArray, int start, int end)
+{
+	int l = 0;
+	int r = 1;
+	while (r <= end)
+	{
+		if (!objArray[r].AEqualB(objArray[l]))//两者不相等
+		{
+			l++;
+			objArray[l] = objArray[r];
+		}
+		r++;
+	}
+	return l + 1;
+}
+
+
+
+//快速排序（PointInfo版本）
+static void PointInfo_Sort(PointInfo* objArray, int start, int end)
+{
+	if (start < end) {
+		int pivot = PointInfo_Partition(objArray, start, end);
+		PointInfo_Sort(objArray, start, pivot - 1);
+		PointInfo_Sort(objArray, pivot + 1, end);
+	}
+}
+int PointInfo_Partition(PointInfo* objArray, int start, int end)
+{
+	PointInfo& temp = objArray[start];
+	int i = start;
+	int j = end;
+	while (i < j) {
+		while (i < j && objArray[j].ABigEqualB(temp))
+			--j;
+		objArray[i] = objArray[j];
+		while (i < j && objArray[i].ASmallEqualB(temp))
+			++i;
+		objArray[j] = objArray[i];
+	}
+	objArray[i] = temp;//插入到正确位置
+	return i;
+}
+
+//自定义unique函数（对于已经排好序的数组，去除其中的重复部分，返回新数组的大小)
+static int PointInfo_Unique(PointInfo* objArray, int start, int end)
+{
+	int l = 0;
+	int r = 1;
+	while (r <= end)
+	{
+		if (!objArray[r].AEqualB(objArray[l]))//两者不相等
+		{
+			l++;
+			objArray[l] = objArray[r];
+		}
+		r++;
+	}
+	return l + 1;
+}
+//计算每个点水平和垂直方向的连线数目&去重
+static int PointInfo_CalcuAndUnique(PointInfo* objArray, int start, int end)
+{
+	int l = 0;
+	int r = 1;
+	while (r <= end)
+	{
+		if (!objArray[r].AEqualB(objArray[l]))//两者不相等
+		{
+			l++;
+			objArray[l] = objArray[r];
+		}
+		else //相等的话，需要累加vertNum和horiNum
+		{
+			objArray[l].horiDirNum += objArray[r].horiDirNum;
+			objArray[l].vertDirNum += objArray[r].vertDirNum;
+		}
+		r++;//注意unique操作
+	}
+	return l + 1;
 }
