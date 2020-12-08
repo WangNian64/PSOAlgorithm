@@ -245,3 +245,29 @@ static int PointInfo_CalcuAndUnique(PointInfo* objArray, int start, int end)
 	}
 	return l + 1;
 }
+
+//¶þ·Ö²éÕÒ
+PointInfo FindPointInfo(PointInfo* pointInfoList, int start, int end, Vector2Int point)
+{
+	int left = start;
+	int right = end;
+	PointInfo res;
+	while (start <= end)
+	{
+		int mid = (start + end) >> 1;
+		if (pointInfoList[mid].pointAxis == point)
+		{
+			res = pointInfoList[mid];
+			break;
+		}
+		else if (pointInfoList[mid].pointAxis < point) 
+		{
+			mid = left + 1;
+		} 
+		else  
+		{
+			mid = right - 1;
+		}
+	}
+	return res;
+}

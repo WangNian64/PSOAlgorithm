@@ -1377,14 +1377,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 将布局结果转化为输送机参数(同时加强一下输送线最短距离约束)
-		//直线输送机信息列表
-		int tempStrConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
-		StraightConveyorInfo* tempStrConveyorList = new StraightConveyorInfo[tempStrConveyorList_PointSum];
-
-		//转弯输送机信息列表
-		int tempCurveConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
-		Vector2Int* tempCurveConveyorList = new Vector2Int[tempCurveConveyorList_PointSum];
-		 
+		
 		//只保留转弯点的数组
 		int segPathSet_PointSum = proParas.fixedLinkPointSum * proParas.totalLinkSum;//50个点
 		int segPathSet_CurIndex = 0;
@@ -1454,14 +1447,29 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		}
 
 		//从pathPointInfoMap中得到tempStrConveyorList和tempCurveConveyorList
+		//原来由于有set和map，可以实现快读查找
+		//现在没有了，只能用二分查找了
+
+		//直线输送机信息列表
+		int tempStrConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
+		StraightConveyorInfo* tempStrConveyorList = new StraightConveyorInfo[tempStrConveyorList_PointSum];
+		int tempStrConveyorList_CurIndex = 0;
+
+		//转弯输送机信息列表
+		int tempCurveConveyorList_PointSum = proParas.fixedUniqueLinkPointSum * proParas.totalLinkSum;//20个点
+		Vector2Int* tempCurveConveyorList = new Vector2Int[tempCurveConveyorList_PointSum];
+		int tempCurveConveyorList_CurIndex = 0;
+
 		for (int i = 0; i < proParas.totalLinkSum; i++) {
 			StraightConveyorInfo tempStrInfo;
 			tempStrInfo.startPos = Multi10000ToInt(copyPLinks[i].points[copyPLinks[i].pointNum - 1]);//开头
-			tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
-			tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
+			PointInfo curPointInfo = FindPointInfo(pathPointInfoMap, 0, pathPointInfoMap_UniqueSum - 1, tempStrInfo.startPos);
+			tempStrInfo.startVnum = curPointInfo.vertDirNum;
+			tempStrInfo.startHnum = curPointInfo.horiDirNum;
 			for (int j = copyPLinks[i].pointNum - 2; j >= 0; j--) {
 				Vector2Int p = Multi10000ToInt(copyPLinks[i].points[j]);
-				if (pathPointInfoMap[p].isKeep == true) {//这里会出现重复的
+				PointInfo pPathPoint = FindPointInfo(pathPointInfoMap, 0, pathPointInfoMap_UniqueSum - 1, p);
+				if (pPathPoint.isKeep == true) {//这里会出现重复的
 					//先更新直线输送机
 					if (tempStrInfo.startPos != p) {
 						tempStrInfo.endPos = p;
@@ -1474,19 +1482,21 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 							particle.fitness_[0] = particle.fitness_[1] = MAX_FITNESS;
 							return;
 						}
-						tempStrInfo.endVnum = pathPointInfoMap[tempStrInfo.endPos].vertDirNum;
-						tempStrInfo.endHnum = pathPointInfoMap[tempStrInfo.endPos].horiDirNum;
+						tempStrInfo.endVnum = pPathPoint.vertDirNum;
+						tempStrInfo.endHnum = pPathPoint.horiDirNum;
 						//这个地方进行去重的
 						//如果没有set，只能先排序+去重复了
-						tempStrConveyorList.insert(tempStrInfo);////
+						//注意每个p既是终点也是下一个的起点
+						tempStrConveyorList[tempStrConveyorList_CurIndex++] = tempStrInfo;////
 						tempStrInfo.startPos = p;
-						tempStrInfo.startVnum = pathPointInfoMap[tempStrInfo.startPos].vertDirNum;
-						tempStrInfo.startHnum = pathPointInfoMap[tempStrInfo.startPos].horiDirNum;
+						tempStrInfo.startVnum = pPathPoint.vertDirNum;
+						tempStrInfo.startHnum = pPathPoint.horiDirNum;
 					}
 					//只要不是始终点，都需要更新转弯输送机
-					if (!(pathPointInfoMap[p].horiDirNum == 1 && pathPointInfoMap[p].vertDirNum == 0)
-						&& !(pathPointInfoMap[p].horiDirNum == 0 && pathPointInfoMap[p].vertDirNum == 1)) {
-						tempCurveConveyorList.insert(p);////
+					if (!(pPathPoint.horiDirNum == 1 && pPathPoint.vertDirNum == 0)
+						&& !(pPathPoint.horiDirNum == 0 && pPathPoint.vertDirNum == 1)) {
+						//tempCurveConveyorList.insert(p);////
+						tempCurveConveyorList[tempCurveConveyorList_CurIndex++] = p;
 					}
 				}
 			}
@@ -1496,11 +1506,11 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma region 计算目标函数值
 		//遍历直线和转弯输送机的set，得到输送机的总成本
 		double conveyorTotalCost = 0.0;
-		for (StraightConveyorInfo sci : tempStrConveyorList)
-		{
-			conveyorTotalCost += proParas.strConveyorUnitCost * sci.startPos.Distance(sci.endPos);
+		for (int i = 0; i < tempStrConveyorList_CurIndex; i++) {
+			conveyorTotalCost += proParas.strConveyorUnitCost * 
+				tempStrConveyorList[i].startPos.Distance(tempStrConveyorList[i].endPos);
 		}
-		conveyorTotalCost += proParas.curveConveyorUnitCost * tempCurveConveyorList.size();
+		conveyorTotalCost += proParas.curveConveyorUnitCost * tempStrConveyorList_CurIndex;
 		//设置适应度值
 
 		//particle.fitness_[0] = 1000;
@@ -1520,7 +1530,9 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				bestPathInfoList[i].inoutPoints = tempInoutPoints;
 				bestPathInfoList[i].inoutPSize = proParas.inoutPointCount;
 				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
+				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小需要记录
 				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
+				bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;
 				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];
 			}
 		}

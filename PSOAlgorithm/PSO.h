@@ -129,14 +129,15 @@ struct BestPathInfo
 	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新
 	int inoutPSize;//出入口数目
 	InoutPoint* inoutPoints;//出入口集合
-	set<StraightConveyorInfo> strConveyorList;//直线输送机信息列表
-	set<Vector2Int> curveConveyorList;//转弯输送机信息列表
+	StraightConveyorInfo* strConveyorList;//直线输送机信息列表
+	int strConveyorListSum;
+	Vector2Int* curveConveyorList;//转弯输送机信息列表
+	int curveConveyorListSum;
 	BestPathInfo() {
 		curBestFitnessVal = INT_MAX;
 	}
 	void Clear() {
-		strConveyorList.clear();
-		curveConveyorList.clear();
+
 	}
 };
 //粒子结构体
