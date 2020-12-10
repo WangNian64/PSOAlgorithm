@@ -9,8 +9,6 @@
 //  即格子宽高为10 对角线为14
 #pragma once
 #include "AStar.h"
-#include "DevicePara.h"
-#include <algorithm>
 //自定义排序函数
 bool mySort(const APoint* p1, const APoint* p2)
 {
@@ -41,9 +39,12 @@ CAstar::CAstar() :_endPoint(nullptr)
 
 CAstar::~CAstar()
 {
-    _openList.clear();
-    _closeList.clear();
-    _neighbourList.clear();
+	delete[] _openList;
+	delete[] _closeList;
+	delete[] _neighbourList;
+	openList_CurSize = 0;
+	closeList_CurSize = 0;
+	neighbourList_CurSize = 0;
 }
 //计算一条路径的总长度
 double CAstar::CalcuPathLength(APoint* point)
@@ -65,9 +66,12 @@ void CAstar::resetAStar()
             _allPoints[i * pointColNum + j]->resetAPoint();
         }
     }
-    vector<APoint*>().swap(_openList);
-    vector<APoint*>().swap(_closeList);
-    vector<APoint*>().swap(_neighbourList);
+	delete[] _openList;
+	delete[] _closeList;
+	delete[] _neighbourList;
+	openList_CurSize = 0;
+	closeList_CurSize = 0;
+	neighbourList_CurSize = 0;
 }
 APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
@@ -87,7 +91,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
         return _curPoint;
     }
 
-    _openList.push_back(beginPoint);
+    _openList[openList_CurSize++] = beginPoint;
     beginPoint->type = AType::ATYPE_OPENED;
     beginPoint->f = getF(beginPoint);
     //---------
@@ -95,9 +99,18 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
     {
         //获取最小值的节点
         _curPoint = _openList[0];
-        _openList.erase(_openList.begin());
+
+		//删除最前面的节点
+		if (openList_CurSize == 1) {
+			_openList = NULL;//这个也要改
+		}
+		else {
+			_openList = &_openList[1];
+		}
+		openList_CurSize--;
+
         _curPoint->type = AType::ATYPE_CLOSED;
-        _closeList.push_back(_curPoint);
+        _closeList[closeList_CurSize++] = _curPoint;
 
         if (*_curPoint == *_endPoint)
         {
@@ -105,8 +118,8 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
             return _curPoint;
         }
         //获取相邻的节点
-        vector<APoint*> neVec = getNeighboringPoint(_curPoint);
-        for (int i = 0; i < neVec.size(); i++)
+        APoint** neVec = getNeighboringPoint(_curPoint);
+        for (int i = 0; i < neighbourList_CurSize; i++)
         {
             auto tmpoint = neVec[i];
             double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
@@ -132,7 +145,7 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
                 tmpoint->h = getH(tmpoint);
                 tmpoint->f = getF(tmpoint);
                 //添加到开放列表里
-                _openList.push_back(tmpoint);
+                _openList[openList_CurSize++] = tmpoint;
                 tmpoint->type = AType::ATYPE_OPENED;
             }
             else
@@ -158,9 +171,13 @@ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginC
             }
         }
         //排序 F值最小的排在前面
-        stable_sort(_openList.begin(), _openList.end(), mySort);
+		//需要自己实现
+		//归并排序是稳定的，用这个实现
+        //stable_sort(_openList.begin(), _openList.end(), mySort);
+		APoint** tempOpenList = new APoint*[openList_CurSize];
+		StableSort_APoint(_openList, 0, openList_CurSize - 1, tempOpenList);
 
-    } while (_openList.size() > 0);
+    } while (openList_CurSize > 0);
 
 
     cout << "---can not find way---" << endl;
@@ -212,9 +229,9 @@ double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
 
     return 2.0;
 }
-vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
+APoint** CAstar::getNeighboringPoint(APoint* point)//相邻节点最多就4个
 {
-    _neighbourList.clear();
+	neighbourList_CurSize = 0;//清空neighbor
     //可以选择根据当前方向调整点的添加顺序
     if (curPathDirect == PathDirection::Vertical)//路线方向垂直，先检查垂直方向
     {
@@ -223,28 +240,28 @@ vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
         {
             if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
             }
         }
         if (point->rowIndex > 0)
         {
             if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
             }
         }
         if (point->colIndex < pointColNum - 1)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
             }
         }
         if (point->colIndex > 0)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
             }
         }
     }  
@@ -254,28 +271,28 @@ vector<APoint*> CAstar::getNeighboringPoint(APoint* point)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
             }
         }
         if (point->colIndex > 0)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
             }
         }
         if (point->rowIndex < pointColNum - 1)
         {
             if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
             }
         }
         if (point->rowIndex > 0)
         {
             if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList.push_back(_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]);
+                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
             }
         }
     }

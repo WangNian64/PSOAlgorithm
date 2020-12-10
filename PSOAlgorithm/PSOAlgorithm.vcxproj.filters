@@ -41,9 +41,6 @@
     <ClInclude Include="ProblemParas.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Tools.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Pareto.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -57,6 +54,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="AStar.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Tools.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,9 +1,5 @@
 #pragma once
 #include "Archive.h"
-#include <cmath>
-#include <vector>
-#include <algorithm>
-#include "ctime"
 // ¹¹Ôìº¯Êý
 MeshCrowd::MeshCrowd(vector<Particle> curArchiveList, int meshDivCount, double* minList, double* maxList, int dim, int ParticleCount) 
 {

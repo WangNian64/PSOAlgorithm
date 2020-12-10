@@ -155,7 +155,6 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 		for (int i = 0; i < deviceIDSizeCount; ++i) {
 			deviceIDSizeList[i] = DeviceIDSize(i, copyDeviceParas[i].size);
 		}
-		//sort(deviceIDSizeList.begin(), deviceIDSizeList.end());//这个函数得自己写
 		DeviceIDSize_Sort(deviceIDSizeList, 0, deviceIDSizeCount - 1);//按照设备的尺寸排序
 
 		double outSizeLength1, outSizeWidth1;
@@ -1090,7 +1089,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 #pragma endregion
 
 #pragma region 寻路
-		auto star = new CAstar();
+		CAstar* star = new CAstar();//
 		star->_allPoints = pathPointMap;
 		star->pointColNum = pathColNum;
 		star->pointRowNum = pathRowNum;
@@ -1530,7 +1529,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 				bestPathInfoList[i].inoutPoints = tempInoutPoints;
 				bestPathInfoList[i].inoutPSize = proParas.inoutPointCount;
 				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
-				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小需要记录
+				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小要记录
 				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
 				bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;
 				bestPathInfoList[i].curBestFitnessVal = particle.fitness_[i];

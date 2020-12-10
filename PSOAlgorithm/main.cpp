@@ -74,11 +74,11 @@ int main()
 			for (int i = 0; i < psooptimizer.max_iter_num_; i++)//开始并行操作
 			{
 				cout << (i + 1) << endl;
-				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度 并行
-				psooptimizer.UpdatePbest();//更新pbest 并行
+				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
+				psooptimizer.UpdatePbest();//更新pbest
 				//这里有一个从GPU到CPU的过程
-				psooptimizer.UpdateArchiveList();//更新外部存档集合 非并行
-				psooptimizer.UpdateGbest();//更新gbest 非并行
+				psooptimizer.UpdateArchiveList();//更新外部存档集合
+				psooptimizer.UpdateGbest();//更新gbest
 
 				//存储每次迭代的Archive集合
 				//OutFile << to_string(i) + "\n";
@@ -232,39 +232,24 @@ int main()
 			#pragma endregion
 
 			#pragma region 记录直线输送机和转弯输送机参数
-			set<StraightConveyorInfo> strInfoList = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList;
-			set<Vector2Int> curveInfoList = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList;
-			OutFile << strInfoList.size() << "\n";
-			for (StraightConveyorInfo sci : strInfoList)
+			StraightConveyorInfo* strInfoList = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList;
+			int strInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorListSum;
+			Vector2Int* curveInfoList = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList;
+			int curveInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorListSum;
+			OutFile << strInfoListSum << "\n";
+			for (int i = 0; i < strInfoListSum; i++)
 			{
-				OutFile << to_string(sci.startPos.x) << "," << to_string(sci.startPos.y)
-					<< ";" << to_string(sci.endPos.x) << "," << to_string(sci.endPos.y)
-					<< ";" << to_string(sci.startHnum) << ";" << to_string(sci.startVnum)
-					<< ";" << to_string(sci.endHnum) << ";" << to_string(sci.endVnum)
+				OutFile << to_string(strInfoList[i].startPos.x) << "," << to_string(strInfoList[i].startPos.y)
+					<< ";" << to_string(strInfoList[i].endPos.x) << "," << to_string(strInfoList[i].endPos.y)
+					<< ";" << to_string(strInfoList[i].startHnum) << ";" << to_string(strInfoList[i].startVnum)
+					<< ";" << to_string(strInfoList[i].endHnum) << ";" << to_string(strInfoList[i].endVnum)
 					<< "\n";
 			}
-			OutFile << curveInfoList.size() << "\n";
-			for (Vector2Int v : curveInfoList)
+			OutFile << curveInfoListSum << "\n";
+			for (int i = 0; i < curveInfoListSum; i++)
 			{
-				OutFile << to_string(v.x) << "," << to_string(v.y) << "\n";
+				OutFile << to_string(curveInfoList[i].x) << "," << to_string(curveInfoList[i].y) << "\n";
 			}
-
-
-			//set<SegPath> segPathSet = psooptimizer.archive_list[resultIndex].segPathSet;
-			//OutFile << segPathSet.size() << "\n";
-			//for (SegPath sp : segPathSet)
-			//{
-			//	OutFile << to_string(sp.p1.x) << "," << to_string(sp.p1.y)
-			//			<< ";" << to_string(sp.p2.x) << "," << to_string(sp.p2.y) << "\n";
-			//}
-
-			//map<Vector2, PointInfo> pathPointInfoMap = psooptimizer.archive_list[resultIndex].pathPointInfoMap;
-			//OutFile << pathPointInfoMap.size() << "\n";
-			//for (auto it = pathPointInfoMap.begin(); it != pathPointInfoMap.end(); it++) 
-			//{
-			//	OutFile << to_string(it->first.x) << "," << to_string(it->first.y)
-			//		<< ";" << to_string(it->second.horiDirNum) << ";" << to_string(it->second.vertDirNum) << "\n";
-			//}
 			#pragma endregion
 
 			OutFile.close();

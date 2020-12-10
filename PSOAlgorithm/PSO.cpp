@@ -201,6 +201,7 @@ void PSOOptimizer::UpdateAllParticles()
 }
 
 //更新i索引的粒子&计算适应度值数组
+//基本不用改
 void PSOOptimizer::UpdateParticle(int i)
 {
 	//先更新朝向，然后根据朝向调整粒子的范围
@@ -337,7 +338,7 @@ void PSOOptimizer::UpdateParticle(int i)
 	GetFitness(particles_[i]);
 }
 
-//更新Pbest
+//更新Pbest，基本不用改
 void PSOOptimizer::UpdatePbest()
 {
 	for (int i = 0; i < this->particle_num_; i++)
