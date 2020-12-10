@@ -145,7 +145,8 @@ void PSOOptimizer::InitialArchiveList()
 	this->archive_list = initPareto.GetPareto();
 }
 
-// 更新Archive数组
+// 更新Archive数组 这个不是每个粒子都计算，也就是说，只需要一个线程就可以
+// CPU级别
 void PSOOptimizer::UpdateArchiveList() 
 {
 	//首先，计算当前粒子群的pareto边界，将边界粒子加入到存档archiving中
@@ -189,7 +190,7 @@ void PSOOptimizer::GetFitness(Particle& particle)
 	FitnessFunction(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
 }
 
-void PSOOptimizer::UpdateAllParticles()
+void PSOOptimizer::UpdateAllParticles()//先改第一个！
 {
 	GetInertialWeight();//计算当前代的惯性系数
 	//更新当前代所有粒子
@@ -359,6 +360,8 @@ void PSOOptimizer::UpdatePbest()
 }
 
 // 更新Gbest
+// 这个是否需要改成GPU并行的？需要
+//这样的话，archiveList也得是*
 void PSOOptimizer::UpdateGbest()
 {
 	vector<Particle> tempArchiveL(this->archive_list);

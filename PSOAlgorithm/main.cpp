@@ -17,7 +17,8 @@ int main()
 		ifstream inputFile;
 		inputFile.open("../../InputParas/InputPara" + to_string(curProblem + 1) + ".txt");
 
-		ProblemParas proParas(inputFile);					//初始化所有设备相关参数
+		//CPU
+		ProblemParas proParas(inputFile);					//初始化所有设备相关参数 
 
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
 		PSOPara psopara(dim);								// dim是变量维度
@@ -26,7 +27,7 @@ int main()
 		psopara.particle_num_ =	100;						// 粒子个数
 		psopara.max_iter_num_ = 400;						// 最大迭代次数
 		psopara.fitness_count_ = 2;							// 适应度数目
-		psopara.archive_max_count = 100;					// archive数组的最大数目
+		psopara.archive_max_count = 50;						// archive数组的最大数目
 		psopara.SetDt(1.0);									// 时间步长
 		psopara.SetWstart(0.9);								// 初始权重
 		psopara.SetWend(0.4);								// 结束权重
@@ -81,15 +82,11 @@ int main()
 				psooptimizer.UpdateGbest();//更新gbest
 
 				//存储每次迭代的Archive集合
-				//OutFile << to_string(i) + "\n";
-				//cout << psooptimizer.archive_list.size() << endl;
 				double minFitness1, minFitness2;
 				minFitness1 = minFitness2 = INT_MAX;
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
 					minFitness1 = min(minFitness1, it->fitness_[0]);
-					//string line = to_string(it->fitness_[0]) + "\n";
-					//OutFile << line;
 				}
 				string f1line = to_string(minFitness1) + "\n";
 				OutFile << f1line;
@@ -99,8 +96,6 @@ int main()
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
 					minFitness2 = min(minFitness2, it->fitness_[1]);
-					//string line = to_string(it->fitness_[1]) + "\n";
-					//OutFile1 << line;
 				}
 				string f2line = to_string(minFitness2) + "\n";
 				OutFile1 << f2line;

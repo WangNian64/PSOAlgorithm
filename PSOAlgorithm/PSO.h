@@ -18,11 +18,6 @@ struct PSOPara
 	int max_iter_num_;							// 最大迭代次数
 
 	int mesh_div_count;
-	//double* dt_ = nullptr;					// 时间步长
-	//double* wstart_ = nullptr;				// 初始权重
-	//double* wend_ = nullptr;					// 终止权重
-	//double* C1_ = nullptr;					// 加速度因子1
-	//double* C2_ = nullptr;					// 加速度因子2
 
 	double dt_;									// 时间步长
 	double wstart_;								// 初始权重
@@ -35,7 +30,7 @@ struct PSOPara
 	double* range_interval_ = nullptr;			// position搜索区间长度
 
 	int archive_max_count;						// pareto最优解数组的最大值
-	ProblemParas problemParas;					//和粒子对应的设备布局参数 全局参数
+	ProblemParas problemParas;					// 和粒子对应的设备布局参数 全局参数
 
 	PSOPara() {}
 
@@ -203,13 +198,6 @@ public:
 	double* lower_bound_ = nullptr;				// position搜索范围下限
 	double* range_interval_ = nullptr;			// position搜索区间长度
 
-	//double* dt_ = nullptr;					// 时间步长
-	//double* wstart_ = nullptr;				// 初始权重
-	//double* wend_ = nullptr;					// 终止权重
-	//double* w_ = nullptr;						// 当前迭代权重
-	//double* C1_ = nullptr;					// 加速度因子
-	//double* C2_ = nullptr;					// 加速度因子
-
 	double dt_;									// 时间步长
 	double wstart_;								// 初始权重
 	double wend_;								// 终止权重
@@ -224,6 +212,7 @@ public:
 
 	//MOPSO相关参数,不需要传到GPU 
 	vector<Particle> archive_list;				// 存放pareto非劣解的数组
+	int archiveList_CurSize;					// 当前的archiveList大小
 	int archiveMaxCount;						// archive数组的最大数目
 	BestPathInfo* bestPathInfoList;				//最优路径信息
 
@@ -236,16 +225,19 @@ public:
 
 	//用另一个pso对象初始化一个GPU上的pso对象
 	PSOOptimizer(const PSOOptimizer &obj, int index);
+
 	// 析构函数
 	~PSOOptimizer();
 
 	// 初始化所有粒子参数
 	void InitialAllParticles();
+
 	// 初始化第i个粒子参数
 	void InitialParticle(int i);
 
 	// 初始化Archive数组
 	void InitialArchiveList();
+
 	// 更新Archive数组
 	void UpdateArchiveList();
 
@@ -263,10 +255,13 @@ public:
 
 	// 更新Pbest
 	void UpdatePbest();
+
 	// 更新Gbest
 	void UpdateGbest();
+
 	// 比较两个粒子的适应度，判断是否完全支配，从而计算出pbest
 	bool ComparePbest(double* fitness, double* pbestFitness);
+
 	// 获取当前迭代的权重
 	void GetInertialWeight();
 

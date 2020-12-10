@@ -38,7 +38,7 @@ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoL
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
-int FindAxisIndex(double axis, const vector<double>& axisList);
+int FindAxisIndex(double axis, const double* axisList, int axisCount);
 
 //顺时针旋转后的坐标
 Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);

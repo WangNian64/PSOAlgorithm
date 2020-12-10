@@ -18,7 +18,6 @@
 #define __Astar__CAstar__
 
 #include <stdio.h>
-#include <vector>
 #include <iostream>
 #include "Tools.h"
 using namespace std;
