@@ -46,8 +46,8 @@ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
 int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
-//默认的适应度计算函数，可以替换
-void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, Particle& particle)
+//适应度计算函数 GPU
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, Particle& particle)
 {
 	double punishValue1 = 0;
 	double punishValue2 = 0;

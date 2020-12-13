@@ -2,6 +2,7 @@
 #include "Pareto.h"
 #include "Archive.h"
 #include "FitnessFunction.h"
+#include "Tools.h"
 #include <ctime>
 // 构造函数(初始化各种算法的参数，给数组分配空间)
 PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
@@ -12,42 +13,33 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 	fitness_count = pso_para->fitness_count_;
 	curr_iter_ = 0;
 
-	//dt_ = new double[dim_];
-	//wstart_ = new double[dim_];
-	//wend_ = new double[dim_];
-	//C1_ = new double[dim_];
-	//C2_ = new double[dim_];
 	dt_ = pso_para->dt_;
 	wstart_ = pso_para->wstart_;
 	wend_ = pso_para->wend_;
 	C1_ = pso_para->C1_;
 	C2_ = pso_para->C2_;
 
-	/*for (int i = 0; i < dim_; i++)
-	{
-		dt_[i] = pso_para->dt_[i];
-		wstart_[i] = pso_para->wstart_[i];
-		wend_[i] = pso_para->wend_[i];
-		C1_[i] = pso_para->C1_[i];
-		C2_[i] = pso_para->C2_[i];
-	}*/
+	upper_bound_ = new double[dim_];
+	lower_bound_ = new double[dim_];
+	range_interval_ = new double[dim_];
 
-	if (pso_para->upper_bound_ && pso_para->lower_bound_)
+	for (int i = 0; i < dim_; i++)
 	{
-		upper_bound_ = new double[dim_];
-		lower_bound_ = new double[dim_];
-		range_interval_ = new double[dim_];
-
-		for (int i = 0; i < dim_; i++)
-		{
-			upper_bound_[i] = pso_para->upper_bound_[i];
-			lower_bound_[i] = pso_para->lower_bound_[i];
-			range_interval_[i] = upper_bound_[i] - lower_bound_[i];
-		}
+		upper_bound_[i] = pso_para->upper_bound_[i];
+		lower_bound_[i] = pso_para->lower_bound_[i];
+		range_interval_[i] = upper_bound_[i] - lower_bound_[i];
 	}
+	//初始化随机数种子
+	cudaMalloc(&devStates, particle_num_ * sizeof(curandState));
+	initRandomGenerator <<< 1, particle_num_ >>> (devStates, unsigned(time(NULL)));//time作为随机数种子
+
+	//给随机数数组分配GPU空间
+	cudaMalloc((void**)&randomNumList, sizeof(double) * particle_num_);
+
+
+
 
 	particles_ = new Particle[particle_num_];
-	//w_ = new double[dim_];
 
 	all_best_position_ = new double[particle_num_ * dim_];
 
@@ -61,45 +53,6 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化
 }
 
-//用另一个pso对象初始化一个GPU上的pso对象
-PSOOptimizer::PSOOptimizer(const PSOOptimizer& obj, int index)
-{
-	//分配内存
-	particle_num_ = obj.particle_num_;
-	max_iter_num_ = obj.max_iter_num_;
-	dim_ = obj.dim_;
-	fitness_count = obj.fitness_count;
-	curr_iter_ = 0;
-
-	//dt_ = new double[dim_];
-	//wstart_ = new double[dim_];
-	//wend_ = new double[dim_];
-	//C1_ = new double[dim_];
-	//C2_ = new double[dim_];
-	dt_ = obj.dt_;
-	wstart_ = obj.wstart_;
-	wend_ = obj.wend_;
-	C1_ = obj.C1_;
-	C2_ = obj.C2_;
-
-	//相当于重新分配内存了
-	CUDA_SAFE_CALL(cudaMalloc((void**)& upper_bound_, sizeof(double) * dim_));
-	CUDA_SAFE_CALL(cudaMalloc((void**)& lower_bound_, sizeof(double) * dim_));
-	CUDA_SAFE_CALL(cudaMalloc((void**)& range_interval_, sizeof(double) * dim_));
-
-	CUDA_SAFE_CALL(cudaMalloc((void**)& all_best_position_, sizeof(double) * particle_num_ * dim_));
-	CUDA_SAFE_CALL(cudaMalloc((void**)& all_best_fitness_, sizeof(double) * particle_num_ * fitness_count));
-	//只有并行的数据用GPU分配内存
-
-
-	meshDivCount = obj.meshDivCount;
-	this->archiveMaxCount = obj.archiveMaxCount;
-
-
-	problemParas = obj.problemParas;//布局问题的参数,也需要在GPU中
-
-	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化
-}
 PSOOptimizer::~PSOOptimizer()
 {
 	if (particles_) { delete[]particles_; }
@@ -190,21 +143,28 @@ void PSOOptimizer::GetFitness(Particle& particle)
 	FitnessFunction(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, particle);
 }
 
-void PSOOptimizer::UpdateAllParticles()//先改第一个！
+//先改第一个！
+void PSOOptimizer::UpdateAllParticles()
 {
-	GetInertialWeight();//计算当前代的惯性系数
+	//计算当前代的惯性系数
+	double temp = curr_iter_ / (double)max_iter_num_;
+	//temp *= temp;//系数变化
+	w_ = wstart_ - (wstart_ - wend_) * temp;
 	//更新当前代所有粒子
-	for (int i = 0; i < particle_num_; i++)
-	{
-		UpdateParticle(i);
-	}
+	//参数只能从外面传进去
+	UpdateParticle<<<blockSum, threadsPerBlock>>>(curr_iter_, max_iter_num_, dim_, w_, C1_, C2_, dt_,
+			bestPathInfoList, particles_, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, problemParas);//这个是并行的
 	curr_iter_++;
 }
 
 //更新i索引的粒子&计算适应度值数组
-//基本不用改
-void PSOOptimizer::UpdateParticle(int i)
+//i应该不需要，因为可以通过thread和block进行计算
+static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim_, double w_, double C1_, double C2_, double dt_,
+	BestPathInfo* bestPathInfoList, Particle* particles_, curandState* globalState, double* randomNumList, 
+	double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, ProblemParas problemParas)
 {
+	//粒子的下标i需要自己计算
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	//先更新朝向，然后根据朝向调整粒子的范围
 	for (int j = 2; j < dim_; j += 3)
 	{
@@ -215,20 +175,19 @@ void PSOOptimizer::UpdateParticle(int i)
 			C2_ * GetDoubleRand() * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
 		particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
 
-
 		// 如果搜索区间有上下限限制
 		if (upper_bound_ && lower_bound_)
 		{
 			if (particles_[i].position_[j] >= upper_bound_[j])//注意对于设备朝向，=也不行
 			{
-				double thre = GetDoubleRand(99);
+				double thre = createARandomNum(globalState, i);//直接生成一个随机数
 				if (last_position >= upper_bound_[j] - 1)//注意upper_bound_[j]-1=3
 				{
-					particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+					particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 				}
 				else if (thre < 0.5)
 				{
-					particles_[i].position_[j] = upper_bound_[j] - (upper_bound_[j] - last_position) * GetDoubleRand();
+					particles_[i].position_[j] = upper_bound_[j] - (upper_bound_[j] - last_position) * createARandomNum(globalState, i);
 				}
 				else
 				{
@@ -237,14 +196,14 @@ void PSOOptimizer::UpdateParticle(int i)
 			}
 			if (particles_[i].position_[j] < lower_bound_[j])
 			{
-				double thre = GetDoubleRand(99);
+				double thre = createARandomNum(globalState, i);
 				if (last_position == lower_bound_[j])
 				{
-					particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+					particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 				}
 				else if (thre < 0.5)
 				{
-					particles_[i].position_[j] = lower_bound_[j] + (last_position - lower_bound_[j]) * GetDoubleRand();
+					particles_[i].position_[j] = lower_bound_[j] + (last_position - lower_bound_[j]) * createARandomNum(globalState, i);
 				}
 				else
 				{
@@ -259,7 +218,7 @@ void PSOOptimizer::UpdateParticle(int i)
 		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
 		//Rotate90或者Rotate270,修改上下限
 		DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
-		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
+		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)//这一部分可能也要改（enum是C++语法）
 		{
 			//x和y
 			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
@@ -291,8 +250,8 @@ void PSOOptimizer::UpdateParticle(int i)
 			double last_position = particles_[i].position_[j];
 
 			particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
-				C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-				C2_ * GetDoubleRand() * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
+				C1_ * createARandomNum(globalState, i) * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
+				C2_ * createARandomNum(globalState, i) * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
 			particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
 
 			// 如果搜索区间有上下限限制
@@ -300,14 +259,14 @@ void PSOOptimizer::UpdateParticle(int i)
 			{
 				if (particles_[i].position_[j] > upper_bound_[j])
 				{
-					double thre = GetDoubleRand(99);
+					double thre = createARandomNum(globalState, i);
 					if (last_position >= upper_bound_[j])
 					{
-						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+						particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 					}
 					else if (thre < 0.5)
 					{
-						particles_[i].position_[j] = upper_bound_[j] - abs(upper_bound_[j] - last_position) * GetDoubleRand();
+						particles_[i].position_[j] = upper_bound_[j] - abs(upper_bound_[j] - last_position) * createARandomNum(globalState, i);
 					}
 					else
 					{
@@ -316,14 +275,14 @@ void PSOOptimizer::UpdateParticle(int i)
 				}
 				if (particles_[i].position_[j] < lower_bound_[j])
 				{
-					double thre = GetDoubleRand(99);
+					double thre = createARandomNum(globalState, i);
 					if (last_position <= lower_bound_[j])
 					{
-						particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+						particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 					}
 					else if (thre < 0.5)
 					{
-						particles_[i].position_[j] = lower_bound_[j] + abs(last_position - lower_bound_[j]) * GetDoubleRand();
+						particles_[i].position_[j] = lower_bound_[j] + abs(last_position - lower_bound_[j]) * createARandomNum(globalState, i);
 					}
 					else
 					{
@@ -336,7 +295,8 @@ void PSOOptimizer::UpdateParticle(int i)
 	}
 
 	//计算更新后粒子的适应度值数组
-	GetFitness(particles_[i]);
+	//也要改成GPU并行的
+	FitnessFunction(curIterNum, maxIterNum, bestPathInfoList, problemParas, particles_[i]);
 }
 
 //更新Pbest，基本不用改
@@ -421,14 +381,6 @@ bool PSOOptimizer::ComparePbest(double* fitness, double* pbestFitness)
 			return randomProb > 0.5 ? true : false;
 		}
 	}
-}
-
-//获取惯性系数
-void PSOOptimizer::GetInertialWeight()
-{
-	double temp = curr_iter_ / (double)max_iter_num_;
-	//temp *= temp;
-	w_ = wstart_ - (wstart_ - wend_) * temp;
 }
 
 //初始化第i个粒子

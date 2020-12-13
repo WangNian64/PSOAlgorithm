@@ -6,6 +6,9 @@
 #include <random>
 #include "ProblemParas.h"
 
+#include <cuda_runtime.h>//几个cuda的API
+#include <curand.h>
+#include <curand_kernel.h>
 // 适应度是越大越好还是越小越好
 #define MINIMIZE_FITNESS
 //#define MAXIMIZE_FITNESS
@@ -32,17 +35,13 @@ struct PSOPara
 	int archive_max_count;						// pareto最优解数组的最大值
 	ProblemParas problemParas;					// 和粒子对应的设备布局参数 全局参数
 
+	int blockSum;								// 每个Grid中block的数目
+	int threadsPerBlock;						// 每个Block中thread的数目
 	PSOPara() {}
 
 	PSOPara(int dim)
 	{
 		dim_ = dim;
-
-		//dt_ = new double[dim_];
-		//wstart_ = new double[dim_];
-		//wend_ = new double[dim_];
-		//C1_ = new double[dim_];
-		//C2_ = new double[dim_];
 
 		lower_bound_ = new double[dim_];
 		upper_bound_ = new double[dim_];
@@ -57,11 +56,6 @@ struct PSOPara
 		if (lower_bound_) { delete[]lower_bound_; }
 		if (upper_bound_) { delete[]upper_bound_; }
 		if (range_interval_) { delete[]range_interval_; }
-		//if (dt_) { delete[]dt_; }
-		//if (wstart_) { delete[]wstart_; }
-		//if (wend_) { delete[]wend_; }
-		//if (C1_) { delete[]C1_; }
-		//if (C2_) { delete[]C2_; }
 	}
 
 	// 设置物流问题相关参数
@@ -185,36 +179,42 @@ struct Particle
 class PSOOptimizer
 {
 public:
-	int particle_num_;							// 粒子个数
-	int max_iter_num_;							// 最大迭代次数
-	int curr_iter_;								// 当前迭代次数
+	int blockNum;							// block的总数目
+	int threadsPerBlock;					// 每个block的thread数目
 
-	int dim_;									// 参数维度（position和velocity的维度）
-	int fitness_count;							// 适应度数目
-	int meshDivCount;							// 网格等分因子（默认为10）
-	Particle* particles_ = nullptr;				// 所有粒子
+	int particle_num_;						// 粒子个数
+	int max_iter_num_;						// 最大迭代次数
+	int curr_iter_;							// 当前迭代次数
 
-	double* upper_bound_ = nullptr;				// position搜索范围上限
-	double* lower_bound_ = nullptr;				// position搜索范围下限
-	double* range_interval_ = nullptr;			// position搜索区间长度
+	int dim_;								// 参数维度（position和velocity的维度）
+	int fitness_count;						// 适应度数目
+	int meshDivCount;						// 网格等分因子（默认为10）
+	Particle* particles_ = nullptr;			// 所有粒子
 
-	double dt_;									// 时间步长
-	double wstart_;								// 初始权重
-	double wend_;								// 终止权重
-	double w_;									// 当前迭代权重
-	double C1_;									// 加速度因子
-	double C2_;									// 加速度因子
+	double* randomNumList = nullptr;		// 存随机数的数组
+	curandState* devStates;					//cuda随机数状态数组
 
-	double* all_best_fitness_ = nullptr;		// 全局最优粒子的适应度数组 100x2
-	double* all_best_position_ = nullptr;		// 全局最优粒子的position 100x12
+	double* upper_bound_ = nullptr;			// position搜索范围上限
+	double* lower_bound_ = nullptr;			// position搜索范围下限
+	double* range_interval_ = nullptr;		// position搜索区间长度
 
-	ProblemParas problemParas;					// 布局问题参数
+	double dt_;								// 时间步长
+	double wstart_;							// 初始权重
+	double wend_;							// 终止权重
+	double w_;								// 当前迭代权重
+	double C1_;								// 加速度因子
+	double C2_;								// 加速度因子
 
-	//MOPSO相关参数,不需要传到GPU 
-	vector<Particle> archive_list;				// 存放pareto非劣解的数组
-	int archiveList_CurSize;					// 当前的archiveList大小
-	int archiveMaxCount;						// archive数组的最大数目
-	BestPathInfo* bestPathInfoList;				//最优路径信息
+	double* all_best_fitness_ = nullptr;	// 全局最优粒子的适应度数组 100x2
+	double* all_best_position_ = nullptr;	// 全局最优粒子的position 100x12
+
+	ProblemParas problemParas;				// 布局问题参数
+
+	//MOPSO相关参数,不需要传到GPU
+	vector<Particle> archive_list;			// 存放pareto非劣解的数组
+	int archiveList_CurSize;				// 当前的archiveList大小
+	int archiveMaxCount;					// archive数组的最大数目
+	BestPathInfo* bestPathInfoList;			// 最优路径信息
 
 public:
 	// 默认构造函数
@@ -222,9 +222,6 @@ public:
 
 	// 构造函数
 	PSOOptimizer(PSOPara* pso_para);
-
-	//用另一个pso对象初始化一个GPU上的pso对象
-	PSOOptimizer(const PSOOptimizer &obj, int index);
 
 	// 析构函数
 	~PSOOptimizer();
@@ -251,7 +248,7 @@ public:
 	void UpdateAllParticles();
 
 	// 更新第i个粒子
-	void UpdateParticle(int i);
+	//void UpdateParticle(int i);
 
 	// 更新Pbest
 	void UpdatePbest();
@@ -262,7 +259,5 @@ public:
 	// 比较两个粒子的适应度，判断是否完全支配，从而计算出pbest
 	bool ComparePbest(double* fitness, double* pbestFitness);
 
-	// 获取当前迭代的权重
-	void GetInertialWeight();
 
 };

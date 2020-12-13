@@ -1,11 +1,15 @@
 #pragma once
-#pragma once
 #include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <Windows.h>
 #include "DevicePara.h"
+
+#include <cuda.h>  
+#include <curand.h>  
+#include <curand_kernel.h>  
+
 #define PI 3.14159265358979
 #define MAX_FITNESS 10000000.0
 using namespace std;
@@ -316,3 +320,26 @@ static void StableSort_APoint(APoint** objArray, int start, int end, APoint** te
 		Merge(objArray, start, middle, end, tempArray);
 	}
 }
+
+//生成随机数相关代码 GPU
+//初始化随机数生成器
+__global__ void initRandomGenerator(curandState* state, unsigned long seed)
+{
+	int id = threadIdx.x;
+	curand_init(seed, id, 0, &state[id]);
+}
+//生成一个随机数
+__device__ float createARandomNum(curandState* globalState, int ind)
+{
+	curandState localState = globalState[ind];
+	float RANDOM = curand_uniform(&localState);
+	globalState[ind] = localState;
+	return RANDOM;
+}
+//生成随机数的核函数
+//__global__ void generateRandomNum(float* N, curandState* globalState)
+//{
+//	int i = blockIdx.x * blockDim.x + threadIdx.x;//当前序号
+//	float k = generate(globalState, i);
+//	N[i] = k;
+//}

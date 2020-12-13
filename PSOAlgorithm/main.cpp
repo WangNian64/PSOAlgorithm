@@ -20,11 +20,13 @@ int main()
 		//CPU
 		ProblemParas proParas(inputFile);					//初始化所有设备相关参数 
 
+		int ThreadsPerBlock = 100;//一个Block中100个thread
+		int BlockSum = 1;//Block的数目
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
-		PSOPara psopara(dim);								// dim是变量维度
+		PSOPara psopara(dim);								// psopara放CPU里
 		psopara.mesh_div_count = 4;							// 网格划分数目
 		psopara.problemParas = proParas;					// 布局问题的参数
-		psopara.particle_num_ =	100;						// 粒子个数
+		psopara.particle_num_ = ThreadsPerBlock * BlockSum;	// 粒子个数
 		psopara.max_iter_num_ = 400;						// 最大迭代次数
 		psopara.fitness_count_ = 2;							// 适应度数目
 		psopara.archive_max_count = 50;						// archive数组的最大数目
@@ -35,23 +37,15 @@ int main()
 		psopara.SetC2(1.49445);								// 加速度因子2
 		psopara.SetLowBound(0, 0, DeviceDirect::Default);	// position的搜索范围下限
 
+		psopara.blockSum = BlockSum;
+		psopara.threadsPerBlock = ThreadsPerBlock;
 		//不要让设备朝向取到最大值，只能取到3.几
 		psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270 + 1);// position的搜索范围上限
-		#pragma endregion
-
-		#pragma region GPU申请变量
-
-		#pragma endregion
-
-		#pragma region CPU->GPU
-
 		#pragma endregion
 
 
 		#pragma region 调用PSO算法，并输出结果
 		PSOOptimizer psooptimizer(&psopara);//构造函数
-		std::srand(GetRamdonSeed());
-
 		string curProblemFolderName = "Problem" + to_string(curProblem + 1);
 		for (int curTest = 0; curTest < testSum; curTest++) {//每个问题跑多次
 			clock_t startTime, endTime;//记录调用时间
