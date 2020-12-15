@@ -107,6 +107,10 @@ int main()
 
 			#pragma region 保存设备尺寸&最终布局结果&连线点的坐标
 			OutFile.open("../../Results/" + curProblemFolderName + "/" + curTestFolderName + "/FinalResult.txt");
+
+
+
+
 			#pragma region 记录最终布局结果
 			int resultIndex = 0;
 			int minHandleCost = INT_MAX;
@@ -140,7 +144,15 @@ int main()
 			#pragma endregion
 
 			//后面有一些参数需要从GPU->CPU
+			//只复制需要的
 			#pragma region 记录设备尺寸
+			Vector2* deviceParaListSize_CPU = new Vector2[proParas.DeviceSum];
+			//用循环的方式来复制数据到CPU
+			for (int i = 0; i < proParas.DeviceSum; i++)
+			{
+				cudaMemcpy(deviceParaListSize_CPU + i, &psooptimizer.problemParas.deviceParaList[i].size, sizeof(Vector2), cudaMemcpyDeviceToHost);
+			}
+
 			for (int i = 2; i < dim; i += 3)
 			{
 				DeviceDirect direct = (DeviceDirect)(int)psooptimizer.archive_list[resultIndex].position_[i];
@@ -148,21 +160,24 @@ int main()
 				if (direct == DeviceDirect::Rotate90 || direct == DeviceDirect::Rotate270)
 				{
 					//这里的数据是GPU上的
-					line = to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.y) + "," +
-						to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.x);
+					line = to_string(deviceParaListSize_CPU[i / 3].y) + "," +
+						to_string(deviceParaListSize_CPU[i / 3].x);
 				}
 				else {
-					line = to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.x) + "," +
-						to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.y);
+					line = to_string(deviceParaListSize_CPU[i / 3].x) + "," +
+						to_string(deviceParaListSize_CPU[i / 3].y);
 				}
 				OutFile << line + "\n";
 			}
 			#pragma endregion
 
 			int fitnessIndex = 0;
-			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）//也要改，待定
-			InoutPoint* ioPoints = psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints;
+			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
+			//复制一遍inoutPoints
 			int ioPointsSize = psooptimizer.bestPathInfoList[fitnessIndex].inoutPSize;
+			InoutPoint* ioPoints = new InoutPoint[ioPointsSize];
+			cudaMemcpy(ioPoints, psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints, sizeof(InoutPoint) * ioPointsSize, cudaMemcpyDeviceToHost);
+
 			OutFile << to_string(ioPointsSize) + "\n";//出入口数目
 			for (int i = 0; i < ioPointsSize; i++)
 			{
@@ -222,10 +237,15 @@ int main()
 			#pragma endregion
 
 			#pragma region 记录直线输送机和转弯输送机参数
-			StraightConveyorInfo* strInfoList = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList;
+			//GPU->CPU
 			int strInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorListSum;
-			Vector2Int* curveInfoList = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList;
+			StraightConveyorInfo* strInfoList = new StraightConveyorInfo[strInfoListSum];
+			cudaMemcpy(strInfoList, psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList, sizeof(StraightConveyorInfo) * strInfoListSum, cudaMemcpyDeviceToHost);
+
 			int curveInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorListSum;
+			Vector2Int* curveInfoList = new Vector2Int[curveInfoListSum];
+			cudaMemcpy(curveInfoList, psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList, sizeof(Vector2Int)* curveInfoListSum, cudaMemcpyDeviceToHost);
+
 			OutFile << strInfoListSum << "\n";
 			for (int i = 0; i < strInfoListSum; i++)
 			{
