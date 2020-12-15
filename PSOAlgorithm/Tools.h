@@ -329,11 +329,11 @@ __global__ void initRandomGenerator(curandState* state, unsigned long seed)
 	curand_init(seed, id, 0, &state[id]);
 }
 //生成一个随机数
-__device__ float createARandomNum(curandState* globalState, int ind)
+__device__ float createARandomNum(curandState* globalState, int index)
 {
-	curandState localState = globalState[ind];
+	curandState localState = globalState[index];
 	float RANDOM = curand_uniform(&localState);
-	globalState[ind] = localState;
+	globalState[index] = localState;
 	return RANDOM;
 }
 //生成随机数的核函数

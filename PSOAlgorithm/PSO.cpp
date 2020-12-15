@@ -19,16 +19,16 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 	C1_ = pso_para->C1_;
 	C2_ = pso_para->C2_;
 
-	upper_bound_ = new double[dim_];
-	lower_bound_ = new double[dim_];
-	range_interval_ = new double[dim_];
+	//GPU内存分配
+	cudaMalloc((void**)& upper_bound_, sizeof(double) * dim_);
+	cudaMalloc((void**)& lower_bound_, sizeof(double) * dim_);
+	cudaMalloc((void**)& range_interval_, sizeof(double) * dim_);
+	//数据CPU->GPU
+	cudaMemcpy(upper_bound_, pso_para->upper_bound_, sizeof(double) * dim_, cudaMemcpyHostToDevice);
+	cudaMemcpy(lower_bound_, pso_para->lower_bound_, sizeof(double) * dim_, cudaMemcpyHostToDevice);
+	cudaMemcpy(range_interval_, pso_para->range_interval_, sizeof(double) * dim_, cudaMemcpyHostToDevice);
 
-	for (int i = 0; i < dim_; i++)
-	{
-		upper_bound_[i] = pso_para->upper_bound_[i];
-		lower_bound_[i] = pso_para->lower_bound_[i];
-		range_interval_[i] = upper_bound_[i] - lower_bound_[i];
-	}
+
 	//初始化随机数种子
 	cudaMalloc(&devStates, particle_num_ * sizeof(curandState));
 	initRandomGenerator <<< 1, particle_num_ >>> (devStates, unsigned(time(NULL)));//time作为随机数种子
@@ -36,21 +36,61 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 	//给随机数数组分配GPU空间
 	cudaMalloc((void**)&randomNumList, sizeof(double) * particle_num_);
 
+	//手动给所有粒子分配空间
+	//有点问题，因为particle里的int也是占空间的
+	for (int i = 0; i < particle_num_; i++)
+	{
+		cudaMalloc((void**)& particles_[i].position_, sizeof(double) * dim_);
+		cudaMalloc((void**)& particles_[i].velocity_, sizeof(double) * particle_num_ * dim_);
+		cudaMalloc((void**)& particles_[i].best_position_, sizeof(double) * dim_);
+		cudaMalloc((void**)& particles_[i].fitness_, sizeof(double) * fitness_count);
+		cudaMalloc((void**)& particles_[i].best_fitness_, sizeof(double) * fitness_count);
+	}
 
-
-
-	particles_ = new Particle[particle_num_];
-
-	all_best_position_ = new double[particle_num_ * dim_];
-
-	all_best_fitness_ = new double[particle_num_ * fitness_count];
-
+	cudaMalloc((void**)&all_best_position_, sizeof(double) * particle_num_ * dim_);
+	cudaMalloc((void**)&all_best_fitness_, sizeof(double) * particle_num_ * fitness_count);
 	meshDivCount = pso_para->mesh_div_count;
-	problemParas = pso_para->problemParas;//布局问题的参数
+
+	#pragma region 布局问题的参数是一个复合类型的参数，需要进一步拆解
+	problemParas = pso_para->problemParas;
+	//deviceParaList
+	for (int i = 0; i < dim_ / 3; i++)
+	{
+		cudaMalloc((void**)& problemParas.deviceParaList[i].adjPointsIn, sizeof(AdjPoint) * problemParas.deviceParaList[i].adjPInCount);
+		cudaMalloc((void**)& problemParas.deviceParaList[i].adjPointsOut, sizeof(AdjPoint) * problemParas.deviceParaList[i].adjPOutCount);
+		//Vector2怎么分配空间？
+	}
+
+	cudaMalloc((void**)& problemParas.deviceParaList, sizeof(double) * particle_num_);
+	#pragma endregion
+	
+
+	cudaMalloc((void**)& randomNumList, sizeof(double) * particle_num_);
+
+
+
 
 	this->archiveMaxCount = pso_para->archive_max_count;
+	//上面几个不需要给其分配具体数据，除此之外还有一个bestPathInfoList有点问题
 
-	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化
+	//particles_ = new Particle[particle_num_];
+
+	//all_best_position_ = new double[particle_num_ * dim_];
+
+	//all_best_fitness_ = new double[particle_num_ * fitness_count];
+
+	//meshDivCount = pso_para->mesh_div_count;
+	//problemParas = pso_para->problemParas;//布局问题的参数
+
+	//this->archiveMaxCount = pso_para->archive_max_count;
+
+	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化(这也是个问题，因为list内部还有子结构也是*数组
+
+
+	//CPU版本的
+	particles_CPU = new Particle[particle_num_];
+	lower_bound_CPU = new double[dim_];
+	upper_bound_CPU = new double[dim_];
 }
 
 PSOOptimizer::~PSOOptimizer()
@@ -59,12 +99,6 @@ PSOOptimizer::~PSOOptimizer()
 	if (upper_bound_) { delete[]upper_bound_; }
 	if (lower_bound_) { delete[]lower_bound_; }
 	if (range_interval_) { delete[]range_interval_; }
-	//if (dt_) { delete[]dt_; }
-	//if (wstart_) { delete[]wstart_; }
-	//if (wend_) { delete[]wend_; }
-	//if (w_) { delete[]w_; }
-	//if (C1_) { delete[]C1_; }
-	//if (C2_) { delete[]C2_; }
 	if (all_best_position_) { delete[]all_best_position_; }
 }
 
@@ -84,7 +118,7 @@ void PSOOptimizer::InitialAllParticles()
 	}
 	for (int i = 0; i < particle_num_; ++i)
 	{
-		cout << i << endl;
+		//cout << i << endl;
 		InitialParticle(i);
 	}
 	cout << "初始化完成";
@@ -99,11 +133,15 @@ void PSOOptimizer::InitialArchiveList()
 }
 
 // 更新Archive数组 这个不是每个粒子都计算，也就是说，只需要一个线程就可以
-// CPU级别
+// CPU
 void PSOOptimizer::UpdateArchiveList() 
 {
+	//首先将粒子从GPU->CPU
+	//这个sizeof(Particle)有待商榷//////
+	cudaMemcpy(particles_CPU, particles_, sizeof(Particle) * particle_num_, cudaMemcpyDeviceToHost);
+
 	//首先，计算当前粒子群的pareto边界，将边界粒子加入到存档archiving中
-	vector<Particle> particleList(this->particles_, this->particles_ + particle_num_);
+	vector<Particle> particleList(this->particles_CPU, this->particles_CPU + particle_num_);
 	Pareto pareto1(particleList);
 	vector<Particle> curParetos = pareto1.GetPareto();
 	//其次，在存档中根据支配关系进行第二轮筛选，将非边界粒子去除
@@ -111,12 +149,13 @@ void PSOOptimizer::UpdateArchiveList()
 	curParetos.insert(curParetos.end(), this->archive_list.begin(), this->archive_list.end());//合并cur和原Archive
 	Pareto pareto2(curParetos);
 	vector<Particle> curArchives = pareto2.GetPareto();
-	//判断存档数量是否已超过存档阈值，如果是，清除掉一部分，拥挤度较高的那部分被清除的概率更大
-	if (curArchives.size() > this->archiveMaxCount)
-	{
-		GetGbest clear(curArchives, this->meshDivCount, this->lower_bound_, this->upper_bound_, this->dim_, this->particle_num_);
-		curArchives = clear.Clear(this->archiveMaxCount);
-	}
+	////判断存档数量是否已超过存档阈值，如果是，清除掉一部分，拥挤度较高的那部分被清除的概率更大
+	//if (curArchives.size() > this->archiveMaxCount)
+	//{
+	//	//
+	//	GetGbest clear(curArchives, this->meshDivCount, this->lower_bound_, this->upper_bound_, this->dim_, this->particle_num_);
+	//	curArchives = clear.Clear(this->archiveMaxCount);
+	//}
 	this->archive_list = curArchives;
 }
 
@@ -157,8 +196,7 @@ void PSOOptimizer::UpdateAllParticles()
 	curr_iter_++;
 }
 
-//更新i索引的粒子&计算适应度值数组
-//i应该不需要，因为可以通过thread和block进行计算
+//更新粒子&计算适应度
 static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim_, double w_, double C1_, double C2_, double dt_,
 	BestPathInfo* bestPathInfoList, Particle* particles_, curandState* globalState, double* randomNumList, 
 	double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, ProblemParas problemParas)
@@ -299,55 +337,71 @@ static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim_, 
 	FitnessFunction(curIterNum, maxIterNum, bestPathInfoList, problemParas, particles_[i]);
 }
 
-//更新Pbest，基本不用改
-void PSOOptimizer::UpdatePbest()
+//更新Pbest的GPU函数
+static __global__ void UpdatePbest_kernal(Particle* particles_, int dim_, int fitness_count, curandState* globalState)
 {
-	for (int i = 0; i < this->particle_num_; i++)
-	{
-		//比较历史pbest和当前适应度，决定是否要更新
-		if (ComparePbest(this->particles_[i].fitness_, this->particles_[i].best_fitness_))
-		{
-			for (int j = 0; j < fitness_count; j++)
-			{
-				this->particles_[i].best_fitness_[j] = this->particles_[i].fitness_[j];
-			}
-			for (int j = 0; j < dim_; j++)
-			{
-				this->particles_[i].best_position_[j] = this->particles_[i].position_[j];
-			}
-		}
-	}
-}
-
-// 更新Gbest
-// 这个是否需要改成GPU并行的？需要
-//这样的话，archiveList也得是*
-void PSOOptimizer::UpdateGbest()
-{
-	vector<Particle> tempArchiveL(this->archive_list);
-	GetGbest getG(tempArchiveL, this->meshDivCount, this->lower_bound_, this->upper_bound_, this->dim_, this->particle_num_);
-	Particle* gbestList = getG.getGbest();
-	for (int i = 0; i < particle_num_; i++)
+	//i需要计算
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	//比较历史pbest和当前适应度，决定是否要更新
+	if (ComparePbest(i, fitness_count, particles_[i].fitness_, particles_[i].best_fitness_, globalState));
 	{
 		for (int j = 0; j < fitness_count; j++)
 		{
-			this->all_best_fitness_[i * fitness_count + j] = gbestList[i].best_fitness_[j];
+			particles_[i].best_fitness_[j] = particles_[i].fitness_[j];
 		}
-		//cout << this->all_best_fitness_[i][0] << "," << this->all_best_fitness_[i][1] << endl; 
-		for (int k = 0; k < dim_; k++)
+		for (int j = 0; j < dim_; j++)
 		{
-			this->all_best_position_[i * dim_ + k] = gbestList[i].best_position_[k];
+			particles_[i].best_position_[j] = particles_[i].position_[j];
 		}
 	}
-	//cout << endl;
 }
 
+//更新Pbest
+void PSOOptimizer::UpdatePbest()
+{
+	//调用GPU函数
+	UpdatePbest_kernal <<<blockSum, threadsPerBlock>>> (particles_, dim_, fitness_count, globalState);
+}
+// 更新Gbest
+// 这个是否需要改成GPU并行的
+// 如果要改，涉及到数据转移，而且这个函数的代码也不多，不如先不改成GPU的
+void PSOOptimizer::UpdateGbest()
+{
+	vector<Particle> tempArchiveL(this->archive_list);
+	//GPU->CPU
+	cudaMemcpy(particles_CPU, particles_, sizeof(Particle) * particle_num_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(lower_bound_CPU, lower_bound_, sizeof(double) * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(upper_bound_CPU, upper_bound_, sizeof(double) * dim_, cudaMemcpyDeviceToHost);
+	GetGbest getG(tempArchiveL, this->meshDivCount, lower_bound_CPU, upper_bound_CPU, this->dim_, this->particle_num_);
+	Particle* gbestList = getG.getGbest();
+
+	//GPU
+	UpdateGbest_GPU <<<blockSum, threadsPerBlock>>> (fitness_count, dim_, all_best_fitness_, all_best_position_, gbestList);
+}
+
+//更新Gbest的GPU函数
+static __global__ void UpdateGbest_GPU(int fitness_count, int dim_, double* all_best_fitness_, double* all_best_position_, Particle* gbestList)
+{
+	//下标自己算
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	//更新
+	for (int j = 0; j < fitness_count; j++)
+	{
+		all_best_fitness_[i * fitness_count + j] = gbestList[i].best_fitness_[j];
+	}
+	for (int k = 0; k < dim_; k++)
+	{
+		all_best_position_[i * dim_ + k] = gbestList[i].best_position_[k];
+	}
+}
+
+
 // 比较两个粒子的适应度，判断是否完全支配，从而计算出pbest
-bool PSOOptimizer::ComparePbest(double* fitness, double* pbestFitness)
+static __device__ bool ComparePbest(int index, int fitness_count, double* fitness, double* pbestFitness, curandState* globalState)
 {
 	int numGreater = 0;
 	int numLess = 0;
-	for (int i = 0; i < this->fitness_count; i++)
+	for (int i = 0; i < fitness_count; i++)
 	{
 		if (fitness[i] < pbestFitness[i])
 		{
@@ -371,14 +425,28 @@ bool PSOOptimizer::ComparePbest(double* fitness, double* pbestFitness)
 	//如果互不支配，随机选择（适应度1的概率高点）
 	else
 	{
-		double randomProb = rand() % 1000 / (double)1000;//产生随机小数
+		double randomProb = createARandomNum(globalState, index);//产生随机小数
 		if (fitness[0] < pbestFitness[0])
 		{
-			return randomProb < 0.75 ? true : false;
+			if (randomProb < 0.75)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		} 
 		else
 		{
-			return randomProb > 0.5 ? true : false;
+			if (randomProb > 0.5)
+			{
+				return true;
+			} 
+			else
+			{
+				return false;
+			}
 		}
 	}
 }

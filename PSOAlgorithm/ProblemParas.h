@@ -15,6 +15,7 @@ struct ProblemParas
 {	
 	int DeviceSum;						//设备总数
 	DevicePara* deviceParaList;			//设备参数列表
+
 	int inoutPointCount;				//出入口点的总数目
 
 	int horiPointCount = 0;				//未去重前所有水平方向的点的数目
@@ -342,6 +343,7 @@ struct ProblemParas
 		#pragma endregion
 	
 	}
+
 	//ProblemParas(const ProblemParas & para)
 	//{
 	//	this->DeviceSum = para.DeviceSum;
@@ -350,11 +352,9 @@ struct ProblemParas
 	//	{
 	//		this->deviceParaList[i] = para.deviceParaList[i];
 	//	}
-
 	//	//车间尺寸
 	//	this->workShopLength = para.workShopLength;
-	//    this->workShopWidth = para.workShopWidth;
-
+	//  this->workShopWidth = para.workShopWidth;
 	//	//仓库入口坐标
 	//	this->entrancePos = para.entrancePos;
 	//	this->costParaArray = new CostPara * [this->DeviceSum];

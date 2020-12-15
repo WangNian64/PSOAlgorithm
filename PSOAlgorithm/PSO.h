@@ -189,14 +189,18 @@ public:
 	int dim_;								// 参数维度（position和velocity的维度）
 	int fitness_count;						// 适应度数目
 	int meshDivCount;						// 网格等分因子（默认为10）
-	Particle* particles_ = nullptr;			// 所有粒子
+	Particle* particles_ = nullptr;			// 所有粒子（GPU）
+	Particle* particles_CPU = nullptr;		// 所有粒子（CPU）
 
 	double* randomNumList = nullptr;		// 存随机数的数组
-	curandState* devStates;					//cuda随机数状态数组
+	curandState* devStates;					// cuda随机数状态数组
 
 	double* upper_bound_ = nullptr;			// position搜索范围上限
 	double* lower_bound_ = nullptr;			// position搜索范围下限
 	double* range_interval_ = nullptr;		// position搜索区间长度
+
+	double* lower_bound_CPU = nullptr;		// position搜索范围下限
+	double* upper_bound_CPU = nullptr;		// position搜索范围上限
 
 	double dt_;								// 时间步长
 	double wstart_;							// 初始权重
@@ -208,13 +212,13 @@ public:
 	double* all_best_fitness_ = nullptr;	// 全局最优粒子的适应度数组 100x2
 	double* all_best_position_ = nullptr;	// 全局最优粒子的position 100x12
 
-	ProblemParas problemParas;				// 布局问题参数
+	ProblemParas problemParas;				// 布局问题参数 //////
 
 	//MOPSO相关参数,不需要传到GPU
-	vector<Particle> archive_list;			// 存放pareto非劣解的数组
+	vector<Particle> archive_list;			// 存放pareto非劣解的数组 CPU
 	int archiveList_CurSize;				// 当前的archiveList大小
 	int archiveMaxCount;					// archive数组的最大数目
-	BestPathInfo* bestPathInfoList;			// 最优路径信息
+	BestPathInfo* bestPathInfoList;			// 最优路径信息   //////
 
 public:
 	// 默认构造函数

@@ -23,7 +23,9 @@ int main()
 		int ThreadsPerBlock = 100;//一个Block中100个thread
 		int BlockSum = 1;//Block的数目
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
-		PSOPara psopara(dim);								// psopara放CPU里
+		//CPU
+		PSOPara psopara(dim);					
+
 		psopara.mesh_div_count = 4;							// 网格划分数目
 		psopara.problemParas = proParas;					// 布局问题的参数
 		psopara.particle_num_ = ThreadsPerBlock * BlockSum;	// 粒子个数
@@ -45,16 +47,17 @@ int main()
 
 
 		#pragma region 调用PSO算法，并输出结果
-		PSOOptimizer psooptimizer(&psopara);//构造函数
+		//GPU
+		PSOOptimizer psooptimizer(&psopara);//PSO算法对象
 		string curProblemFolderName = "Problem" + to_string(curProblem + 1);
 		for (int curTest = 0; curTest < testSum; curTest++) {//每个问题跑多次
 			clock_t startTime, endTime;//记录调用时间
 
 			startTime = clock();//计时开始
 			#pragma region 初始化
-			psooptimizer.InitialAllParticles();//初始化所有粒子
-			psooptimizer.InitialArchiveList();//初始化Archive存档
-			psooptimizer.InitGbest();//初始化全局最优
+			psooptimizer.InitialAllParticles();//初始化所有粒子 GPU（除了archiveList其他的都是GPU）
+			psooptimizer.InitialArchiveList();//初始化Archive存档	CPU
+			psooptimizer.InitGbest();//初始化全局最优		GPU
 			#pragma endregion
 
 			#pragma region 迭代更新粒子&存每一次的适应度值
@@ -70,14 +73,15 @@ int main()
 			{
 				cout << (i + 1) << endl;
 				psooptimizer.UpdateAllParticles();//更新所有粒子的位置和速度
-				psooptimizer.UpdatePbest();//更新pbest
-				//这里有一个从GPU到CPU的过程
+				psooptimizer.UpdatePbest();//更新pbest 
+				
 				psooptimizer.UpdateArchiveList();//更新外部存档集合
 				psooptimizer.UpdateGbest();//更新gbest
 
 				//存储每次迭代的Archive集合
 				double minFitness1, minFitness2;
 				minFitness1 = minFitness2 = INT_MAX;
+				//archiveList在CPU端
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
 					minFitness1 = min(minFitness1, it->fitness_[0]);
@@ -85,7 +89,6 @@ int main()
 				string f1line = to_string(minFitness1) + "\n";
 				OutFile << f1line;
 				cout << f1line << endl;
-				//OutFile << "\n";
 
 				for (auto it = psooptimizer.archive_list.begin(); it != psooptimizer.archive_list.end(); it++)
 				{
@@ -94,7 +97,6 @@ int main()
 				string f2line = to_string(minFitness2) + "\n";
 				OutFile1 << f2line;
 				cout << f2line << endl;
-				//OutFile1 << "\n";
 			}
 			OutFile.close();
 			OutFile1.close();
@@ -130,16 +132,14 @@ int main()
 
 			for (int i = 0; i < dim; i += 3)
 			{
-				OutFile /*<< fixed << setprecision(1)*/ << psooptimizer.archive_list[resultIndex].position_[i];
+				OutFile << psooptimizer.archive_list[resultIndex].position_[i];
 				OutFile << ",";
-				OutFile /*<< fixed << setprecision(1)*/ << psooptimizer.archive_list[resultIndex].position_[i + 1];
-				//string line = to_string(psooptimizer.archive_list[resultIndex].position_[i]) +
-				//	"," + to_string(psooptimizer.archive_list[resultIndex].position_[i + 1]) + "\n";
-				//OutFile << line;
+				OutFile << psooptimizer.archive_list[resultIndex].position_[i + 1];
 				OutFile << "\n";
 			}
 			#pragma endregion
 
+			//后面有一些参数需要从GPU->CPU
 			#pragma region 记录设备尺寸
 			for (int i = 2; i < dim; i += 3)
 			{
@@ -147,6 +147,7 @@ int main()
 				string line = "";
 				if (direct == DeviceDirect::Rotate90 || direct == DeviceDirect::Rotate270)
 				{
+					//这里的数据是GPU上的
 					line = to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.y) + "," +
 						to_string(psooptimizer.problemParas.deviceParaList[i / 3].size.x);
 				}
