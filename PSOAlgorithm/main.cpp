@@ -45,7 +45,6 @@ int main()
 		psopara.SetUpBound(proParas.workShopLength, proParas.workShopWidth, DeviceDirect::Rotate270 + 1);// position的搜索范围上限
 		#pragma endregion
 
-
 		#pragma region 调用PSO算法，并输出结果
 		//GPU
 		PSOOptimizer psooptimizer(&psopara);//PSO算法对象
@@ -55,7 +54,7 @@ int main()
 
 			startTime = clock();//计时开始
 			#pragma region 初始化
-			psooptimizer.InitialAllParticles();//初始化所有粒子 GPU（除了archiveList其他的都是GPU）
+			psooptimizer.InitialAllParticles();//初始化所有粒子 CPU(主要是不好改)
 			psooptimizer.InitialArchiveList();//初始化Archive存档	CPU
 			psooptimizer.InitGbest();//初始化全局最优		GPU
 			#pragma endregion
@@ -147,7 +146,7 @@ int main()
 			//只复制需要的
 			#pragma region 记录设备尺寸
 			Vector2* deviceParaListSize_CPU = new Vector2[proParas.DeviceSum];
-			//用循环的方式来复制数据到CPU
+			//用循环的方式来复制数据到CPU，每次只复制一个size的地址
 			for (int i = 0; i < proParas.DeviceSum; i++)
 			{
 				cudaMemcpy(deviceParaListSize_CPU + i, &psooptimizer.problemParas.deviceParaList[i].size, sizeof(Vector2), cudaMemcpyDeviceToHost);

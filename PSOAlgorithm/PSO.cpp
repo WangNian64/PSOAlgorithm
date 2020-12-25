@@ -36,20 +36,14 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 	//给随机数数组分配GPU空间
 	cudaMalloc((void**)&randomNumList, sizeof(double) * particle_num_);
 
-	//手动给所有粒子分配空间
-	//有点问题，因为particle里的int也是占空间的
-	for (int i = 0; i < particle_num_; i++)
-	{
-		cudaMalloc((void**)& particles_[i].position_, sizeof(double) * dim_);
-		cudaMalloc((void**)& particles_[i].velocity_, sizeof(double) * particle_num_ * dim_);
-		cudaMalloc((void**)& particles_[i].best_position_, sizeof(double) * dim_);
-		cudaMalloc((void**)& particles_[i].fitness_, sizeof(double) * fitness_count);
-		cudaMalloc((void**)& particles_[i].best_fitness_, sizeof(double) * fitness_count);
-	}
-
-	cudaMalloc((void**)&all_best_position_, sizeof(double) * particle_num_ * dim_);
-	cudaMalloc((void**)&all_best_fitness_, sizeof(double) * particle_num_ * fitness_count);
 	meshDivCount = pso_para->mesh_div_count;
+
+
+	#pragma region 给GPU粒子分配空间
+	particle_size = (sizeof(int) * 2 + sizeof(double) * dim_ * 3 + sizeof(double) * fitness_count * 2);
+	cudaMalloc((void**)& particles_, particle_size * particle_num_);
+	#pragma endregion
+
 
 	#pragma region 布局问题的参数是一个复合类型的参数，需要进一步拆解
 	problemParas = pso_para->problemParas;
@@ -88,7 +82,6 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 
 
 	//CPU版本的
-	particles_CPU = new Particle[particle_num_];
 	lower_bound_CPU = new double[dim_];
 	upper_bound_CPU = new double[dim_];
 }
@@ -105,23 +98,26 @@ PSOOptimizer::~PSOOptimizer()
 // 初始化所有粒子（没有更新全局最佳）
 void PSOOptimizer::InitialAllParticles()
 {
-	// 先给所有粒子分配内存
+	// 声明临时的粒子数据（CPU）
+	particles_CPU = (Particle*)malloc(sizeof(Particle) * particle_num_);
 	for (int i = 0; i < particle_num_; ++i) {
-		particles_[i].dim_ = dim_;
-		particles_[i].fitnessCount = this->fitness_count;
+		particles_CPU[i].dim_ = dim_;
+		particles_CPU[i].fitnessCount = this->fitness_count;
 
-		particles_[i].position_ = new double[dim_];
-		particles_[i].velocity_ = new double[dim_];
-		particles_[i].best_position_ = new double[dim_];
-		particles_[i].fitness_ = new double[fitness_count];
-		particles_[i].best_fitness_ = new double[fitness_count];
+		particles_CPU[i].position_ = (double*)malloc(sizeof(double) * dim_);
+		particles_CPU[i].velocity_ = (double*)malloc(sizeof(double) * dim_);
+		particles_CPU[i].best_position_ = (double*)malloc(sizeof(double) * dim_);
+
+		particles_CPU[i].fitness_ = (double*)malloc(sizeof(double) * fitness_count);
+		particles_CPU[i].best_fitness_ = (double*)malloc(sizeof(double) * fitness_count);
 	}
 	for (int i = 0; i < particle_num_; ++i)
 	{
-		//cout << i << endl;
-		InitialParticle(i);
+		InitialParticle(particles_CPU, i);
 	}
-	cout << "初始化完成";
+
+	//CPU->GPU
+	cudaMemcpy(particles_, particles_CPU, particle_size * particle_num_, cudaMemcpyHostToDevice);
 }
 
 // 初始化Archive数组
@@ -149,13 +145,7 @@ void PSOOptimizer::UpdateArchiveList()
 	curParetos.insert(curParetos.end(), this->archive_list.begin(), this->archive_list.end());//合并cur和原Archive
 	Pareto pareto2(curParetos);
 	vector<Particle> curArchives = pareto2.GetPareto();
-	////判断存档数量是否已超过存档阈值，如果是，清除掉一部分，拥挤度较高的那部分被清除的概率更大
-	//if (curArchives.size() > this->archiveMaxCount)
-	//{
-	//	//
-	//	GetGbest clear(curArchives, this->meshDivCount, this->lower_bound_, this->upper_bound_, this->dim_, this->particle_num_);
-	//	curArchives = clear.Clear(this->archiveMaxCount);
-	//}
+
 	this->archive_list = curArchives;
 }
 
@@ -452,14 +442,14 @@ static __device__ bool ComparePbest(int index, int fitness_count, double* fitnes
 }
 
 //初始化第i个粒子
-void PSOOptimizer::InitialParticle(int i)
+void PSOOptimizer::InitialParticle(Particle* particles_CPU, int i)
 {
 	#pragma region 初始化position/veloctiy值
 	//先随机朝向，然后根据朝向调整粒子的范围
 	for (int j = 2; j < dim_; j += 3)
 	{
-		particles_[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
-		particles_[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
+		particles_CPU[i].position_[j] = GetDoubleRand() * range_interval_[j] + lower_bound_[j];
+		particles_CPU[i].velocity_[j] = GetDoubleRand() * range_interval_[j] / 300;
 	}
 	//根据朝向修改设备上下界范围&设备坐标
 	vector<Vector2> deviceSizeCopy;

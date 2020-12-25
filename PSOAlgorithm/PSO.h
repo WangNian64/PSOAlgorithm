@@ -189,18 +189,19 @@ public:
 	int dim_;								// 参数维度（position和velocity的维度）
 	int fitness_count;						// 适应度数目
 	int meshDivCount;						// 网格等分因子（默认为10）
-	Particle* particles_ = nullptr;			// 所有粒子（GPU）
-	Particle* particles_CPU = nullptr;		// 所有粒子（CPU）
+	Particle* particles_;					// 所有粒子（GPU）
+	Particle* particles_CPU;					// 所有粒子（CPU）
+	int particle_size;						// 一个粒子的内存大小
 
-	double* randomNumList = nullptr;		// 存随机数的数组
+	double* randomNumList;					// 存随机数的数组
 	curandState* devStates;					// cuda随机数状态数组
 
-	double* upper_bound_ = nullptr;			// position搜索范围上限
-	double* lower_bound_ = nullptr;			// position搜索范围下限
-	double* range_interval_ = nullptr;		// position搜索区间长度
+	double* upper_bound_;					// position搜索范围上限
+	double* lower_bound_;					// position搜索范围下限
+	double* range_interval_;				// position搜索区间长度
 
-	double* lower_bound_CPU = nullptr;		// position搜索范围下限
-	double* upper_bound_CPU = nullptr;		// position搜索范围上限
+	double* lower_bound_CPU;				// position搜索范围下限
+	double* upper_bound_CPU;				// position搜索范围上限
 
 	double dt_;								// 时间步长
 	double wstart_;							// 初始权重
@@ -209,8 +210,8 @@ public:
 	double C1_;								// 加速度因子
 	double C2_;								// 加速度因子
 
-	double* all_best_fitness_ = nullptr;	// 全局最优粒子的适应度数组 100x2
-	double* all_best_position_ = nullptr;	// 全局最优粒子的position 100x12
+	double* all_best_fitness_;				// 全局最优粒子的适应度数组 100x2
+	double* all_best_position_;				// 全局最优粒子的position 100x12
 
 	ProblemParas problemParas;				// 布局问题参数 //////
 
@@ -234,7 +235,7 @@ public:
 	void InitialAllParticles();
 
 	// 初始化第i个粒子参数
-	void InitialParticle(int i);
+	void InitialParticle(Particle* particles_CPU, int i);
 
 	// 初始化Archive数组
 	void InitialArchiveList();
