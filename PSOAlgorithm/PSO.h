@@ -147,7 +147,8 @@ struct Particle
 	//set<SegPath> segPathSet;
 	//int pointLinkSum = 0;//路径的数目
 	Particle() {}
-	Particle(const Particle& particle)//拷贝构造函数
+	//深拷贝应该是用在保存中间结果的时候
+	Particle(const Particle& particle)//拷贝构造函数//也就是说需要深拷贝而不是浅拷贝
 	{
 		this->dim_ = particle.dim_;
 		this->fitnessCount = particle.fitnessCount;
@@ -226,6 +227,7 @@ public:
 
 	ProblemParas problemParas;				//布局问题参数 //////
 
+	//由于没有Particle了，这里的结构需要修改
 	vector<Particle> archive_list;			//存放pareto非劣解的数组 CPU
 	int archiveList_CurSize;				//当前的archiveList大小
 	int archiveMaxCount;					//archive数组的最大数目
@@ -245,7 +247,7 @@ public:
 	void InitialAllParticles();
 
 	// 初始化第i个粒子参数
-	void InitialParticle(Particle* particles_CPU, int i);
+	void InitialParticle(double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU, int i);
 
 	// 初始化Archive数组
 	void InitialArchiveList();
@@ -257,7 +259,7 @@ public:
 	void InitGbest();
 
 	// 计算该粒子的适应度值
-	void GetFitness(Particle& particle);
+	void GetFitness(int dim, int fitnessCount, double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU, int i);
 
 	// 更新所有粒子参数
 	void UpdateAllParticles();
