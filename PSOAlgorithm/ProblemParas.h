@@ -15,6 +15,7 @@ struct ProblemParas
 {	
 	int DeviceSum;						//设备总数
 	DevicePara* deviceParaList;			//设备参数列表
+	int deviceParaSize;					//设备参数列表的内存大小
 
 	int inoutPointCount;				//出入口点的总数目
 
@@ -30,6 +31,7 @@ struct ProblemParas
 	//物料参数列表
 	int CargoTypeNum;					//货物类型数目
 	CargoType* cargoTypeList;			//货物类型列表
+	int cargoTypeSize;					//货物类型列表的内存大小
 	int totalLinkSum;					//总的连接线数目
 	
 	int fixedLinkPointSum = 50;			//每一条link的固定点数目为50(没有去重之前的)
