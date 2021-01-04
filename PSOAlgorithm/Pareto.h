@@ -4,7 +4,8 @@
 class Pareto 
 {
 public:
-	vector<Particle> particles;	//所有粒子集合
+	vector<Particle> particles;	//所有粒子集合,可以保留
+
 	int cursor;				//当前粒子的下标，初始为-1
 	int badSolutionNum;		//非优解个数
 	int len;				//粒子总数

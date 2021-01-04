@@ -130,7 +130,29 @@ void PSOOptimizer::InitialAllParticles()
 // 初始化Archive数组
 void PSOOptimizer::InitialArchiveList()
 {
-	vector<Particle> particleList(this->particles_GPU, this->particles_GPU + this->particle_num_);
+	//同样，先进行一次深拷贝
+	vector<Particle> particleList(particle_num_, Particle());
+	for (int i = 0; i < particle_num_; i++)
+	{
+		particleList[i].position_ = new double[dim_];
+		particleList[i].velocity_ = new double[dim_];
+		particleList[i].best_position_ = new double[dim_];
+		for (int j = 0; j < dim_; j++)
+		{
+			particleList[i].position_[j] = position_CPU[i * dim_ + j];
+			particleList[i].velocity_[j] = velocity_CPU[i * dim_ + j];
+			particleList[i].best_position_[j] = best_position_CPU[i * dim_ + j];
+		}
+
+		particleList[i].fitness_ = new double[fitness_count];
+		particleList[i].best_fitness_ = new double[fitness_count];
+		for (int j = 0; j < fitness_count; j++)
+		{
+			particleList[i].fitness_[j] = fitness_CPU[i * fitness_count + j];
+			particleList[i].best_fitness_[j] = best_fitness_CPU[i * fitness_count + j];
+		}
+	}
+	//vector<Particle> particleList(this->particles_GPU, this->particles_GPU + this->particle_num_);
 	Pareto initPareto(particleList);
 	this->archive_list = initPareto.GetPareto();
 }
@@ -139,12 +161,37 @@ void PSOOptimizer::InitialArchiveList()
 // CPU
 void PSOOptimizer::UpdateArchiveList() 
 {
-	//首先将粒子从GPU->CPU
-	cudaMemcpy(particles_CPU, particles_GPU, particle_size * particle_num_, cudaMemcpyDeviceToHost);
+	//GPU->CPU
+	cudaMemcpy(position_CPU, position_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(velocity_CPU, velocity_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(best_position_CPU, best_position_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(fitness_CPU, fitness_GPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyDeviceToHost);
+	cudaMemcpy(best_fitness_CPU, best_fitness_GPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyDeviceToHost);
 
 	//首先，计算当前粒子群的pareto边界，将边界粒子加入到存档archiving中
-	//这里需要深拷贝
-	vector<Particle> particleList(this->particles_CPU, this->particles_CPU + particle_num_);
+	//进行一次深拷贝
+	vector<Particle> particleList(particle_num_, Particle());
+	for (int i = 0; i < particle_num_; i++)
+	{
+		particleList[i].position_ = new double[dim_];
+		particleList[i].velocity_ = new double[dim_];
+		particleList[i].best_position_ = new double[dim_];
+		for (int j = 0; j < dim_; j++)
+		{
+			particleList[i].position_[j] = position_CPU[i * dim_ + j];
+			particleList[i].velocity_[j] = velocity_CPU[i * dim_ + j];
+			particleList[i].best_position_[j] = best_position_CPU[i * dim_ + j];
+		}
+
+		particleList[i].fitness_ = new double[fitness_count];
+		particleList[i].best_fitness_ = new double[fitness_count];
+		for (int j = 0; j < fitness_count; j++)
+		{
+			particleList[i].fitness_[j] = fitness_CPU[i * fitness_count + j];
+			particleList[i].best_fitness_[j] = best_fitness_CPU[i * fitness_count + j];
+		}
+	}
+	//vector<Particle> particleList(this->particles_CPU, this->particles_CPU + particle_num_);
 	Pareto pareto1(particleList);
 	vector<Particle> curParetos = pareto1.GetPareto();
 	//其次，在存档中根据支配关系进行第二轮筛选，将非边界粒子去除
@@ -368,7 +415,13 @@ void PSOOptimizer::UpdateGbest()
 {
 	vector<Particle> tempArchiveL(this->archive_list);
 	//GPU->CPU
-	cudaMemcpy(particles_CPU, particles_GPU, sizeof(Particle) * particle_num_, cudaMemcpyDeviceToHost);
+	//cudaMemcpy(particles_CPU, particles_GPU, sizeof(Particle) * particle_num_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(position_CPU, position_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(velocity_CPU, velocity_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(best_position_CPU, best_position_GPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyDeviceToHost);
+	cudaMemcpy(fitness_CPU, fitness_GPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyDeviceToHost);
+	cudaMemcpy(best_fitness_CPU, best_fitness_GPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyDeviceToHost);
+
 	cudaMemcpy(lower_bound_CPU, lower_bound_, sizeof(double) * dim_, cudaMemcpyDeviceToHost);
 	cudaMemcpy(upper_bound_CPU, upper_bound_, sizeof(double) * dim_, cudaMemcpyDeviceToHost);
 	GetGbest getG(tempArchiveL, this->meshDivCount, lower_bound_CPU, upper_bound_CPU, this->dim_, this->particle_num_);
