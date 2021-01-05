@@ -225,20 +225,80 @@ public:
 	double* all_best_fitness_;				//全局最优粒子的适应度数组 100x2
 	double* all_best_position_;				//全局最优粒子的position 100x12
 
-	ProblemParas problemParas;				//布局问题参数 //////
 
-	//由于没有Particle了，这里的结构需要修改
+
+
+	//ProblemParas problemParas;			//布局问题参数 //////
+	int DeviceSum;							//设备总数
+	int deviceParaSize;						//设备参数列表的内存大小
+
+
+	int horiPointCount = 0;					//未去重前所有水平方向的点的数目
+	int vertPointCount = 0;					//未去重前所有垂直方向的点的数目
+
+	double workShopLength;					//车间长度
+	double workShopWidth;					//车间宽度
+
+	Vector2 entrancePos;					//仓库入口坐标	
+	Vector2 exitPos;						//仓库出口坐标
+
+	//物料参数列表
+
+	int fixedLinkPointSum = 50;				//每一条link的固定点数目为50(没有去重之前的)
+	int fixedUniqueLinkPointSum = 20;		//去重后的每一条link的固定点数目为20
+	//输送机参数
+	double convey2DeviceDist;				//输送机到设备的距离（寻路的时候要考虑）
+	double conveyWidth;						//输送机宽度
+	double conveyMinLength;					//输送机最短长度
+	double conveySpeed;						//输送机输送速度
+	double strConveyorUnitCost;				//单位直线输送机成本
+	double curveConveyorUnitCost;			//单个转弯输送机成本
+	double conveyMinDist;					//输送线两个点之间的最短距离
+
+
+	//DevicePara* deviceParaList;			//设备参数列表
+	//数目：DeviceSum
+	int* ID;								//设备ID
+	double* workSpeed;						//加工/处理1单位物料的时间
+	Vector2* size;							//设备尺寸（分别是x轴和y轴的长度）
+	Vector2* axis;							//设备坐标
+	DeviceDirect* direct;					//设备朝向
+	double* spaceLength;					//空隙（为了实现距离约束）
+	//出入口点的数组（会影响输送线的布局）
+	int* adjPInCount;
+	int* adjPOutCount;
+	int totalInPoint;						//入口点的总数目
+	int totalOutPoint;						//出口点的总数目
+	AdjPoint* adjPointsIn;	//入口
+	AdjPoint* adjPointsOut;	//出口
+
+
+	//CargoType* cargoTypeList;				//货物类型列表
+	//数目：CargoTypeNum
+	int CargoTypeNum;						//货物类型数目
+	int totalLinkSum;						//总的连接线数目
+
+	int* deviceSum;							//经过的设备数目
+	int* linkSum;							//设备配对的数目
+	DeviceLink* deviceLinkList;				//设备连接列表
+	double* totalVolume;					//该物料的总物流量
+
+
+	
+
+
+
 	vector<Particle> archive_list;			//存放pareto非劣解的数组 CPU
 	int archiveList_CurSize;				//当前的archiveList大小
 	int archiveMaxCount;					//archive数组的最大数目
-	BestPathInfo* bestPathInfoList;			//最优路径信息   //////
+	BestPathInfo* bestPathInfoList;			//最优路径信息   ////////////
 
 public:
 	// 默认构造函数
 	PSOOptimizer() {}
 
 	// 构造函数
-	PSOOptimizer(PSOPara* pso_para);
+	PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas);
 
 	// 析构函数
 	~PSOOptimizer();

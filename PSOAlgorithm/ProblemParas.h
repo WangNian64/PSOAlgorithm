@@ -17,7 +17,8 @@ struct ProblemParas
 	DevicePara* deviceParaList;			//设备参数列表
 	int deviceParaSize;					//设备参数列表的内存大小
 
-	int inoutPointCount;				//出入口点的总数目
+	int totalInPoint;					//入口点的总数目
+	int totalOutPoint;					//出口点的总数目
 
 	int horiPointCount = 0;				//未去重前所有水平方向的点的数目
 	int vertPointCount = 0;				//未去重前所有垂直方向的点的数目
@@ -105,7 +106,7 @@ struct ProblemParas
 
 			deviceParaList = new DevicePara[DeviceSum];
 			
-			inoutPointCount = 0;
+			totalInPoint = totalOutPoint = 0;
 			for (int i = 0; i < DeviceSum; i++)
 			{
 				//用temp vector中转
@@ -160,8 +161,9 @@ struct ProblemParas
 						deviceParaList[i].adjPointsOut[index] = tempAdjPOutList[index];
 					}
 
-					//累加inoutPoint数目
-					inoutPointCount = inoutPointCount + deviceParaList[i].adjPInCount + deviceParaList[i].adjPOutCount;
+					//累加in和outPoint数目
+					totalInPoint = totalInPoint + deviceParaList[i].adjPInCount;
+					totalOutPoint = totalOutPoint + deviceParaList[i].adjPOutCount;
 				}
 			}
 
@@ -227,7 +229,6 @@ struct ProblemParas
 			{
 				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
-				cargoTypeList[i].cargoName = "";
 				cargoTypeList[i].linkSum = atoi(strSplit[0].c_str());
 				cargoTypeList[i].deviceSum = cargoTypeList[i].linkSum + 1;
 				cargoTypeList[i].deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];

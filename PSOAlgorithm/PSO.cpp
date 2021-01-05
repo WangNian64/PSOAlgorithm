@@ -5,7 +5,7 @@
 #include "Tools.h"
 #include <ctime>
 // 构造函数(初始化各种算法的参数，给数组分配空间)
-PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
+PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 {
 	particle_num_ = pso_para->particle_num_;
 	max_iter_num_ = pso_para->max_iter_num_;
@@ -83,7 +83,67 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para)
 
 
 
-	this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化(这也是个问题，因为list内部还有子结构也是*数组
+	//this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化(这也是个问题，因为list内部还有子结构也是*数组
+
+	//给problemParas的参数赋值
+	DeviceSum = problemParas.DeviceSum;									//设备总数
+
+	deviceParaSize = problemParas.deviceParaSize;						//设备参数列表的内存大小
+
+	horiPointCount = problemParas.horiPointCount;						//未去重前所有水平方向的点的数目
+	vertPointCount = problemParas.vertPointCount;						//未去重前所有垂直方向的点的数目
+
+	workShopLength = problemParas.workShopLength;						//车间长度
+	workShopWidth = problemParas.workShopWidth;							//车间宽度
+
+	entrancePos = problemParas.entrancePos;								//仓库入口坐标	
+	exitPos = problemParas.exitPos;										//仓库出口坐标
+
+	//物料参数列表
+	CargoTypeNum = problemParas.CargoTypeNum;							//货物类型数目
+	totalLinkSum = problemParas.totalLinkSum;							//总的连接线数目
+
+	fixedLinkPointSum = problemParas.fixedLinkPointSum;					//每一条link的固定点数目为50(没有去重之前的)
+	fixedUniqueLinkPointSum = problemParas.fixedUniqueLinkPointSum;		//去重后的每一条link的固定点数目为20
+	//输送机参数
+	convey2DeviceDist = problemParas.convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
+	conveyWidth = problemParas.conveyWidth;//输送机宽度
+	conveyMinLength = problemParas.conveyMinLength;//输送机最短长度
+	conveySpeed = problemParas.conveySpeed;//输送机输送速度
+	strConveyorUnitCost = problemParas.strConveyorUnitCost;//单位直线输送机成本
+	curveConveyorUnitCost = problemParas.curveConveyorUnitCost;//单个转弯输送机成本
+	conveyMinDist = problemParas.conveyMinDist;//输送线两个点之间的最短距离
+
+	totalInPoint = problemParas.totalInPoint;
+	totalOutPoint = problemParas.totalOutPoint;
+	//DevicePara* deviceParaList;										//设备参数列表
+	//数目：DeviceSum
+	//GPU内存分配
+	cudaMalloc((void**)& ID, sizeof(int)* DeviceSum);
+	cudaMalloc((void**)& workSpeed, sizeof(double)* DeviceSum);
+	cudaMalloc((void**)& size, sizeof(Vector2)* DeviceSum);
+	cudaMalloc((void**)& axis, sizeof(Vector2)* DeviceSum);
+	cudaMalloc((void**)& direct, sizeof(DeviceDirect)* DeviceSum);
+	cudaMalloc((void**)& spaceLength, sizeof(double)* DeviceSum);
+	//出入口点的数组（会影响输送线的布局）
+	cudaMalloc((void**)& adjPInCount, sizeof(int)* DeviceSum);
+	cudaMalloc((void**)& adjPOutCount, sizeof(int)* DeviceSum);
+
+	cudaMalloc((void**)& adjPointsIn, sizeof(AdjPoint)* totalInPoint);
+	cudaMalloc((void**)& adjPointsOut, sizeof(AdjPoint)* totalOutPoint);
+
+
+
+	//CargoType* cargoTypeList;			//货物类型列表
+	//数目：CargoTypeNum
+	CargoTypeNum = problemParas.CargoTypeNum;						//货物类型数目
+	totalLinkSum = problemParas.totalLinkSum;						//总的连接线数目
+
+	cudaMalloc((void**)& deviceSum, sizeof(int)* CargoTypeNum);
+	cudaMalloc((void**)& linkSum, sizeof(int)* CargoTypeNum);
+	cudaMalloc((void**)& totalVolume, sizeof(double)* CargoTypeNum);
+
+	cudaMalloc((void**)& deviceLinkList, sizeof(DeviceLink)* totalLinkSum);
 }
 
 PSOOptimizer::~PSOOptimizer()//析构函数都需要修改

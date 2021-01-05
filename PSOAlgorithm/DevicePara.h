@@ -304,7 +304,6 @@ struct DeviceLink
 //物料信息
 struct CargoType
 {
-	string cargoName;			//物料名
 	int deviceSum;				//经过的设备数目
 	int linkSum;				//设备配对的数目
 	DeviceLink* deviceLinkList;	//设备连接列表
