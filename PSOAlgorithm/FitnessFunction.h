@@ -35,7 +35,7 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 
 #pragma endregion
 void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, 
-	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU, int index);
+	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU);
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -48,9 +48,17 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, 
-	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU, int index)
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, 
+	/*ProblemParas proParas,*/
+	int DeviceSum, 
+	int* ID, double* workSpeed, Vector2* size, Vector2* axis, DeviceDirect* direct, double* spaceLength, int* adjPInCount, int* adjPOutCount,
+	int totalInPoint, int totalOutPoint, AdjPoint* adjPointsIn, AdjPoint* adjPointsOut, 
+
+	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU)
 {
+	//粒子的下标i需要自己计算
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+
 	double punishValue1 = 0;
 	double punishValue2 = 0;
 	bool IsDeviceOverlap = false;//是否重叠
@@ -58,8 +66,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 	fitness_GPU[index * fitnessCount + 0] = fitness_GPU[index * fitnessCount + 1] = 0;
 
 #pragma region 深拷贝一份设备参数
-	DevicePara* copyDeviceParas = new DevicePara[proParas.DeviceSum];
-	for (int i = 0; i < proParas.DeviceSum; i++)
+	DevicePara* copyDeviceParas = new DevicePara[DeviceSum];
+	for (int i = 0; i < DeviceSum; i++)
 	{
 		copyDeviceParas[i].ID = proParas.deviceParaList[i].ID;
 		copyDeviceParas[i].direct = proParas.deviceParaList[i].direct;
@@ -147,8 +155,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		//5.然后计算出所有设备位置的包络矩形，如果小于车间尺寸，移动到车间内的一个随机位置
 		//然后根据这个移动前后的位置差修改所有设备的位置
 		//用比例计算这个并不是特别靠谱，可以试试维护一个大的包络矩形
-		int deviceIDSizeCount = proParas.DeviceSum;
-		DeviceIDSize* deviceIDSizeList = new DeviceIDSize[proParas.DeviceSum];//按照设备大小排序的ID数组
+		int deviceIDSizeCount = DeviceSum;
+		DeviceIDSize* deviceIDSizeList = new DeviceIDSize[DeviceSum];//按照设备大小排序的ID数组
 		//先用其他结构存设备坐标，因为可能会修改失败
 		double* particlePosList = new double[dim];
 		for (int i = 0; i < dim; ++i) {
@@ -221,7 +229,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		double min_X, min_Y, max_X, max_Y;
 		min_X = min_Y = INT_MAX;
 		max_X = max_Y = -INT_MAX;
-		for (int i = 0; i < proParas.DeviceSum; ++i) {
+		for (int i = 0; i < DeviceSum; ++i) {
 			double outSizeLength = copyDeviceParas[i].size.x * 0.5 + copyDeviceParas[i].spaceLength;
 			double outSizeWidth = copyDeviceParas[i].size.y * 0.5 + copyDeviceParas[i].spaceLength;
 			min_X = min(min_X, particlePosList[3 * i] - outSizeLength);
@@ -243,13 +251,13 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 			//根据包络矩形的坐标变化，修改所有设备的坐标
 			double deviceOffsetX = newRectAxis.x - oriRectAxis.x;
 			double deviceOffsetY = newRectAxis.y - oriRectAxis.y;
-			for (int i = 0; i < proParas.DeviceSum; ++i) {
+			for (int i = 0; i < DeviceSum; ++i) {
 				particlePosList[3 * i] += deviceOffsetX;
 				particlePosList[3 * i + 1] += deviceOffsetY;
 			}
 			IsDeviceOverlap = false;
 			//修改postion，需要修改其他的吗？
-			for (int i = 0; i < proParas.DeviceSum; i++) {
+			for (int i = 0; i < DeviceSum; i++) {
 				position_GPU[index * dim + 3 * i] = particlePosList[3 * i];
 				position_GPU[index * dim + 3 * i + 1] = particlePosList[3 * i + 1];
 			}
@@ -941,7 +949,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		//然后给所有的inoutPoint赋值
 		InoutPoint* tempInoutPoints = new InoutPoint[proParas.inoutPointCount];
 		int ioPIndex = 0;
-		for (int i = 0; i < proParas.DeviceSum; i++)
+		for (int i = 0; i < DeviceSum; i++)
 		{
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; ++pointIndex)
 			{
@@ -972,7 +980,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		int curVertIndex = 0;
 		//先对出入口点水平和垂直进行分类(注意加上偏移量)
 		//先求出水平和垂直出入口点的数目（一部分horiCount和vertCount）
-		for (int i = 0; i < proParas.DeviceSum; i++)
+		for (int i = 0; i < DeviceSum; i++)
 		{
 			for (int pointIndex = 0; pointIndex < copyDeviceParas[i].adjPInCount; pointIndex++)
 			{
@@ -1004,10 +1012,10 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		horizonAxisList[curHoriIndex++] = proParas.exitPos.x;
 		verticalAxisList[curVertIndex++] = proParas.exitPos.y;
 		//存下每个设备坐标的四个范围（作为后面障碍点的范围）
-		double* DeviceLowXList = new double[proParas.DeviceSum];
-		double* DeviceHighXList = new double[proParas.DeviceSum];
-		double* DeviceLowYList = new double[proParas.DeviceSum];
-		double* DeviceHighYList = new double[proParas.DeviceSum];
+		double* DeviceLowXList = new double[DeviceSum];
+		double* DeviceHighXList = new double[DeviceSum];
+		double* DeviceLowYList = new double[DeviceSum];
+		double* DeviceHighYList = new double[DeviceSum];
 		//每个设备周围的4个点
 		for (int i = 0; i < dim; i += 3) {
 			outSizeLength = 0.5 * copyDeviceParas[i / 3].size.x + proParas.convey2DeviceDist;
@@ -1074,7 +1082,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 			pathPointMap[i]->x = horizonAxisList[colIndex];
 			pathPointMap[i]->y = verticalAxisList[rowIndex];
 			//遍历所有设备，看是否有和这个点重叠的（实现标记障碍点）
-			for (int k = 0; k < proParas.DeviceSum; k++)
+			for (int k = 0; k < DeviceSum; k++)
 			{
 				if (pathPointMap[i]->x - DeviceLowXList[k] >= 0.01 && DeviceHighXList[k] - pathPointMap[i]->x >= 0.01
 					&& pathPointMap[i]->y - DeviceLowYList[k] >= 0.01 && DeviceHighYList[k] - pathPointMap[i]->y >= 0.01)

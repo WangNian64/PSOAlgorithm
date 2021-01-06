@@ -228,7 +228,7 @@ public:
 
 
 
-	//ProblemParas problemParas;			//布局问题参数 //////
+	ProblemParas problemParas;				//布局问题参数 CPU
 	int DeviceSum;							//设备总数
 	int deviceParaSize;						//设备参数列表的内存大小
 
@@ -319,7 +319,7 @@ public:
 	void InitGbest();
 
 	// 计算该粒子的适应度值
-	void GetFitness(int dim, int fitnessCount, double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU, int i);
+	void GetFitness(int dim, int fitnessCount, double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU);
 
 	// 更新所有粒子参数
 	void UpdateAllParticles();

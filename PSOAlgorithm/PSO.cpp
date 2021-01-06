@@ -71,19 +71,9 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMalloc((void**)& all_best_fitness_, sizeof(double) * particle_num_ * fitness_count);
 
 
-	//ProblemParas
-	//CPU->GPU
-	//int deviceParaSize = accumDeviceParaSize;
-	//int cargoTypeSize = accumCargoTypeSize;
-	//int otherSize = sizeof(int) * 8 + sizeof(double) * 9 + sizeof(Vector2) * 2;
-	//int totalSize = deviceParaSize + cargoTypeSize + otherSize;
-	//cudaMalloc((void**)& problemParas, totalSize);
-	//cudaMemcpy(problemParas, pso_para->problemParas, totalSize, cudaMemcpyHostToDevice);
-
-
-
-
+	this->problemParas = problemParas;//CPU端的
 	//this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化(这也是个问题，因为list内部还有子结构也是*数组
+
 
 	//给problemParas的参数赋值
 	DeviceSum = problemParas.DeviceSum;									//设备总数
@@ -155,6 +145,7 @@ PSOOptimizer::~PSOOptimizer()//析构函数都需要修改
 }
 
 // 初始化所有粒子（没有更新全局最佳）
+//CPU
 void PSOOptimizer::InitialAllParticles()
 {
 	for (int i = 0; i < particle_num_; ++i)
@@ -170,9 +161,9 @@ void PSOOptimizer::InitialAllParticles()
 	cudaMemcpy(fitness_GPU, fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
 	cudaMemcpy(best_fitness_GPU, best_fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
 	//计算Fitness值
+	GetFitness(dim_, fitness_count, fitness_CPU, position_CPU, velocity_CPU, best_position_CPU, best_fitness_CPU);
 	for (int i = 0; i < particle_num_; ++i)
 	{
-		GetFitness(dim_, fitness_count, fitness_CPU, position_CPU, velocity_CPU, best_position_CPU, best_fitness_CPU, i);
 		// 初始化个体最优位置
 		for (int j = 0; j < dim_; j++)
 		{
@@ -281,14 +272,13 @@ void PSOOptimizer::InitGbest()
 	}
 }
 
-//i是粒子的下标
-void PSOOptimizer::GetFitness(int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU, int i)
+void PSOOptimizer::GetFitness(int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU)
 {
-	FitnessFunction(curr_iter_, max_iter_num_, bestPathInfoList, problemParas, 
-		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU, i);
+	FitnessFunction <<<blockSum, threadsPerBlock>>> (curr_iter_, max_iter_num_, bestPathInfoList, problemParas,
+		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);
 }
 
-//先改第一个！
+//先改第一个
 void PSOOptimizer::UpdateAllParticles()
 {
 	//计算当前代的惯性系数
@@ -299,69 +289,75 @@ void PSOOptimizer::UpdateAllParticles()
 	//参数只能从外面传进去
 	UpdateParticle<<<blockSum, threadsPerBlock>>>(curr_iter_, max_iter_num_, dim_, w_, C1_, C2_, dt_,
 			bestPathInfoList, particles_GPU, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, problemParas);//这个是并行的
+
+	//计算更新后粒子的适应度值数组
+	//也要改成GPU并行的
+	FitnessFunction<<<blockSum, threadsPerBlock>>>(curIterNum, maxIterNum, bestPathInfoList, problemParas,
+		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);
+
 	curr_iter_++;
 }
 
 //更新粒子&计算适应度
-static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim_, double w_, double C1_, double C2_, double dt_,
-	BestPathInfo* bestPathInfoList, Particle* particles_, curandState* globalState, double* randomNumList, 
-	double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, ProblemParas problemParas)
+static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim, int fitnessCount, double w_, double C1_, double C2_, double dt_, BestPathInfo* bestPathInfoList, 
+	/*用于替代Particle Particle* particles_,*/double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU,
+	curandState* globalState, double* randomNumList,double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, ProblemParas problemParas)
 {
 	//粒子的下标i需要自己计算
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	//先更新朝向，然后根据朝向调整粒子的范围
-	for (int j = 2; j < dim_; j += 3)
+	for (int j = 2; j < dim; j += 3)
 	{
-		double last_position = particles_[i].position_[j];
+		double last_position = position_GPU[i * dim + j];
 
-		particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
-			C1_ * GetDoubleRand() * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-			C2_ * GetDoubleRand() * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
-		particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
+		velocity_GPU[i * dim + j] = w_ * velocity_GPU[i * dim + j] +
+			C1_ * GetDoubleRand() * (best_position_GPU[i * dim + j] - position_GPU[i * dim + j]) +
+			C2_ * GetDoubleRand() * (all_best_position_[i * dim + j] - position_GPU[i * dim + j]);
+		position_GPU[i * dim + j] += dt_ * velocity_GPU[i * dim + j];
 
 		// 如果搜索区间有上下限限制
 		if (upper_bound_ && lower_bound_)
 		{
-			if (particles_[i].position_[j] >= upper_bound_[j])//注意对于设备朝向，=也不行
+			if (position_GPU[i * dim + j] >= upper_bound_[j])//注意对于设备朝向，=也不行
 			{
 				double thre = createARandomNum(globalState, i);//直接生成一个随机数
 				if (last_position >= upper_bound_[j] - 1)//注意upper_bound_[j]-1=3
 				{
-					particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
+					position_GPU[i * dim + j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 				}
 				else if (thre < 0.5)
 				{
-					particles_[i].position_[j] = upper_bound_[j] - (upper_bound_[j] - last_position) * createARandomNum(globalState, i);
+					position_GPU[i * dim + j] = upper_bound_[j] - (upper_bound_[j] - last_position) * createARandomNum(globalState, i);
 				}
 				else
 				{
-					particles_[i].position_[j] = upper_bound_[j] - 0.5;
+					position_GPU[i * dim + j] = upper_bound_[j] - 0.5;
 				}
 			}
-			if (particles_[i].position_[j] < lower_bound_[j])
+			if (position_GPU[i * dim + j] < lower_bound_[j])
 			{
 				double thre = createARandomNum(globalState, i);
 				if (last_position == lower_bound_[j])
 				{
-					particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
+					position_GPU[i * dim + j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 				}
 				else if (thre < 0.5)
 				{
-					particles_[i].position_[j] = lower_bound_[j] + (last_position - lower_bound_[j]) * createARandomNum(globalState, i);
+					position_GPU[i * dim + j] = lower_bound_[j] + (last_position - lower_bound_[j]) * createARandomNum(globalState, i);
 				}
 				else
 				{
-					particles_[i].position_[j] = lower_bound_[j];
+					position_GPU[i * dim + j] = lower_bound_[j];
 				}
 			}
 		}
 	}
 	//根据朝向修改设备上下界范围
-	for (int j = 2; j < dim_; j += 3)
+	for (int j = 2; j < dim; j += 3)
 	{
 		//double转int，转换为Direction，然后根据朝向重新计算设备尺寸和出入口
 		//Rotate90或者Rotate270,修改上下限
-		DeviceDirect curDirect = (DeviceDirect)(int)particles_[i].position_[j];
+		DeviceDirect curDirect = (DeviceDirect)(int)position_GPU[i * dim + j];
 		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)//这一部分可能也要改（enum是C++语法）
 		{
 			//x和y
@@ -386,61 +382,57 @@ static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim_, 
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
 	}
 	//cout << endl;
-	for (int j = 0; j < dim_; j++)
+	for (int j = 0; j < dim; j++)
 	{
 		if (j % 3 != 2)
 		{
 			//保存上一次迭代结果的position和velocity
-			double last_position = particles_[i].position_[j];
+			double last_position = position_GPU[i * dim + j];
 
-			particles_[i].velocity_[j] = w_ * particles_[i].velocity_[j] +
-				C1_ * createARandomNum(globalState, i) * (particles_[i].best_position_[j] - particles_[i].position_[j]) +
-				C2_ * createARandomNum(globalState, i) * (all_best_position_[i * dim_ + j] - particles_[i].position_[j]);
-			particles_[i].position_[j] += dt_ * particles_[i].velocity_[j];
+			velocity_GPU[i * dim + j] = w_ * velocity_GPU[i * dim + j] +
+				C1_ * createARandomNum(globalState, i) * (best_position_GPU[i * dim + j] - position_GPU[i * dim + j]) +
+				C2_ * createARandomNum(globalState, i) * (all_best_position_[i * dim + j] - position_GPU[i * dim + j]);
+			position_GPU[i * dim + j] += dt_ * velocity_GPU[i * dim + j];
 
 			// 如果搜索区间有上下限限制
 			if (upper_bound_ && lower_bound_)
 			{
-				if (particles_[i].position_[j] > upper_bound_[j])
+				if (position_GPU[i * dim + j] > upper_bound_[j])
 				{
 					double thre = createARandomNum(globalState, i);
 					if (last_position >= upper_bound_[j])
 					{
-						particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
+						position_GPU[i * dim + j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 					}
 					else if (thre < 0.5)
 					{
-						particles_[i].position_[j] = upper_bound_[j] - abs(upper_bound_[j] - last_position) * createARandomNum(globalState, i);
+						position_GPU[i * dim + j] = upper_bound_[j] - abs(upper_bound_[j] - last_position) * createARandomNum(globalState, i);
 					}
 					else
 					{
-						particles_[i].position_[j] = upper_bound_[j];
+						position_GPU[i * dim + j] = upper_bound_[j];
 					}
 				}
-				if (particles_[i].position_[j] < lower_bound_[j])
+				if (position_GPU[i * dim + j] < lower_bound_[j])
 				{
 					double thre = createARandomNum(globalState, i);
 					if (last_position <= lower_bound_[j])
 					{
-						particles_[i].position_[j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
+						position_GPU[i * dim + j] = createARandomNum(globalState, i) * range_interval_[j] + lower_bound_[j];
 					}
 					else if (thre < 0.5)
 					{
-						particles_[i].position_[j] = lower_bound_[j] + abs(last_position - lower_bound_[j]) * createARandomNum(globalState, i);
+						position_GPU[i * dim + j] = lower_bound_[j] + abs(last_position - lower_bound_[j]) * createARandomNum(globalState, i);
 					}
 					else
 					{
-						particles_[i].position_[j] = lower_bound_[j];
+						position_GPU[i * dim + j] = lower_bound_[j];
 					}
 				}
 			}
 		}
 		
 	}
-
-	//计算更新后粒子的适应度值数组
-	//也要改成GPU并行的
-	FitnessFunction(curIterNum, maxIterNum, bestPathInfoList, problemParas, particles_[i]);
 }
 
 //更新Pbest的GPU函数
@@ -564,6 +556,7 @@ static __device__ bool ComparePbest(int index, int fitness_count, double* fitnes
 }
 
 //初始化第i个粒子
+//这里的problemParas可以直接用CPU的
 void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU, int i)
 {
 	#pragma region 初始化position/veloctiy值
