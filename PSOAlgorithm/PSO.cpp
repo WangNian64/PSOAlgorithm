@@ -32,7 +32,6 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 
 	fitness_CPU = (double*)malloc(sizeof(double) * particle_num_ * fitness_count);
 	best_fitness_CPU = (double*)malloc(sizeof(double) * particle_num_ * fitness_count);
-
 	//给GPU粒子分配空间
 	cudaMalloc((void**)& position_GPU, sizeof(double) * particle_num_ * dim_);
 	cudaMalloc((void**)& velocity_GPU, sizeof(double) * particle_num_ * dim_);
@@ -78,8 +77,6 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	//给problemParas的参数赋值
 	DeviceSum = problemParas.DeviceSum;									//设备总数
 
-	deviceParaSize = problemParas.deviceParaSize;						//设备参数列表的内存大小
-
 	horiPointCount = problemParas.horiPointCount;						//未去重前所有水平方向的点的数目
 	vertPointCount = problemParas.vertPointCount;						//未去重前所有垂直方向的点的数目
 
@@ -121,6 +118,21 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 
 	cudaMalloc((void**)& adjPointsIn, sizeof(AdjPoint)* totalInPoint);
 	cudaMalloc((void**)& adjPointsOut, sizeof(AdjPoint)* totalOutPoint);
+	//CPU赋值到GPU
+	cudaMemcpy(ID, problemParas.ID, sizeof(int) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(workSpeed, problemParas.workSpeed, sizeof(double) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(size, problemParas.size, sizeof(Vector2) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(axis, problemParas.axis, sizeof(Vector2) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(direct, problemParas.direct, sizeof(DeviceDirect) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(spaceLength, problemParas.spaceLength, sizeof(double) * DeviceSum, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(adjPInCount, problemParas.adjPInCount, sizeof(int) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(adjPOutCount, problemParas.adjPOutCount, sizeof(int) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(accumAdjPInCount, problemParas.accumAdjPInCount, sizeof(int) * DeviceSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(accumAdjPOutCount, problemParas.accumAdjPOutCount, sizeof(int) * DeviceSum, cudaMemcpyHostToDevice);
+
+	cudaMemcpy(adjPointsIn, problemParas.adjPointsIn, sizeof(int) * totalInPoint, cudaMemcpyHostToDevice);
+	cudaMemcpy(adjPointsOut, problemParas.adjPointsOut, sizeof(int) * totalOutPoint, cudaMemcpyHostToDevice);
 
 
 
@@ -134,6 +146,11 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMalloc((void**)& totalVolume, sizeof(double)* CargoTypeNum);
 
 	cudaMalloc((void**)& deviceLinkList, sizeof(DeviceLink)* totalLinkSum);
+	//CPU赋值到GPU
+	cudaMemcpy(deviceSum, problemParas.deviceSum, sizeof(int)* CargoTypeNum, cudaMemcpyHostToDevice);
+	cudaMemcpy(linkSum, problemParas.linkSum, sizeof(double)* CargoTypeNum, cudaMemcpyHostToDevice);
+	cudaMemcpy(deviceLinkList, problemParas.deviceLinkList, sizeof(DeviceLink)* totalLinkSum, cudaMemcpyHostToDevice);
+	cudaMemcpy(totalVolume, problemParas.totalVolume, sizeof(double)* CargoTypeNum, cudaMemcpyHostToDevice);
 }
 
 PSOOptimizer::~PSOOptimizer()//析构函数都需要修改

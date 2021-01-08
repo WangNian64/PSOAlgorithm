@@ -11,11 +11,36 @@ struct CostPara {
 	double MatFlow;		//物流总量
 	double UnitCost;	//单位物流量的成本
 };
+
 struct ProblemParas
 {	
+	//结构需要修改，DevicePara和CargoType需要分解
 	int DeviceSum;						//设备总数
-	DevicePara* deviceParaList;			//设备参数列表
-	int deviceParaSize;					//设备参数列表的内存大小
+
+	//DevicePara* deviceParaList;			//设备参数列表
+	int* ID;								//设备ID
+	double* workSpeed;						//加工/处理1单位物料的时间
+	Vector2* size;							//设备尺寸（分别是x轴和y轴的长度）
+	Vector2* axis;							//设备坐标
+	DeviceDirect* direct;					//设备朝向
+	double* spaceLength;					//空隙（为了实现距离约束）
+
+	//和adjPoint数目有关的数组
+	int* adjPInCount;						//adjPointIn数组的数目数组
+	int* adjPOutCount;						//adjPointOut数组的数目数组
+	int* accumAdjPInCount;					//adjPointIn数目的累加数组
+	int* accumAdjPOutCount;					//adjPointOut数目的累加数组
+
+	int totalInPoint;						//入口点的总数目
+	int totalOutPoint;						//出口点的总数目
+	//出入口点的数组（会影响输送线的布局）
+	AdjPoint* adjPointsIn;	//入口
+	AdjPoint* adjPointsOut;	//出口
+
+
+
+
+
 
 	int totalInPoint;					//入口点的总数目
 	int totalOutPoint;					//出口点的总数目
@@ -31,10 +56,15 @@ struct ProblemParas
 
 	//物料参数列表
 	int CargoTypeNum;					//货物类型数目
-	CargoType* cargoTypeList;			//货物类型列表
+	//CargoType* cargoTypeList;			//货物类型列表
 	int cargoTypeSize;					//货物类型列表的内存大小
 	int totalLinkSum;					//总的连接线数目
 	
+	int* deviceSum;							//经过的设备数目
+	int* linkSum;							//设备配对的数目
+	DeviceLink* deviceLinkList;				//设备连接列表
+	double* totalVolume;					//该物料的总物流量
+
 	int fixedLinkPointSum = 50;			//每一条link的固定点数目为50(没有去重之前的)
 	int fixedUniqueLinkPointSum = 20;	//去重后的每一条link的固定点数目为20
 	//输送机参数
@@ -104,29 +134,53 @@ struct ProblemParas
 			getline(inputFile, line);
 			DeviceSum = atoi(line.c_str());//设备数目
 
-			deviceParaList = new DevicePara[DeviceSum];
-			
-			totalInPoint = totalOutPoint = 0;
+			//deviceParaList = new DevicePara[DeviceSum];
+			ID = new int[DeviceSum]; 				//设备ID
+			workSpeed = new double[DeviceSum];		//加工/处理1单位物料的时间
+			size = new Vector2[DeviceSum];			//设备尺寸（分别是x轴和y轴的长度）
+			axis = new Vector2[DeviceSum];			//设备坐标
+			direct = new DeviceDirect[DeviceSum];	//设备朝向
+			spaceLength = new double[DeviceSum];	//空隙（为了实现距离约束）
+
+			//和adjPoint数目有关的数组
+			int* adjPInCount;						//adjPointIn数组的数目数组
+			int* adjPOutCount;						//adjPointOut数组的数目数组
+
+			int* accumAdjPInCount;					//adjPointIn数目的累加数组
+			int* accumAdjPOutCount;					//adjPointOut数目的累加数组
+
+			//出入口点的数组（会影响输送线的布局）
+			AdjPoint* adjPointsIn;	//入口
+			AdjPoint* adjPointsOut;	//出口
+
+			totalInPoint = totalOutPoint = 0;//需要累加
+
+			//需要先遍历一遍，然后再重新赋值一次才行
+			//先用vector存这些数据
+			vector<AdjPoint> tempAdjPInList;
+			vector<AdjPoint> tempAdjPOutList;
 			for (int i = 0; i < DeviceSum; i++)
 			{
+				int curAdjInCount = 0; //这一轮的AdjIn的数目
+				int curAdjOutCount = 0;//这一轮的AdjOut的数目 
 				//用temp vector中转
-				vector<AdjPoint> tempAdjPInList;
-				vector<AdjPoint> tempAdjPOutList;
+				//vector<AdjPoint> tempAdjPInList;
+				//vector<AdjPoint> tempAdjPOutList;
 
 				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
 
-				deviceParaList[i].ID = atoi(strSplit[0].c_str());
-				deviceParaList[i].workSpeed = atof(strSplit[1].c_str());
+				ID[i] = atoi(strSplit[0].c_str());
+				workSpeed[i] = atof(strSplit[1].c_str());
 				vector<string> sizeStr = split(strSplit[2], ",");
-				deviceParaList[i].size.x = atof(sizeStr[0].c_str());
-				deviceParaList[i].size.y = atof(sizeStr[1].c_str());
+				size[i].x = atof(sizeStr[0].c_str());
+				size[i].y = atof(sizeStr[1].c_str());
 
-				deviceParaList[i].spaceLength = atof(strSplit[3].c_str());
+				spaceLength[i] = atof(strSplit[3].c_str());
 				//邻接点的位置
 				if (strSplit[4] != "null")
 				{
-					vector<string> adjStrList = split(strSplit[4], "|");//分离出每个点
+					vector<string> adjStrList = split(strSplit[4], "|");//分离出每个点，这个是每轮in和out总的点，还需要分开
 					int InIndex, OutIndex;
 					InIndex = OutIndex = 0;
 					for (int k = 0; k < adjStrList.size(); k++)
@@ -137,44 +191,41 @@ struct ProblemParas
 						adjPoint.inoutType = (InoutType)(atoi(adjStr[1].c_str()) - 1);
 						adjPoint.pos.x = atof(adjStr[2].c_str());
 						adjPoint.pos.y = atof(adjStr[3].c_str());
-						if (adjPoint.inoutType == 0) {
+						if (adjPoint.inoutType == 0) {//是入口点
 							adjPoint.index = InIndex++;
 							tempAdjPInList.push_back(adjPoint);
-						} else {
+						} else {//是出口点
 							adjPoint.index = OutIndex++;
 							tempAdjPOutList.push_back(adjPoint);
 						}
 					}
-					//将temp的数据存到*数组中
-					deviceParaList[i].adjPInCount = tempAdjPInList.size();
-					deviceParaList[i].adjPointsIn = new AdjPoint[deviceParaList[i].adjPInCount];
-					for (int index = 0; index < deviceParaList[i].adjPInCount; index++) 
-					{
-						deviceParaList[i].adjPointsIn[index] = tempAdjPInList[index];
-					}
-
-
-					deviceParaList[i].adjPOutCount = tempAdjPOutList.size();
-					deviceParaList[i].adjPointsOut = new AdjPoint[deviceParaList[i].adjPOutCount];
-					for (int index = 0; index < deviceParaList[i].adjPOutCount; index++)
-					{
-						deviceParaList[i].adjPointsOut[index] = tempAdjPOutList[index];
-					}
-
+					adjPInCount[i] = InIndex;
+					adjPOutCount[i] = OutIndex;
+				
+					accumAdjPInCount[i] = totalInPoint;//累加的点是这么计算的(第一行是0)
+					accumAdjPOutCount[i] = totalOutPoint;
 					//累加in和outPoint数目
-					totalInPoint = totalInPoint + deviceParaList[i].adjPInCount;
-					totalOutPoint = totalOutPoint + deviceParaList[i].adjPOutCount;
+					totalInPoint = totalInPoint + adjPInCount[i];
+					totalOutPoint = totalOutPoint + adjPOutCount[i];
 				}
 			}
-
+			//把vector的点复制到*数组
+			for (int i = 0; i < tempAdjPInList.size(); i++)
+			{
+				adjPointsIn[i] = tempAdjPInList[i];
+			}
+			for (int i = 0; i < tempAdjPOutList.size(); i++)
+			{
+				adjPointsOut[i] = tempAdjPOutList[i];
+			}
 
 			#pragma region 计算水平和垂直点的数目（未考虑重合的点）
 			//求出水平和垂直出入口点的数目（一部分horiCount和vertCount）
 			for (int i = 0; i < DeviceSum; i++)
 			{
-				for (int pointIndex = 0; pointIndex < deviceParaList[i].adjPInCount; pointIndex++)
+				for (int pointIndex = 0; pointIndex < adjPInCount[i]; pointIndex++)
 				{
-					AdjPoint& p = deviceParaList[i].adjPointsIn[pointIndex];
+					AdjPoint& p = adjPointsIn[accumAdjPInCount[i] + pointIndex];//总下标=前面累加的+index
 					if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 					{
 						horiPointCount++;
@@ -183,9 +234,9 @@ struct ProblemParas
 						vertPointCount++;
 					}
 				}
-				for (int pointIndex = 0; pointIndex < deviceParaList[i].adjPOutCount; pointIndex++)
+				for (int pointIndex = 0; pointIndex < adjPOutCount[i]; pointIndex++)
 				{
-					AdjPoint& p = deviceParaList[i].adjPointsOut[pointIndex];
+					AdjPoint& p = adjPointsOut[accumAdjPOutCount[i] + pointIndex];//总下标=前面累加的+index
 					if (p.direct == PointDirect::Up || p.direct == PointDirect::Down)//上下
 					{
 						horiPointCount++;
@@ -224,48 +275,52 @@ struct ProblemParas
 			getline(inputFile, line);
 			CargoTypeNum = atoi(line.c_str());//物料类型数目
 
-			cargoTypeList = new CargoType[CargoTypeNum];
+			//cargoTypeList = new CargoType[CargoTypeNum];
+			vector<CargoType> tempCargoTypeList;
+			//先统计totalLinkSum;
 			for (int i = 0; i < CargoTypeNum; i++)
 			{
+				totalLinkSum += linkSum[i];
+			}
+			deviceLinkList = new DeviceLink[totalLinkSum];
+			int curLinkSum_Index = 0;
+			for (int i = 0; i < CargoTypeNum; i++)
+			{
+
 				getline(inputFile, line);
 				vector<string> strSplit = split(line, " ");
-				cargoTypeList[i].linkSum = atoi(strSplit[0].c_str());
-				cargoTypeList[i].deviceSum = cargoTypeList[i].linkSum + 1;
-				cargoTypeList[i].deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];
+				linkSum[i] = atoi(strSplit[0].c_str());
+				deviceSum[i] = linkSum[i] + 1;
+				//deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];
 
-				totalLinkSum += cargoTypeList[i].linkSum;//累加
-				for (int j = 0; j < cargoTypeList[i].linkSum; j++)
+				for (int j = 0; j < linkSum[i]; j++)
 				{
 					vector<string> deviceLinkStr = split(strSplit[j + 1], "-");
 					//分为入口和出口
 					if (deviceLinkStr[0] == "ENTER")//说明是仓库入口
 					{
-						cargoTypeList[i].deviceLinkList[j].outDeviceIndex = -1;
+						deviceLinkList[curLinkSum_Index].outDeviceIndex = -1;
 					}
 					else
 					{
 						vector<string> devicePointStr = split(deviceLinkStr[0], ",");
-						cargoTypeList[i].deviceLinkList[j].outDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
-						cargoTypeList[i].deviceLinkList[j].outPointIndex = atoi(devicePointStr[1].c_str()) - 1;
+						deviceLinkList[curLinkSum_Index].outDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						deviceLinkList[curLinkSum_Index].outPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
 					if (deviceLinkStr[1] == "EXIT")//说明是仓库出口
 					{
-						cargoTypeList[i].deviceLinkList[j].inDeviceIndex = -2;
+						deviceLinkList[curLinkSum_Index].inDeviceIndex = -2;
 					}
 					else
 					{
 						vector<string> devicePointStr = split(deviceLinkStr[1], ",");
-						cargoTypeList[i].deviceLinkList[j].inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
-						cargoTypeList[i].deviceLinkList[j].inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
+						deviceLinkList[curLinkSum_Index].inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						deviceLinkList[curLinkSum_Index].inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
-					//cout << cargoTypeList[i].deviceLinkList[j].outDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].outPointIndex
-					//	<< "," << cargoTypeList[i].deviceLinkList[j].inDeviceIndex << "," << cargoTypeList[i].deviceLinkList[j].inPointIndex
-					//	<< endl;
+					curLinkSum_Index++;
 				}
-				cargoTypeList[i].totalVolume = atof(strSplit[strSplit.size() - 1].c_str());
-				//cout << endl;
+				totalVolume[i] = atof(strSplit[strSplit.size() - 1].c_str());
 			}
-			//cout << endl;
 			#pragma endregion
 
 

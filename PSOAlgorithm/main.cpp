@@ -47,7 +47,7 @@ int main()
 
 		#pragma region 调用PSO算法，并输出结果
 		//GPU
-		PSOOptimizer psooptimizer(&psopara);//PSO算法对象
+		PSOOptimizer psooptimizer(&psopara, proParas);//PSO算法对象
 		string curProblemFolderName = "Problem" + to_string(curProblem + 1);
 		for (int curTest = 0; curTest < testSum; curTest++) {//每个问题跑多次
 			clock_t startTime, endTime;//记录调用时间
@@ -149,7 +149,7 @@ int main()
 			//用循环的方式来复制数据到CPU，每次只复制一个size的地址
 			for (int i = 0; i < proParas.DeviceSum; i++)
 			{
-				cudaMemcpy(deviceParaListSize_CPU + i, &psooptimizer.problemParas.deviceParaList[i].size, sizeof(Vector2), cudaMemcpyDeviceToHost);
+				cudaMemcpy(deviceParaListSize_CPU + i, &psooptimizer.problemParas.size[i], sizeof(Vector2), cudaMemcpyDeviceToHost);
 			}
 
 			for (int i = 2; i < dim; i += 3)

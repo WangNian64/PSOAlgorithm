@@ -293,10 +293,10 @@ struct InoutPoint
 };
 struct DeviceLink
 {
-	int inDeviceIndex;
-	int outDeviceIndex;
-	int inPointIndex;
-	int outPointIndex;
+	int inDeviceIndex;//入口设备的index
+	int outDeviceIndex;//出口设备的index
+	int inPointIndex;//把这个含义改为总的inPoint的下标（现在都是一维的）
+	int outPointIndex;//同上
 	DeviceLink() {
 		inDeviceIndex = outDeviceIndex = inPointIndex = outPointIndex = 0;
 	}

@@ -92,9 +92,9 @@ struct PSOPara
 	void SetLowBound(double lowBoundX, double lowBoundY, int lowBoundDirect) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 3 == 0)
-				lower_bound_[i] = lowBoundX + problemParas.deviceParaList[i / 3].size.x * 0.5 + problemParas.deviceParaList[i / 3].spaceLength;
+				lower_bound_[i] = lowBoundX + problemParas.size[i / 3].x * 0.5 + problemParas.spaceLength[i / 3];
 			else if (i % 3 == 1)
-				lower_bound_[i] = lowBoundY + problemParas.deviceParaList[i / 3].size.y * 0.5 + problemParas.deviceParaList[i / 3].spaceLength;
+				lower_bound_[i] = lowBoundY + problemParas.size[i / 3].y * 0.5 + problemParas.spaceLength[i / 3];
 			else
 				lower_bound_[i] = lowBoundDirect;
 		}
@@ -104,9 +104,9 @@ struct PSOPara
 	void SetUpBound(double upBoundX, double upBoundY, int upBoundDirect) {
 		for (int i = 0; i < dim_; i++) {
 			if (i % 3 == 0)
-				upper_bound_[i] = upBoundX - problemParas.deviceParaList[i / 3].size.x * 0.5 - problemParas.deviceParaList[i / 3].spaceLength;
+				upper_bound_[i] = upBoundX - problemParas.size[i / 3].x * 0.5 - problemParas.spaceLength[i / 3];
 			else if (i % 3 == 1)
-				upper_bound_[i] = upBoundY - problemParas.deviceParaList[i / 3].size.y * 0.5 - problemParas.deviceParaList[i / 3].spaceLength;
+				upper_bound_[i] = upBoundY - problemParas.size[i / 3].y * 0.5 - problemParas.spaceLength[i / 3];
 			else
 				upper_bound_[i] = upBoundDirect;
 		}
@@ -230,7 +230,6 @@ public:
 
 	ProblemParas problemParas;				//布局问题参数 CPU
 	int DeviceSum;							//设备总数
-	int deviceParaSize;						//设备参数列表的内存大小
 
 
 	int horiPointCount = 0;					//未去重前所有水平方向的点的数目
@@ -265,8 +264,11 @@ public:
 	DeviceDirect* direct;					//设备朝向
 	double* spaceLength;					//空隙（为了实现距离约束）
 	//出入口点的数组（会影响输送线的布局）
-	int* adjPInCount;
-	int* adjPOutCount;
+	int* adjPInCount;						//adjPointIn数组的数目数组
+	int* adjPOutCount;						//adjPointOut数组的数目数组
+	int* accumAdjPInCount;					//adjPointIn数目的累加数组
+	int* accumAdjPOutCount;					//adjPointOut数目的累加数组
+
 	int totalInPoint;						//入口点的总数目
 	int totalOutPoint;						//出口点的总数目
 	AdjPoint* adjPointsIn;	//入口
