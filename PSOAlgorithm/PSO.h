@@ -115,13 +115,13 @@ struct PSOPara
 //存储最优粒子的输送线信息
 struct BestPathInfo
 {
-	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新
-	int inoutPSize;//出入口数目
-	InoutPoint* inoutPoints;//出入口集合
-	StraightConveyorInfo* strConveyorList;//直线输送机信息列表
-	int strConveyorListSum;
-	Vector2Int* curveConveyorList;//转弯输送机信息列表
-	int curveConveyorListSum;
+	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新 fitnessCount
+	int inoutPSize;//出入口点的总数目	fitnessCount
+	InoutPoint* inoutPoints;//出入口点的集合  人为设置
+	StraightConveyorInfo* strConveyorList;//直线输送机信息列表 人为设置
+	int strConveyorListSum; //fitnessCount
+	Vector2Int* curveConveyorList;//转弯输送机信息列表 人为设置
+	int curveConveyorListSum;	//fitnessCount
 	BestPathInfo() {
 		curBestFitnessVal = INT_MAX;
 	}
@@ -228,10 +228,11 @@ public:
 
 
 
-	ProblemParas problemParas;				//布局问题参数 CPU
+	ProblemParas problemParas;				//布局问题参数 CPU!
+
+
+	//拆解后的problemParas,GPU
 	int DeviceSum;							//设备总数
-
-
 	int horiPointCount = 0;					//未去重前所有水平方向的点的数目
 	int vertPointCount = 0;					//未去重前所有垂直方向的点的数目
 
@@ -282,24 +283,23 @@ public:
 
 	int* deviceSum;							//经过的设备数目
 	int* linkSum;							//设备配对的数目
+	int* accumLinkSum;						//linkSum的累加数组
+
 	DeviceLink* deviceLinkList;				//设备连接列表
 	double* totalVolume;					//该物料的总物流量
-
-
-	
-
 
 
 	vector<Particle> archive_list;			//存放pareto非劣解的数组 CPU
 	int archiveList_CurSize;				//当前的archiveList大小
 	int archiveMaxCount;					//archive数组的最大数目
-	BestPathInfo* bestPathInfoList;			//最优路径信息   ////////////
+	BestPathInfo* bestPathInfoList;		//最优路径信息   ////////////
 
 public:
 	// 默认构造函数
 	PSOOptimizer() {}
 
 	// 构造函数
+	
 	PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas);
 
 	// 析构函数

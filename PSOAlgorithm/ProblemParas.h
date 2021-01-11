@@ -62,6 +62,7 @@ struct ProblemParas
 	
 	int* deviceSum;							//经过的设备数目
 	int* linkSum;							//设备配对的数目
+	int* accumLinkSum;						//linkSum的累加数目
 	DeviceLink* deviceLinkList;				//设备连接列表
 	double* totalVolume;					//该物料的总物流量
 
@@ -277,9 +278,10 @@ struct ProblemParas
 
 			//cargoTypeList = new CargoType[CargoTypeNum];
 			vector<CargoType> tempCargoTypeList;
-			//先统计totalLinkSum;
+			//先统计totalLinkSum和accumLinkSum
 			for (int i = 0; i < CargoTypeNum; i++)
 			{
+				accumLinkSum[i] = totalLinkSum;
 				totalLinkSum += linkSum[i];
 			}
 			deviceLinkList = new DeviceLink[totalLinkSum];

@@ -165,20 +165,21 @@ PSOOptimizer::~PSOOptimizer()//析构函数都需要修改
 //CPU
 void PSOOptimizer::InitialAllParticles()
 {
+	//在CPU中初始化所有粒子
 	for (int i = 0; i < particle_num_; ++i)
 	{
 		InitialParticle(fitness_CPU, position_CPU, velocity_CPU, best_position_CPU, best_fitness_CPU, i);
 	}
 	
-	//CPU->GPU
+	//粒子从CPU->GPU
 	cudaMemcpy(position_GPU, position_CPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyHostToDevice);
 	cudaMemcpy(velocity_GPU, velocity_CPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyHostToDevice);
 	cudaMemcpy(best_position_GPU, best_position_CPU, sizeof(double) * particle_num_ * dim_, cudaMemcpyHostToDevice);
-
 	cudaMemcpy(fitness_GPU, fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
 	cudaMemcpy(best_fitness_GPU, best_fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
-	//计算Fitness值
+	//计算Fitness值 GPU
 	GetFitness(dim_, fitness_count, fitness_CPU, position_CPU, velocity_CPU, best_position_CPU, best_fitness_CPU);
+	//初始化pbest和gbest CPU
 	for (int i = 0; i < particle_num_; ++i)
 	{
 		// 初始化个体最优位置
@@ -305,12 +306,13 @@ void PSOOptimizer::UpdateAllParticles()
 	//更新当前代所有粒子
 	//参数只能从外面传进去
 	UpdateParticle<<<blockSum, threadsPerBlock>>>(curr_iter_, max_iter_num_, dim_, w_, C1_, C2_, dt_,
-			bestPathInfoList, particles_GPU, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, problemParas);//这个是并行的
+			bestPathInfoList, particles_GPU, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, 
+			size, spaceLength, workShopLength, workShopWidth);//这个是并行的
 
 	//计算更新后粒子的适应度值数组
 	//也要改成GPU并行的
 	FitnessFunction<<<blockSum, threadsPerBlock>>>(curIterNum, maxIterNum, bestPathInfoList, problemParas,
-		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);
+		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);//这个也要改
 
 	curr_iter_++;
 }
@@ -318,8 +320,10 @@ void PSOOptimizer::UpdateAllParticles()
 //更新粒子&计算适应度
 static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim, int fitnessCount, double w_, double C1_, double C2_, double dt_, BestPathInfo* bestPathInfoList, 
 	/*用于替代Particle Particle* particles_,*/double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU,
-	curandState* globalState, double* randomNumList,double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, ProblemParas problemParas)
+	curandState* globalState, double* randomNumList,double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, 
+	/*ProblemParas problemParas*/Vector2* size, double* spaceLength, double workShopLength, double workShopWidth)
 {
+	
 	//粒子的下标i需要自己计算
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	//先更新朝向，然后根据朝向调整粒子的范围
@@ -378,21 +382,21 @@ static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim, i
 		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)//这一部分可能也要改（enum是C++语法）
 		{
 			//x和y
-			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 2] = 0 + size[j / 3].y * 0.5 + spaceLength[j / 3];
+			lower_bound_[j - 1] = 0 + size[j / 3].x * 0.5 + spaceLength[j / 3];
 
-			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 2] = workShopLength - size[j / 3].y * 0.5 - spaceLength[j / 3];
+			upper_bound_[j - 1] = workShopWidth - size[j / 3].x * 0.5 - spaceLength[j / 3];
 
 		}
 		else
 		{
 			//x和y
-			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 2] = 0 + size[j / 3].x * 0.5 + spaceLength[j / 3];
+			lower_bound_[j - 1] = 0 + size[j / 3].y * 0.5 + spaceLength[j / 3];
 
-			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 2] = workShopLength - size[j / 3].x * 0.5 - spaceLength[j / 3];
+			upper_bound_[j - 1] = workShopWidth - size[j / 3].y * 0.5 - spaceLength[j / 3];
 
 		}
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
@@ -587,7 +591,7 @@ void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, do
 	vector<Vector2> deviceSizeCopy;
 	for (int i = 0; i < problemParas.DeviceSum; i++)
 	{
-		deviceSizeCopy.push_back(Vector2(problemParas.deviceParaList[i].size.x, problemParas.deviceParaList[i].size.y));
+		deviceSizeCopy.push_back(Vector2(problemParas.size[i].x, problemParas.size[i].y));
 	}
 	for (int j = 2; j < dim_; j += 3)
 	{
@@ -597,11 +601,11 @@ void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, do
 		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
 		{
 			//x和y
-			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 2] = 0 + problemParas.size[j / 3].y * 0.5 + problemParas.spaceLength[j / 3];
+			lower_bound_[j - 1] = 0 + problemParas.size[j / 3].x * 0.5 + problemParas.spaceLength[j / 3];
 
-			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.size[j / 3].y * 0.5 - problemParas.spaceLength[j / 3];
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.size[j / 3].x * 0.5 - problemParas.spaceLength[j / 3];
 
 			//size的x和y需要互换
 			swap(deviceSizeCopy[j / 3].x, deviceSizeCopy[j / 3].y);
@@ -609,12 +613,11 @@ void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, do
 		else
 		{
 			//x和y
-			lower_bound_[j - 2] = 0 + problemParas.deviceParaList[j / 3].size.x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-			lower_bound_[j - 1] = 0 + problemParas.deviceParaList[j / 3].size.y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+			lower_bound_[j - 2] = 0 + problemParas.size[j / 3].x * 0.5 + problemParas.spaceLength[j / 3];
+			lower_bound_[j - 1] = 0 + problemParas.size[j / 3].y * 0.5 + problemParas.spaceLength[j / 3];
 
-			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.deviceParaList[j / 3].size.x * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.deviceParaList[j / 3].size.y * 0.5 - problemParas.deviceParaList[j / 3].spaceLength;
-
+			upper_bound_[j - 2] = problemParas.workShopLength - problemParas.size[j / 3].x * 0.5 - problemParas.spaceLength[j / 3];
+			upper_bound_[j - 1] = problemParas.workShopWidth - problemParas.size[j / 3].y * 0.5 - problemParas.spaceLength[j / 3];
 		}
 		range_interval_[j - 2] = upper_bound_[j - 2] - lower_bound_[j - 2];
 		range_interval_[j - 1] = upper_bound_[j - 1] - lower_bound_[j - 1];
@@ -675,8 +678,8 @@ void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, do
 			while (Xstart <= upper_bound_[j] - 1 && findParticle == false) {
 				tempPositionX = GetDoubleRand() * 1.0 + Xstart;//得到Xstart到Xstart+1之间的一个随机数
 				tempPositionY = GetDoubleRand() * 1.0 + Ystart;//得到Ystart到Ystart+1之间的一个随机数
-				double halfX = deviceSizeCopy[j / 3].x * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
-				double halfY = deviceSizeCopy[j / 3].y * 0.5 + problemParas.deviceParaList[j / 3].spaceLength;
+				double halfX = deviceSizeCopy[j / 3].x * 0.5 + problemParas.spaceLength[j / 3];
+				double halfY = deviceSizeCopy[j / 3].y * 0.5 + problemParas.spaceLength[j / 3];
 				double tempLowX = tempPositionX - halfX;
 				double tempUpX = tempPositionX + halfX;
 				double tempLowY = tempPositionY - halfY;
@@ -689,8 +692,8 @@ void PSOOptimizer::InitialParticle(double* fitness_CPU, double* position_CPU, do
 					int curDeviceIndex = madeDeviceIndexVec[k];
 					int curDimIndex = curDeviceIndex * 3;
 
-					double halfX1 = deviceSizeCopy[curDeviceIndex].x * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
-					double halfY1 = deviceSizeCopy[curDeviceIndex].y * 0.5 + problemParas.deviceParaList[curDeviceIndex].spaceLength;
+					double halfX1 = deviceSizeCopy[curDeviceIndex].x * 0.5 + problemParas.spaceLength[curDeviceIndex];
+					double halfY1 = deviceSizeCopy[curDeviceIndex].y * 0.5 + problemParas.spaceLength[curDeviceIndex];
 
 					double curLowX = position_CPU[i * dim_ + curDimIndex] - halfX1;
 					double curUpX = position_CPU[i * dim_ + curDimIndex] + halfX1;
