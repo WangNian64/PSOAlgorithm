@@ -116,12 +116,12 @@ struct PSOPara
 struct BestPathInfo
 {
 	double curBestFitnessVal;//当前目标的最优值，用于判断是否更新 fitnessCount
-	int inoutPSize;//出入口点的总数目	fitnessCount
-	InoutPoint* inoutPoints;//出入口点的集合  人为设置
+	int inoutPSize;//出入口点的总数目	fitnessCount * 
+	InoutPoint* inoutPoints;//出入口点的集合  人为设置 
 	StraightConveyorInfo* strConveyorList;//直线输送机信息列表 人为设置
-	int strConveyorListSum; //fitnessCount
+	int strConveyorListSum;//fitnessCount
 	Vector2Int* curveConveyorList;//转弯输送机信息列表 人为设置
-	int curveConveyorListSum;	//fitnessCount
+	int curveConveyorListSum;//fitnessCount
 	BestPathInfo() {
 		curBestFitnessVal = INT_MAX;
 	}
@@ -292,14 +292,22 @@ public:
 	vector<Particle> archive_list;			//存放pareto非劣解的数组 CPU
 	int archiveList_CurSize;				//当前的archiveList大小
 	int archiveMaxCount;					//archive数组的最大数目
-	BestPathInfo* bestPathInfoList;		//最优路径信息   ////////////
 
+	BestPathInfo* bestPathInfoList;		//最优路径信息   ////////////
+	//在原来的基础上 * 粒子数目
+	double* curBestFitnessVal;//当前目标的最优值，用于判断是否更新 1
+	int inoutPSize;//出入口点的总数目(totalInPoint + totalOutPoint)	1
+	InoutPoint* inoutPoints;//出入口点的集合  totalInPoint + totalOutPoint
+
+	StraightConveyorInfo* strConveyorList;//直线输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
+	int* strConveyorListSum;//直线输送机信息数目列表 1
+	Vector2Int* curveConveyorList;//转弯输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
+	int* curveConveyorListSum;//转弯输送机信息数目列表 1
 public:
 	// 默认构造函数
 	PSOOptimizer() {}
 
 	// 构造函数
-	
 	PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas);
 
 	// 析构函数

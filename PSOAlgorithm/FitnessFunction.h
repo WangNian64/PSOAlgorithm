@@ -48,20 +48,23 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, 
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList,/*唯一的全局参数*/
 	/*ProblemParas proParas, 固定参数的，不用管*/
 	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
 	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
-	int CargoTypeNum, int totalLinkSum, 
+	int CargoTypeNum, int totalLinkSum,
 
 	/*CargoType* 固定参数*/
-	int* deviceSum, int* linkSum, int* accumLinkSum, DeviceLink* deviceLinkList, double* totalVolume,
+	/*int* deviceSum, */int* linkSum, int* accumLinkSum, DeviceLink* deviceLinkList, double* totalVolume,
 
-	/*DevicePara* 部分参数*/
-	 Vector2* size, double* spaceLength, int* adjPInCount, int* adjPOutCount, int* accumAdjPInCount, int* accumAdjPOutCount,
-	int totalInPoint, int totalOutPoint, AdjPoint* adjPointsIn, AdjPoint* adjPointsOut, 
+	/*DevicePara* 除了size其他的也是固定的*/
+	Vector2* size, double* spaceLength, int* adjPInCount, int* adjPOutCount, int* accumAdjPInCount, int* accumAdjPOutCount,
+	int totalInPoint, int totalOutPoint, AdjPoint* adjPointsIn, AdjPoint* adjPointsOut,
 	/*Particle*/
-	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU)
+	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, /*double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU*/
+	/*存储所有粒子输送线路信息*/
+	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
+	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum)
 {
 	//粒子的下标i需要自己计算
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -995,7 +998,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 #pragma region 计算出入口点的集合坐标
 		//现在in和out点被分开了
 		//然后给所有的inoutPoint赋值
-		InoutPoint* tempInoutPoints = new InoutPoint[totalInPoint + totalOutPoint];
+		//InoutPoint* tempInoutPoints = new InoutPoint[totalInPoint + totalOutPoint];
 		int ioPIndex = 0;
 		for (int i = 0; i < DeviceSum; i++)
 		{
@@ -1006,7 +1009,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				tempInoutPoints[ioPIndex++] = ioPoint;
+				inoutPoints[index * inoutPSize + ioPIndex] = ioPoint;//注意偏移值
+				ioPIndex++;
 			}
 			for (int pointIndex = 0; pointIndex < adjPOutCount[i]; ++pointIndex)
 			{
@@ -1015,7 +1019,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1]);
 				ioPoint.pointAxis = axis;
-				tempInoutPoints[ioPIndex++] = ioPoint;
+				inoutPoints[index * inoutPSize + ioPIndex] = ioPoint;//注意偏移值
+				ioPIndex++;
 			}
 		}
 
@@ -1510,12 +1515,12 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 
 		//直线输送机信息列表
 		int tempStrConveyorList_PointSum = fixedUniqueLinkPointSum * totalLinkSum;//20个点
-		StraightConveyorInfo* tempStrConveyorList = new StraightConveyorInfo[tempStrConveyorList_PointSum];
+		//StraightConveyorInfo* tempStrConveyorList = new StraightConveyorInfo[tempStrConveyorList_PointSum];
 		int tempStrConveyorList_CurIndex = 0;
 
 		//转弯输送机信息列表
 		int tempCurveConveyorList_PointSum = fixedUniqueLinkPointSum * totalLinkSum;//20个点
-		Vector2Int* tempCurveConveyorList = new Vector2Int[tempCurveConveyorList_PointSum];
+		//Vector2Int* tempCurveConveyorList = new Vector2Int[tempCurveConveyorList_PointSum];
 		int tempCurveConveyorList_CurIndex = 0;
 
 		for (int i = 0; i < totalLinkSum; i++) {
@@ -1545,7 +1550,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 						//这个地方进行去重的
 						//如果没有set，只能先排序+去重复了
 						//注意每个p既是终点也是下一个的起点
-						tempStrConveyorList[tempStrConveyorList_CurIndex++] = tempStrInfo;////
+						strConveyorList[index * tempStrConveyorList_PointSum + tempStrConveyorList_CurIndex++] = tempStrInfo;//注意偏移值
 						tempStrInfo.startPos = p;
 						tempStrInfo.startVnum = pPathPoint.vertDirNum;
 						tempStrInfo.startHnum = pPathPoint.horiDirNum;
@@ -1554,7 +1559,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 					if (!(pPathPoint.horiDirNum == 1 && pPathPoint.vertDirNum == 0)
 						&& !(pPathPoint.horiDirNum == 0 && pPathPoint.vertDirNum == 1)) {
 						//tempCurveConveyorList.insert(p);////
-						tempCurveConveyorList[tempCurveConveyorList_CurIndex++] = p;
+						curveConveyorList[index * tempCurveConveyorList_PointSum + tempCurveConveyorList_CurIndex++] = p;
 					}
 				}
 			}
@@ -1565,37 +1570,29 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 		//遍历直线和转弯输送机的set，得到输送机的总成本
 		double conveyorTotalCost = 0.0;
 		for (int i = 0; i < tempStrConveyorList_CurIndex; i++) {
-			conveyorTotalCost += strConveyorUnitCost * 
-				tempStrConveyorList[i].startPos.Distance(tempStrConveyorList[i].endPos);
+			conveyorTotalCost += strConveyorUnitCost * strConveyorList[index * tempStrConveyorList_PointSum + i]
+				.startPos.Distance(strConveyorList[index * tempStrConveyorList_PointSum + i].endPos);
 		}
 		conveyorTotalCost += curveConveyorUnitCost * tempStrConveyorList_CurIndex;
 		//设置适应度值
-
-		//particle.fitness_[0] = 1000;
 		fitness_GPU[index * fitnessCount + 0] = totalTime;
-		//particle.fitness_[0] = totalTime + punishValue1;
-
-		//particle.fitness_[1] = CalcuTotalArea(particle, copyDeviceParas);//占地面积？
-		//particle.fitness_[1] = 1000;
 		fitness_GPU[index * fitnessCount + 1] = conveyorTotalCost;
-		//particle.fitness_[1] = conveyorTotalCost + punishValue2;
 
-		//cout << particle.fitness_[0] << "," << particle.fitness_[1] << endl;
-
+		//上面相当于计算出了可能的最佳输送线，现在需要更新bestPathInfoList
 		//根据适应度是否升级选择更新BestPathInfoList
 		for (int i = 0; i < fitnessCount; ++i) {
 			if (fitness_GPU[index * fitnessCount + i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
-				bestPathInfoList[i].inoutPoints = tempInoutPoints;
-				bestPathInfoList[i].inoutPSize = totalInPoint + totalOutPoint;/////////////可能有问题
-				bestPathInfoList[i].strConveyorList = tempStrConveyorList;
-				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小要记录
-				bestPathInfoList[i].curveConveyorList = tempCurveConveyorList;
-				bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;
+				bestPathInfoList[i].inoutPoints = inoutPoints + index * inoutPSize;//注意偏移值
+				bestPathInfoList[i].inoutPSize = totalInPoint + totalOutPoint;//可能有问题
+				bestPathInfoList[i].strConveyorList = strConveyorList + index * tempStrConveyorList_PointSum;
+				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小要记录，初始分配大小：fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
+				bestPathInfoList[i].curveConveyorList = curveConveyorList + index * tempCurveConveyorList_PointSum;
+				bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;//fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
 				bestPathInfoList[i].curBestFitnessVal = fitness_GPU[index * fitnessCount + i];
 			}
 		}
 #pragma endregion
-
+		
 		delete[] DeviceLowXList;
 		delete[] DeviceHighXList;
 		delete[] DeviceLowYList;

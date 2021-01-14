@@ -136,21 +136,33 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 
 
 
-	//CargoType* cargoTypeList;			//货物类型列表
+	//CargoType* cargoTypeList;						//货物类型列表
 	//数目：CargoTypeNum
-	CargoTypeNum = problemParas.CargoTypeNum;						//货物类型数目
-	totalLinkSum = problemParas.totalLinkSum;						//总的连接线数目
+	CargoTypeNum = problemParas.CargoTypeNum;		//货物类型数目
+	totalLinkSum = problemParas.totalLinkSum;		//总的连接线数目
 
 	cudaMalloc((void**)& deviceSum, sizeof(int)* CargoTypeNum);
 	cudaMalloc((void**)& linkSum, sizeof(int)* CargoTypeNum);
 	cudaMalloc((void**)& totalVolume, sizeof(double)* CargoTypeNum);
-
 	cudaMalloc((void**)& deviceLinkList, sizeof(DeviceLink)* totalLinkSum);
 	//CPU赋值到GPU
 	cudaMemcpy(deviceSum, problemParas.deviceSum, sizeof(int)* CargoTypeNum, cudaMemcpyHostToDevice);
 	cudaMemcpy(linkSum, problemParas.linkSum, sizeof(double)* CargoTypeNum, cudaMemcpyHostToDevice);
 	cudaMemcpy(deviceLinkList, problemParas.deviceLinkList, sizeof(DeviceLink)* totalLinkSum, cudaMemcpyHostToDevice);
 	cudaMemcpy(totalVolume, problemParas.totalVolume, sizeof(double)* CargoTypeNum, cudaMemcpyHostToDevice);
+	
+
+	/*BestPathInfo* bestPathInfoList*/
+	//数目：particle_num_
+	//GPU内存分配
+	cudaMalloc((void**)& curBestFitnessVal, sizeof(double) * particle_num_);
+	//cudaMalloc((void**)& inoutPSize, sizeof(int) * particle_num_);
+	cudaMalloc((void**)& inoutPoints, sizeof(int) * (totalInPoint + totalOutPoint) * particle_num_);
+	cudaMalloc((void**)& strConveyorList, sizeof(int) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
+	cudaMalloc((void**)& strConveyorListSum, sizeof(int) * particle_num_);
+	cudaMalloc((void**)& curveConveyorList, sizeof(int) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
+	cudaMalloc((void**)& curveConveyorListSum, sizeof(int) * particle_num_);
+	//不需要设置初始值（在fitnessFunction中设置）
 }
 
 PSOOptimizer::~PSOOptimizer()//析构函数都需要修改
