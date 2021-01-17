@@ -20,8 +20,8 @@ int main()
 		//CPU
 		ProblemParas proParas(inputFile);					//初始化所有设备相关参数 
 
-		int ThreadsPerBlock = 100;//一个Block中100个thread
-		int BlockSum = 1;//Block的数目
+		int ThreadsPerBlock = 100;							//一个Block中100个thread
+		int BlockSum = 1;									//Block的数目
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
 		//CPU
 		PSOPara psopara(dim);					

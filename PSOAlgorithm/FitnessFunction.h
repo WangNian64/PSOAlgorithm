@@ -37,7 +37,7 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex, /*BestPathInfo* bestPathInfoList,/*唯一的全局参数*/
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
 	/*ProblemParas proParas, 固定参数的，不用管*/
 	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
 	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
@@ -54,9 +54,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	/*存储所有粒子输送线路信息*/
 	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
 	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum,
-	/*BestPathInfo* bestPathInfoList*/
-	double curBestPath_FitnessVal, int curBestPath_InoutPSize, InoutPoint* curBestPath_InoutPoints, StraightConveyorInfo* curBestPath_StrConveyorList, 
-	int curBestPath_StrConveyorListSum, Vector2Int* curBestPath_CurveConveyorList, int curBestPath_CurveConveyorListSum,
+
 	int* pointDirectArray)
 {
 	//粒子的下标i需要自己计算
@@ -71,21 +69,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	//数目：DeviceSum
 	//DevicePara* copyDeviceParas_copy = new DevicePara[DeviceSum];
 	//只有size需要copy
-	//int* ID_copy = new int[DeviceSum];								//设备ID
-	//double* workSpeed_copy = new double[DeviceSum];					//加工/处理1单位物料的时间
 	Vector2* size_copy = new Vector2[DeviceSum];					//设备尺寸（分别是x轴和y轴的长度）
-	//Vector2* axis_copy = new Vector2[DeviceSum];					//设备坐标
-	//DeviceDirect* direct_copy = new DeviceDirect[DeviceSum];		//设备朝向
-	//double* spaceLength_copy = new double[DeviceSum];				//空隙（为了实现距离约束）
-	//出入口点的数组（会影响输送线的布局）
-	//int* adjPInCount_copy = new int[DeviceSum];
-	//int* adjPOutCount_copy = new int[DeviceSum];
-	//int* accumAdjPInCount_copy = new int[DeviceSum];
-	//int* accumAdjPOutCount_copy = new int[DeviceSum];
-	//int totalInPoint;							//入口点的总数目
-	//int totalOutPoint;						//出口点的总数目
-	//AdjPoint* adjPointsIn_copy = new AdjPoint[totalInPoint];		//入口
-	//AdjPoint* adjPointsOut_copy = new AdjPoint[totalOutPoint];		//出口
 
 	//只有size需要复制一份新的
 	for (int i = 0; i < DeviceSum; i++)
@@ -105,7 +89,9 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		DeviceDirect curDirect = (DeviceDirect)(int)position_GPU[index * dim + i];
 		if (curDirect == DeviceDirect::Rotate90 || curDirect == DeviceDirect::Rotate270)
 		{
-			swap(size_copy[i / 3].x, size_copy[i / 3].y);
+			double tempX = size_copy[i / 3].x;
+			size_copy[i / 3].x = size_copy[i / 3].y;
+			size_copy[i / 3].y = tempX;
 		}
 		//重新计算旋转后的出入口坐标
 		Vector2 deviceCenterPos(0, 0);
@@ -1609,7 +1595,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	return;
 }
 //顺时针旋转后的坐标
-Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle)
+__device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle)
 {
 	float xx = (pointPos.x - centerPos.x) * cos(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * sin(rotateAngle * (PI / 180)) + centerPos.x;
 	float yy = -(pointPos.x - centerPos.x) * sin(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * cos(rotateAngle * (PI / 180)) + centerPos.y;
