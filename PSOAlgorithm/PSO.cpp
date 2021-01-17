@@ -23,7 +23,8 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	meshDivCount = pso_para->mesh_div_count;
 	archiveMaxCount = pso_para->archive_max_count;
 
-
+	//不用赋值
+	cudaMalloc((void**)& bestParticleIndex, sizeof(int));
 
 	//给CPU粒子分配空间
 	position_CPU = (double*)malloc(sizeof(double) * particle_num_ * dim_);
@@ -37,6 +38,7 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMalloc((void**)& velocity_GPU, sizeof(double) * particle_num_ * dim_);
 	cudaMalloc((void**)& best_position_GPU, sizeof(double) * particle_num_ * dim_);
 
+	//////////////特殊，分配空间需要是2的n次方
 	cudaMalloc((void**)& fitness_GPU, sizeof(double) * particle_num_ * fitness_count);
 	cudaMalloc((void**)& best_fitness_GPU, sizeof(double) * particle_num_ * fitness_count);
 
@@ -152,19 +154,102 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMemcpy(totalVolume, problemParas.totalVolume, sizeof(double)* CargoTypeNum, cudaMemcpyHostToDevice);
 	
 
-	/*BestPathInfo* bestPathInfoList*/
+	/*所有粒子的输送线信息存储*/
 	//数目：particle_num_
 	//GPU内存分配
 	cudaMalloc((void**)& curBestFitnessVal, sizeof(double) * particle_num_);
+	inoutPSize = totalInPoint + totalOutPoint;
 	//cudaMalloc((void**)& inoutPSize, sizeof(int) * particle_num_);
-	cudaMalloc((void**)& inoutPoints, sizeof(int) * (totalInPoint + totalOutPoint) * particle_num_);
-	cudaMalloc((void**)& strConveyorList, sizeof(int) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
+	cudaMalloc((void**)& inoutPoints, sizeof(InoutPoint) * (totalInPoint + totalOutPoint) * particle_num_);
+	cudaMalloc((void**)& strConveyorList, sizeof(StraightConveyorInfo) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
 	cudaMalloc((void**)& strConveyorListSum, sizeof(int) * particle_num_);
-	cudaMalloc((void**)& curveConveyorList, sizeof(int) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
+	cudaMalloc((void**)& curveConveyorList, sizeof(Vector2Int) * fixedUniqueLinkPointSum * totalLinkSum * particle_num_);
 	cudaMalloc((void**)& curveConveyorListSum, sizeof(int) * particle_num_);
-	//不需要设置初始值（在fitnessFunction中设置）
-}
+	
 
+	//当前的最佳输送线信息
+	//数目1(先考虑适应度1）
+	//GPU内存分配	
+	cudaMalloc((void**)& curBestPath_FitnessVal, sizeof(double));
+	cudaMalloc((void**)& curBestPath_InoutPoints, sizeof(InoutPoint) * inoutPSize);
+	cudaMalloc((void**)& curBestPath_StrConveyorList, sizeof(StraightConveyorInfo)* fixedUniqueLinkPointSum * totalLinkSum);
+	cudaMalloc((void**)& curBestPath_StrConveyorListSum, sizeof(int));
+	cudaMalloc((void**)& curBestPath_CurveConveyorList, sizeof(Vector2Int) * fixedUniqueLinkPointSum * totalLinkSum);
+	cudaMalloc((void**)& curBestPath_CurveConveyorListSum, sizeof(int));
+	//初始化
+	InitCurBestPathFit<<<1, 1>>>(curBestPath_FitnessVal);
+
+	//
+	cudaMalloc((void**)& pointDirectArray, sizeof(int) * 25);
+	InitPointDirectArray(pointDirectArray);
+}
+static __global__ void InitPointDirectArray(int* pointDirectArray)
+{
+	pointDirectArray[0] = -1;
+	pointDirectArray[1] = -1;
+	pointDirectArray[2] = -1;
+	pointDirectArray[3] = -1;
+	pointDirectArray[4] = -1;
+
+	pointDirectArray[5] = -1;
+	pointDirectArray[6] = 1;
+	pointDirectArray[7] = 2;
+	pointDirectArray[8] = 3;
+	pointDirectArray[9] = 4;
+
+	pointDirectArray[10] = -1;
+	pointDirectArray[11] = 5;
+	pointDirectArray[12] = 6;
+	pointDirectArray[13] = 7;
+	pointDirectArray[14] = 8;
+
+	pointDirectArray[15] = -1;
+	pointDirectArray[16] = 9;
+	pointDirectArray[17] = 10;
+	pointDirectArray[18] = 11;
+	pointDirectArray[19] = 12;
+
+	pointDirectArray[20] = -1;
+	pointDirectArray[21] = 13;
+	pointDirectArray[22] = 14;
+	pointDirectArray[23] = 15;
+	pointDirectArray[24] = 16;
+}
+static __global__ void InitCurBestPathFit(double* curBestPath_FitnessVal)
+{
+	curBestPath_FitnessVal[0] = 1000000;
+}
+//更新当前最佳输送线路信息
+//只需要执行一次
+static __global__ void UpdateCurBestPathInfo(int fitnessCount, double* fitness_GPU, int* bestParticleIndex, 
+	int tempStrConveyorList_PointSum, int tempCurveConveyorList_PointSum,
+	/*所有的输送线信息*/
+	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
+	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum,
+	/*最佳的输送线信息*/
+	double* curBestPath_FitnessVal, int curBestPath_InoutPSize, InoutPoint* curBestPath_InoutPoints, StraightConveyorInfo* curBestPath_StrConveyorList,
+	int* curBestPath_StrConveyorListSum, Vector2Int* curBestPath_CurveConveyorList, int* curBestPath_CurveConveyorListSum)
+{
+	//用curbest和所有的输送线最佳比较，更新curBest
+	//这个应该只要更新一次
+	//转移数据只能用复制的方法了
+	int bestIndex = bestParticleIndex[0];//最佳粒子对应的下标
+	if (curBestPath_FitnessVal[0] > fitness_GPU[bestIndex * fitnessCount + 0]) {
+		curBestPath_FitnessVal[0] = fitness_GPU[bestIndex * fitnessCount + 0];//注意偏移值
+		for (int i = 0; i < curBestPath_InoutPSize; i++)
+		{
+			curBestPath_InoutPoints[i] = inoutPoints[bestIndex * inoutPSize + i];
+		}
+		for (int i = 0; i < strConveyorListSum[bestIndex]; i++) {
+			curBestPath_StrConveyorList[i] = strConveyorList[bestIndex * tempStrConveyorList_PointSum + i];
+		}
+		curBestPath_StrConveyorListSum[0] = strConveyorListSum[bestIndex];
+		for (int i = 0; i < curveConveyorListSum[bestIndex]; i++) {
+			curBestPath_CurveConveyorList[i] = curveConveyorList[bestIndex * tempCurveConveyorList_PointSum + i];
+		}
+		curBestPath_CurveConveyorListSum[0] = curveConveyorListSum[bestIndex];
+	}
+}
 PSOOptimizer::~PSOOptimizer()//析构函数都需要修改
 {
 	if (upper_bound_) { delete[]upper_bound_; }

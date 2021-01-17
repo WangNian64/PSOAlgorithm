@@ -182,7 +182,8 @@ public:
 	int blockNum;							//block的总数目
 	int threadsPerBlock;					//每个block的thread数目
 
-	int particle_num_;						//粒子个数
+	int particle_num_;						//粒子个数		
+
 	int max_iter_num_;						//最大迭代次数
 	int curr_iter_;							//当前迭代次数
 	int meshDivCount;						//网格等分因子（默认为10）
@@ -191,6 +192,8 @@ public:
 	int fitness_count;						//适应度数目
 	//Particle* particles_GPU;				//所有粒子（GPU）
 	//Particle* particles_CPU;				//所有粒子（CPU）
+	
+	int* bestParticleIndex;					//每轮迭代中最优Fitness所在的index
 
 	//粒子参数CPU
 	double* fitness_CPU;					//适应度数组 总长度：粒子数目*fitnessCount
@@ -293,16 +296,33 @@ public:
 	int archiveList_CurSize;				//当前的archiveList大小
 	int archiveMaxCount;					//archive数组的最大数目
 
-	BestPathInfo* bestPathInfoList;		//最优路径信息   ////////////
+	//存储每轮迭代中所有粒子的输送线信息
 	//在原来的基础上 * 粒子数目
 	double* curBestFitnessVal;//当前目标的最优值，用于判断是否更新 1
-	int inoutPSize;//出入口点的总数目(totalInPoint + totalOutPoint)	1
+	int inoutPSize;//出入口点的总数目(totalInPoint + totalOutPoint)	1&数目固定
 	InoutPoint* inoutPoints;//出入口点的集合  totalInPoint + totalOutPoint
 
 	StraightConveyorInfo* strConveyorList;//直线输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
-	int* strConveyorListSum;//直线输送机信息数目列表 1
+	int* strConveyorListSum;//直线输送机信息数目列表（数目不固定）
 	Vector2Int* curveConveyorList;//转弯输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
-	int* curveConveyorListSum;//转弯输送机信息数目列表 1
+	int* curveConveyorListSum;//转弯输送机信息数目列表
+
+	//存储当前最优的粒子的输送线信息
+	//先默认只存适应度1
+	//BestPathInfo* bestPathInfoList;		//最优路径信息
+	double* curBestPath_FitnessVal;//当前目标的最优值，用于判断是否更新 1
+	InoutPoint* curBestPath_InoutPoints;//出入口点的集合  totalInPoint + totalOutPoint
+	StraightConveyorInfo* curBestPath_StrConveyorList;//直线输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
+	int* curBestPath_StrConveyorListSum;//直线输送机信息数目列表 1
+	Vector2Int* curBestPath_CurveConveyorList;//转弯输送机信息列表 fixedUniqueLinkPointSum * totalLinkSum
+	int* curBestPath_CurveConveyorListSum;//转弯输送机信息数目列表 1
+
+
+	//Up = 1, Right = 2, Down = 3, Left = 4
+	//一共10种情况：上下，左右，下下，上上，左左，右右，
+	//上左，上右，下左，下右
+	//横竖的顺序都是上下左右
+	int* pointDirectArray;
 public:
 	// 默认构造函数
 	PSOOptimizer() {}

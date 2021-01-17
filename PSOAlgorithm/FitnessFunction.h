@@ -3,18 +3,7 @@
 #include "AStar.h"
 #include <algorithm>
 #include <math.h>
-//Up = 1, Right = 2, Down = 3, Left = 4
-//一共10种情况：上下，左右，下下，上上，左左，右右，
-//上左，上右，下左，下右
-//横竖的顺序都是上下左右
-int pointDirectArray[5][5] = {
-		{-1, -1, -1, -1, -1},
-		//上 右 下 左
-		/*上*/{-1, 1, 2, 3, 4},
-		/*右*/{-1, 5, 6, 7, 8},
-		/*下*/{-1, 9, 10, 11, 12},
-		/*左*/{-1, 13, 14, 15, 16},
-};
+
 #pragma region 判断两个坐标的上下或者左右关系
 bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
@@ -48,7 +37,7 @@ int Multi10000ToInt(double num);
 
 Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList,/*唯一的全局参数*/
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex, /*BestPathInfo* bestPathInfoList,/*唯一的全局参数*/
 	/*ProblemParas proParas, 固定参数的，不用管*/
 	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
 	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
@@ -64,11 +53,14 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, /*double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU*/
 	/*存储所有粒子输送线路信息*/
 	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
-	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum)
+	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum,
+	/*BestPathInfo* bestPathInfoList*/
+	double curBestPath_FitnessVal, int curBestPath_InoutPSize, InoutPoint* curBestPath_InoutPoints, StraightConveyorInfo* curBestPath_StrConveyorList, 
+	int curBestPath_StrConveyorListSum, Vector2Int* curBestPath_CurveConveyorList, int curBestPath_CurveConveyorListSum,
+	int* pointDirectArray)
 {
 	//粒子的下标i需要自己计算
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
-
 	double punishValue1 = 0;
 	double punishValue2 = 0;
 	bool IsDeviceOverlap = false;//是否重叠
@@ -95,29 +87,11 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 	//AdjPoint* adjPointsIn_copy = new AdjPoint[totalInPoint];		//入口
 	//AdjPoint* adjPointsOut_copy = new AdjPoint[totalOutPoint];		//出口
 
-	//将GPU的复制到这里面
+	//只有size需要复制一份新的
 	for (int i = 0; i < DeviceSum; i++)
 	{
-		//ID_copy[i] = ID[i];
-		//workSpeed_copy[i] = workSpeed[i];
 		size_copy[i] = size[i];
-		//axis_copy[i] = axis[i];
-		//direct_copy[i] = direct[i];
-		//spaceLength_copy[i] = spaceLength[i];
-		//adjPInCount_copy[i] = adjPInCount[i];
-		//adjPOutCount_copy[i] = adjPOutCount[i];
-
-		//accumAdjPInCount_copy[i] = accumAdjPInCount[i];
-		//accumAdjPOutCount_copy[i] = accumAdjPOutCount[i];
 	}
-	//for (int i = 0; i < totalInPoint; i++)
-	//{
-	//	adjPointsIn_copy[i] = adjPointsIn[i];
-	//}
-	//for (int i = 0; i < totalOutPoint; i++)
-	//{
-	//	adjPointsOut_copy[i] = adjPointsOut[i];
-	//}
 #pragma endregion
 
 #pragma region 根据设备朝向，调整设备尺寸xy和出入口坐标
@@ -541,7 +515,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 					//	/*右*/{-1, 5, 6, 7, 8},
 					//	/*下*/{-1, 9, 10, 11, 12},
 					//	/*左*/{-1, 13, 14, 15, 16},
-					switch (pointDirectArray[outPointDirect][inPointDirect])
+					switch (pointDirectArray[outPointDirect * 5 + inPointDirect])
 					{
 					case 1://上上
 					{
@@ -1580,19 +1554,52 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* be
 
 		//上面相当于计算出了可能的最佳输送线，现在需要更新bestPathInfoList
 		//根据适应度是否升级选择更新BestPathInfoList
-		for (int i = 0; i < fitnessCount; ++i) {
-			if (fitness_GPU[index * fitnessCount + i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
-				bestPathInfoList[i].inoutPoints = inoutPoints + index * inoutPSize;//注意偏移值
-				bestPathInfoList[i].inoutPSize = totalInPoint + totalOutPoint;//可能有问题
-				bestPathInfoList[i].strConveyorList = strConveyorList + index * tempStrConveyorList_PointSum;
-				bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小要记录，初始分配大小：fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
-				bestPathInfoList[i].curveConveyorList = curveConveyorList + index * tempCurveConveyorList_PointSum;
-				bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;//fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
-				bestPathInfoList[i].curBestFitnessVal = fitness_GPU[index * fitnessCount + i];
+		//一个可以并行计算最大值的归约算法
+		__shared__ int* particleIndexList = new int[particleNum];
+		//为其赋值
+		particleIndexList[index] = index;
+		//等待每个线程赋值完成
+		__syncthreads();
+		//实现归约，查找所有粒子中最佳粒子的index(最佳index存到bestParticleIndex[0])
+		int leng = particleNum;
+		for (int i = particleNum / 2.0 + 0.5; i > 1; i = i / 2.0 + 0.5)
+		{
+			if (index < i)
+			{
+				if (index + i < leng)
+				{
+					//默认处理适应度1
+					if (fitness_GPU[particleIndexList[index] * fitnessCount + 0] 
+						< fitness_GPU[(particleIndexList[index] + i) * fitnessCount + 0]) {
+						//交换
+						int temp = particleIndexList[index];
+						particleIndexList[index] = particleIndexList[index + i];
+						particleIndexList[index + i] = temp;
+					}
+				}
 			}
+			__syncthreads();
+			leng = leng / 2.0 + 0.5;
 		}
+		if (index == 0)
+		{
+			bestParticleIndex[0] = fitness_GPU[particleIndexList[0] * fitnessCount + 0] > fitness_GPU[particleIndexList[1] * fitnessCount + 0]
+				? particleIndexList[0] : particleIndexList[1];
+		}
+		__syncthreads();
+		//bestParticleIndex[0]存的是最佳的fitness对应的粒子下标
+		//for (int i = 0; i < fitnessCount; ++i) {
+		//	if (fitness_GPU[index * fitnessCount + i] < bestPathInfoList[i].curBestFitnessVal) {//需要更新
+		//		bestPathInfoList[i].curBestFitnessVal = fitness_GPU[index * fitnessCount + i];
+		//		bestPathInfoList[i].inoutPoints = inoutPoints + index * inoutPSize;//注意偏移值
+		//		bestPathInfoList[i].inoutPSize = totalInPoint + totalOutPoint;//可能有问题
+		//		bestPathInfoList[i].strConveyorList = strConveyorList + index * tempStrConveyorList_PointSum;
+		//		bestPathInfoList[i].strConveyorListSum = tempStrConveyorList_CurIndex;//大小要记录，初始分配大小：fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
+		//		bestPathInfoList[i].curveConveyorList = curveConveyorList + index * tempCurveConveyorList_PointSum;
+		//		bestPathInfoList[i].curveConveyorListSum = tempCurveConveyorList_CurIndex;//fixedUniqueLinkPointSum * totalLinkSum * fitnessCount
+		//	}
+		//}
 #pragma endregion
-		
 		delete[] DeviceLowXList;
 		delete[] DeviceHighXList;
 		delete[] DeviceLowYList;
