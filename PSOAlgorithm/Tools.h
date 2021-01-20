@@ -14,10 +14,25 @@
 #define MAX_FITNESS 10000000.0
 using namespace std;
 //所有函数都加上定义
+//生成一个随机数
+__device__ float createARandomNum(curandState* globalState, int index);
+static __device__ double getAbs(double num)
+{
+	return num > 0 ? num : -num;
+}
 
+static __device__ double getMax(double a, double b)
+{
+	return a > b ? a : b;
+}
+
+static __device__ double getMin(double a, double b)
+{
+	return a < b ? a : b;
+}
 //判断两个区间是否重叠
-static bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {
-	if (max(low1, low2) <= min(upper1, upper2)) {
+static __device__ bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {
+	if (getMax(low1, low2) <= getMin(upper1, upper2)) {
 		return true;
 	}
 	else
@@ -69,17 +84,17 @@ static unsigned GetRamdonSeed()
 	return res;
 }
 //快速排序（DeviceIDSize版本）
-static void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
+static __device__ void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
 {
 	if (start < end) {
-		int pivot = Double_Partition(sizeArray, start, end);
+		int pivot = DeviceIDSize_Partition(sizeArray, start, end);
 		DeviceIDSize_Sort(sizeArray, start, pivot - 1);
 		DeviceIDSize_Sort(sizeArray, pivot + 1, end);
 	}
 }
-int Double_Partition(DeviceIDSize* sizeArray, int start, int end)
+__device__ int DeviceIDSize_Partition(DeviceIDSize* sizeArray, int start, int end)
 {
-	DeviceIDSize& temp = sizeArray[start];
+	DeviceIDSize& temp = sizeArray[start];//引用可以使用吗？？？
 	double tempSize = temp.size.x * temp.size.y;
 	int i = start;
 	int j = end;
@@ -95,9 +110,8 @@ int Double_Partition(DeviceIDSize* sizeArray, int start, int end)
 	return i;
 }
 //快速排序（double版本）
-static int Double_Partition(double* numArray, int start, int end)
+static __device__ int Double_Partition(double* numArray, int start, int end)
 {
-
 	double temp = numArray[start];
 	int i = start;
 	int j = end;
@@ -112,7 +126,7 @@ static int Double_Partition(double* numArray, int start, int end)
 	numArray[i] = temp;//插入到正确位置
 	return i;
 }
-static void Double_Sort(double* numArray, int start, int end)
+static __device__ void Double_Sort(double* numArray, int start, int end)
 {
 	if (start < end) {
 		int pivot = Double_Partition(numArray, start, end);
@@ -123,7 +137,7 @@ static void Double_Sort(double* numArray, int start, int end)
 
 
 //自定义unique函数（对于已经排好序的数组，去除其中的重复部分，返回新数组的大小)
-static int Double_Unique(double* numArray, int start, int end)
+static __device__ int Double_Unique(double* numArray, int start, int end)
 {
 	int l = 0;
 	int r = 1;
@@ -146,23 +160,23 @@ static int MyRound(double num)
 }
 
 //快速排序（SegPath版本）
-int SegPath_Partition(SegPath* objArray, int start, int end)
+__device__ int SegPath_Partition(SegPath* objArray, int start, int end)
 {
 	SegPath& temp = objArray[start];
 	int i = start;
 	int j = end;
 	while (i < j) {
-		while (i < j && objArray[j].ABigEqualB(temp))
+		while (i < j && objArray[j].ABigEqualB(temp, -1))
 			--j;
 		objArray[i] = objArray[j];
-		while (i < j && objArray[i].ASmallEqualB(temp))
+		while (i < j && objArray[i].ASmallEqualB(temp, -1))
 			++i;
 		objArray[j] = objArray[i];
 	}
 	objArray[i] = temp;//插入到正确位置
 	return i;
 }
-static void SegPath_Sort(SegPath* objArray, int start, int end)
+static __device__ void SegPath_Sort(SegPath* objArray, int start, int end)
 {
 	if (start < end) {
 		int pivot = SegPath_Partition(objArray, start, end);
@@ -173,13 +187,13 @@ static void SegPath_Sort(SegPath* objArray, int start, int end)
 
 
 //自定义unique函数（对于已经排好序的数组，去除其中的重复部分，返回新数组的大小)
-static int SegPath_Unique(SegPath* objArray, int start, int end)
+static __device__ int SegPath_Unique(SegPath* objArray, int start, int end)
 {
 	int l = 0;
 	int r = 1;
 	while (r <= end)
 	{
-		if (!objArray[r].AEqualB(objArray[l]))//两者不相等
+		if (!objArray[r].AEqualB(objArray[l], -1))//两者不相等
 		{
 			l++;
 			objArray[l] = objArray[r];
@@ -192,23 +206,23 @@ static int SegPath_Unique(SegPath* objArray, int start, int end)
 
 
 //快速排序（PointInfo版本）
-static int PointInfo_Partition(PointInfo* objArray, int start, int end)
+static __device__ int PointInfo_Partition(PointInfo* objArray, int start, int end)
 {
 	PointInfo& temp = objArray[start];
 	int i = start;
 	int j = end;
 	while (i < j) {
-		while (i < j && objArray[j].ABigEqualB(temp))
+		while (i < j && objArray[j].ABigEqualB(temp, -1))
 			--j;
 		objArray[i] = objArray[j];
-		while (i < j && objArray[i].ASmallEqualB(temp))
+		while (i < j && objArray[i].ASmallEqualB(temp, -1))
 			++i;
 		objArray[j] = objArray[i];
 	}
 	objArray[i] = temp;//插入到正确位置
 	return i;
 }
-static void PointInfo_Sort(PointInfo* objArray, int start, int end)
+static __device__ void PointInfo_Sort(PointInfo* objArray, int start, int end)
 {
 	if (start < end) {
 		int pivot = PointInfo_Partition(objArray, start, end);
@@ -257,7 +271,7 @@ static int PointInfo_CalcuAndUnique(PointInfo* objArray, int start, int end)
 }
 
 //二分查找
-static PointInfo FindPointInfo(PointInfo* pointInfoList, int start, int end, Vector2Int point)
+static __device__ PointInfo FindPointInfo(PointInfo* pointInfoList, int start, int end, Vector2Int point)
 {
 	int left = start;
 	int right = end;

@@ -172,6 +172,7 @@ int main()
 
 			int fitnessIndex = 0;
 			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
+
 			//复制一遍inoutPoints
 			int ioPointsSize = psooptimizer.bestPathInfoList[fitnessIndex].inoutPSize;
 			InoutPoint* ioPoints = new InoutPoint[ioPointsSize];

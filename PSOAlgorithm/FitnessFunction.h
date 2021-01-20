@@ -26,7 +26,7 @@ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, 
 	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU);
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
-double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
+//double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
 int FindAxisIndex(double axis, const double* axisList, int axisCount);
 
@@ -46,16 +46,16 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	/*CargoType* 固定参数*/
 	/*int* deviceSum, */int* linkSum, int* accumLinkSum, DeviceLink* deviceLinkList, double* totalVolume,
 
-	/*DevicePara* 除了size其他的也是固定的*/
+	/*DevicePara**/
 	Vector2* size, double* spaceLength, int* adjPInCount, int* adjPOutCount, int* accumAdjPInCount, int* accumAdjPOutCount,
 	int totalInPoint, int totalOutPoint, AdjPoint* adjPointsIn, AdjPoint* adjPointsOut,
 	/*Particle*/
 	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, /*double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU*/
 	/*存储所有粒子输送线路信息*/
 	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
-	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum,
-
-	int* pointDirectArray)
+	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum, 
+	int* pointDirectArray, curandState* globalState
+)
 {
 	//粒子的下标i需要自己计算
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,7 +94,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 			size_copy[i / 3].y = tempX;
 		}
 		//重新计算旋转后的出入口坐标
-		Vector2 deviceCenterPos(0, 0);
+		Vector2 deviceCenterPos(0, 0, -1);//保证调用的是device版本的
 		double rotateAngle = curDirect * 90;
 		int newDirect = 0;
 
@@ -166,7 +166,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 			particlePosList[i] = position_GPU[index * dim + i];
 		}
 		for (int i = 0; i < deviceIDSizeCount; ++i) {
-			deviceIDSizeList[i] = DeviceIDSize(i, size_copy[i]);
+			deviceIDSizeList[i] = DeviceIDSize(i, size_copy[i], -1);
 		}
 		DeviceIDSize_Sort(deviceIDSizeList, 0, deviceIDSizeCount - 1);//按照设备的尺寸排序
 
@@ -191,7 +191,6 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					fitness_GPU[index * fitnessCount + 0] = fitness_GPU[index * fitnessCount + 1] = MAX_FITNESS;
 					return;
 				}
-				//cout << j << endl;
 				secondID = deviceIDSizeList[j].ID;
 				if (firstID != secondID) {
 					outSizeLength2 = 0.5 * size_copy[secondID].x + spaceLength[secondID];
@@ -235,12 +234,12 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		for (int i = 0; i < DeviceSum; ++i) {
 			double outSizeLength = size_copy[i].x * 0.5 + spaceLength[i];
 			double outSizeWidth = size_copy[i].y * 0.5 + spaceLength[i];
-			min_X = min(min_X, particlePosList[3 * i] - outSizeLength);
-			max_X = max(max_X, particlePosList[3 * i] + outSizeLength);
-			min_Y = min(min_Y, particlePosList[3 * i + 1] - outSizeWidth);
-			max_Y = max(max_Y, particlePosList[3 * i + 1] + outSizeWidth);
+			min_X = getMin(min_X, particlePosList[3 * i] - outSizeLength);
+			max_X = getMax(max_X, particlePosList[3 * i] + outSizeLength);
+			min_Y = getMin(min_Y, particlePosList[3 * i + 1] - outSizeWidth);
+			max_Y = getMax(max_Y, particlePosList[3 * i + 1] + outSizeWidth);
 		}
-		Vector2 oriRectAxis((max_X + min_X) / 2.0, (max_Y + min_Y) / 2.0);//总包络矩形的中心坐标
+		Vector2 oriRectAxis((max_X + min_X) / 2.0, (max_Y + min_Y) / 2.0, -1);//总包络矩形的中心坐标
 		Vector2 newRectAxis;
 		if ((max_X - min_X) <= workShopLength
 			&& (max_Y - min_Y) <= workShopWidth) {//包络矩形小于车间大小
@@ -249,8 +248,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 			double rectHighX = workShopLength - (max_X - min_X) * 0.5;
 			double rectLowY = 0 + (max_Y - min_Y) * 0.5;
 			double rectHighY = workShopWidth - (max_Y - min_Y) * 0.5;
-			newRectAxis.x = GetDoubleRand() * (rectHighX - rectLowX) + rectLowX;
-			newRectAxis.y = GetDoubleRand() * (rectHighY - rectLowY) + rectLowY;
+			newRectAxis.x = createARandomNum(globalState, index) * (rectHighX - rectLowX) + rectLowX;
+			newRectAxis.y = createARandomNum(globalState, index) * (rectHighY - rectLowY) + rectLowY;
 			//根据包络矩形的坐标变化，修改所有设备的坐标
 			double deviceOffsetX = newRectAxis.x - oriRectAxis.x;
 			double deviceOffsetY = newRectAxis.y - oriRectAxis.y;
@@ -331,15 +330,15 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					//每个adjPoint数组的大小不一样，这里可以设置一个记录前面x个adj数组点数目的数组
 					inPoint = adjPointsIn[accumAdjPInCount[inDeviceIndex] + inPointIndex];
 					Vector2 inPointTPos(inPoint.pos.x + position_GPU[index * dim + inDeviceIndex * 3],
-						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1]);
-					if (inPointTPos.x != entrancePos.x && abs(inPointTPos.x - entrancePos.x) < conveyMinDist)
+						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
+					if (inPointTPos.x != entrancePos.x && getAbs(inPointTPos.x - entrancePos.x) < conveyMinDist)
 					{
 						//只能修改in，不能修改入口
 						double moveLength = inPointTPos.x - entrancePos.x;
 						position_GPU[index * dim + inDeviceIndex * 3] -= moveLength;
 
 					}
-					else if (inPointTPos.y != entrancePos.y && abs(inPointTPos.y - entrancePos.y) < conveyMinDist)
+					else if (inPointTPos.y != entrancePos.y && getAbs(inPointTPos.y - entrancePos.y) < conveyMinDist)
 					{
 						double moveLength = inPointTPos.y - entrancePos.y;
 						position_GPU[index * dim + inDeviceIndex * 3 + 1] -= moveLength;
@@ -349,14 +348,14 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				{
 					outPoint = adjPointsOut[accumAdjPOutCount[outDeviceIndex] + outPointIndex];
 					Vector2 outPointTPos(outPoint.pos.x + position_GPU[index * dim + outDeviceIndex * 3],
-						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1]);
-					if (outPointTPos.x != exitPos.x && abs(outPointTPos.x - exitPos.x) < conveyMinDist)
+						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
+					if (outPointTPos.x != exitPos.x && getAbs(outPointTPos.x - exitPos.x) < conveyMinDist)
 					{
 						//只能修改out，不能修改出口
 						double moveLength = outPointTPos.x - exitPos.x;
 						position_GPU[index * dim + outDeviceIndex * 3] -= moveLength;
 					}
-					else if (outPointTPos.y != exitPos.y && abs(outPointTPos.y - exitPos.y) < conveyMinDist)
+					else if (outPointTPos.y != exitPos.y && getAbs(outPointTPos.y - exitPos.y) < conveyMinDist)
 					{
 						double moveLength = outPointTPos.y - exitPos.y;
 						position_GPU[index * dim + outDeviceIndex * 3 + 1] -= moveLength;
@@ -368,10 +367,10 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					inPoint = adjPointsIn[accumAdjPInCount[inDeviceIndex] + inPointIndex];
 					//在考虑了设备坐标的情况下对比
 					Vector2 outPointTPos(outPoint.pos.x + position_GPU[index * dim + outDeviceIndex * 3],
-						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1]);
+						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
 					Vector2 inPointTPos(inPoint.pos.x + position_GPU[index * dim + inDeviceIndex * 3],
-						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1]);
-					if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
+						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
+					if (outPointTPos.x != inPointTPos.x && getAbs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
 					{
 						//x坐标接近
 						double moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
@@ -379,7 +378,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 						position_GPU[index * dim + inDeviceIndex * 3] += moveLength;
 
 					}
-					else if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
+					else if (outPointTPos.y != inPointTPos.y && getAbs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
 					{
 						//y坐标接近
 						double moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
@@ -412,15 +411,15 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				{
 					inPoint = adjPointsIn[accumAdjPInCount[inDeviceIndex] + inPointIndex];
 					Vector2 inPointTPos(inPoint.pos.x + position_GPU[index * dim + inDeviceIndex * 3],
-						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1]);
-					if (inPointTPos.x != entrancePos.x && abs(inPointTPos.x - entrancePos.x) < conveyMinDist)
+						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
+					if (inPointTPos.x != entrancePos.x && getAbs(inPointTPos.x - entrancePos.x) < conveyMinDist)
 					{
 						//只能修改in，不能修改入口
 						double moveLength = inPointTPos.x - entrancePos.x;
 						position_GPU[index * dim + inDeviceIndex * 3] -= moveLength;
 
 					}
-					else if (inPointTPos.y != entrancePos.y && abs(inPointTPos.y - entrancePos.y) < conveyMinDist)
+					else if (inPointTPos.y != entrancePos.y && getAbs(inPointTPos.y - entrancePos.y) < conveyMinDist)
 					{
 						double moveLength = inPointTPos.y - entrancePos.y;
 						position_GPU[index * dim + inDeviceIndex * 3 + 1] -= moveLength;
@@ -430,14 +429,14 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				{
 					outPoint = adjPointsOut[accumAdjPOutCount[outDeviceIndex] + outPointIndex];
 					Vector2 outPointTPos(outPoint.pos.x + position_GPU[index * dim + outDeviceIndex * 3],
-						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1]);
-					if (outPointTPos.x != exitPos.x && abs(outPointTPos.x - exitPos.x) < conveyMinDist)
+						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
+					if (outPointTPos.x != exitPos.x && getAbs(outPointTPos.x - exitPos.x) < conveyMinDist)
 					{
 						//只能修改out，不能修改出口
 						double moveLength = outPointTPos.x - exitPos.x;
 						position_GPU[index * dim + outDeviceIndex * 3] -= moveLength;
 					}
-					else if (outPointTPos.y != exitPos.y && abs(outPointTPos.y - exitPos.y) < conveyMinDist)
+					else if (outPointTPos.y != exitPos.y && getAbs(outPointTPos.y - exitPos.y) < conveyMinDist)
 					{
 						double moveLength = outPointTPos.y - exitPos.y;
 						position_GPU[index * dim + outDeviceIndex * 3 + 1] -= moveLength;
@@ -452,31 +451,31 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					inPointDirect = inPoint.direct;
 					//出入口的真实坐标
 					Vector2 outPointTPos(outPoint.pos.x + position_GPU[index * dim + outDeviceIndex * 3],
-						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1]);
+						outPoint.pos.y + position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
 					Vector2 inPointTPos(inPoint.pos.x + position_GPU[index * dim + inDeviceIndex * 3],
-						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1]);
+						inPoint.pos.y + position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
 					//出入口设备四个方向不考虑外层的边界
-					Vector2 outDeviceUpPos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1] + 0.5 * size_copy[outDeviceIndex].y);
-					Vector2 outDeviceDownPos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1] - 0.5 * size_copy[outDeviceIndex].y);
-					Vector2 outDeviceLeftPos(position_GPU[index * dim + outDeviceIndex * 3] - 0.5 * size_copy[outDeviceIndex].x, position_GPU[index * dim + outDeviceIndex * 3 + 1]);
-					Vector2 outDeviceRightPos(position_GPU[index * dim + outDeviceIndex * 3] + 0.5 * size_copy[outDeviceIndex].x, position_GPU[index * dim + outDeviceIndex * 3 + 1]);
+					Vector2 outDeviceUpPos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1] + 0.5 * size_copy[outDeviceIndex].y, -1);
+					Vector2 outDeviceDownPos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1] - 0.5 * size_copy[outDeviceIndex].y, -1);
+					Vector2 outDeviceLeftPos(position_GPU[index * dim + outDeviceIndex * 3] - 0.5 * size_copy[outDeviceIndex].x, position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
+					Vector2 outDeviceRightPos(position_GPU[index * dim + outDeviceIndex * 3] + 0.5 * size_copy[outDeviceIndex].x, position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
 
-					Vector2 inDeviceUpPos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1] + 0.5 * size_copy[inDeviceIndex].y);
-					Vector2 inDeviceDownPos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1] - 0.5 * size_copy[inDeviceIndex].y);
-					Vector2 inDeviceLeftPos(position_GPU[index * dim + inDeviceIndex * 3] - 0.5 * size_copy[inDeviceIndex].x, position_GPU[index * dim + inDeviceIndex * 3 + 1]);
-					Vector2 inDeviceRightPos(position_GPU[index * dim + inDeviceIndex * 3] + 0.5 * size_copy[inDeviceIndex].x, position_GPU[index * dim + inDeviceIndex * 3 + 1]);
+					Vector2 inDeviceUpPos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1] + 0.5 * size_copy[inDeviceIndex].y, -1);
+					Vector2 inDeviceDownPos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1] - 0.5 * size_copy[inDeviceIndex].y, -1);
+					Vector2 inDeviceLeftPos(position_GPU[index * dim + inDeviceIndex * 3] - 0.5 * size_copy[inDeviceIndex].x, position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
+					Vector2 inDeviceRightPos(position_GPU[index * dim + inDeviceIndex * 3] + 0.5 * size_copy[inDeviceIndex].x, position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
 
 
 					//出入口设备四个方向的边界
-					Vector2 outUpPos(outDeviceUpPos.x, outDeviceUpPos.y + convey2DeviceDist);
-					Vector2 outDownPos(outDeviceDownPos.x, outDeviceDownPos.y - convey2DeviceDist);
-					Vector2 outLeftPos(outDeviceLeftPos.x - convey2DeviceDist, outDeviceLeftPos.y);
-					Vector2 outRightPos(outDeviceRightPos.x + convey2DeviceDist, outDeviceRightPos.y);
+					Vector2 outUpPos(outDeviceUpPos.x, outDeviceUpPos.y + convey2DeviceDist, -1);
+					Vector2 outDownPos(outDeviceDownPos.x, outDeviceDownPos.y - convey2DeviceDist, -1);
+					Vector2 outLeftPos(outDeviceLeftPos.x - convey2DeviceDist, outDeviceLeftPos.y, -1);
+					Vector2 outRightPos(outDeviceRightPos.x + convey2DeviceDist, outDeviceRightPos.y, -1);
 
-					Vector2 inUpPos(inDeviceUpPos.x, inDeviceUpPos.y + convey2DeviceDist);
-					Vector2 inDownPos(inDeviceDownPos.x, inDeviceDownPos.y - convey2DeviceDist);
-					Vector2 inLeftPos(inDeviceLeftPos.x - convey2DeviceDist, inDeviceLeftPos.x);
-					Vector2 inRightPos(outDeviceRightPos.x + convey2DeviceDist, outDeviceRightPos.y);
+					Vector2 inUpPos(inDeviceUpPos.x, inDeviceUpPos.y + convey2DeviceDist, -1);
+					Vector2 inDownPos(inDeviceDownPos.x, inDeviceDownPos.y - convey2DeviceDist, -1);
+					Vector2 inLeftPos(inDeviceLeftPos.x - convey2DeviceDist, inDeviceLeftPos.x, -1);
+					Vector2 inRightPos(outDeviceRightPos.x + convey2DeviceDist, outDeviceRightPos.y, -1);
 
 
 					//要用到的各种比较值
@@ -486,27 +485,20 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					double out2inDYDist, inU2outYDist, in2outDYDist;
 					//先判断两者的方位
 					//加一个判断二者方位的操作
-					Vector2 inDevicePos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1]);
-					Vector2 outDevicePos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1]);
+					Vector2 inDevicePos(position_GPU[index * dim + inDeviceIndex * 3], position_GPU[index * dim + inDeviceIndex * 3 + 1], -1);
+					Vector2 outDevicePos(position_GPU[index * dim + outDeviceIndex * 3], position_GPU[index * dim + outDeviceIndex * 3 + 1], -1);
 					bool inLeft2OutBool, inRight2OutBool, inUp2OutBool, inDown2OutBool;
 
 					int OutPosIndex_X, OutPosIndex_Y, InPosIndex_X, InPosIndex_Y;
 					OutPosIndex_X = outDeviceIndex * 3; OutPosIndex_Y = outDeviceIndex * 3 + 1;
 					InPosIndex_X = inDeviceIndex * 3; InPosIndex_Y = inDeviceIndex * 3 + 1;
 					double moveLength = 0.0;
-					//用表驱动法，一共16种
-					//Up = 1, Right = 2, Down = 3, Left = 4
-					//      	   //上 右 下 左
-					//  /*上*/{-1, 1, 2, 3, 4},
-					//	/*右*/{-1, 5, 6, 7, 8},
-					//	/*下*/{-1, 9, 10, 11, 12},
-					//	/*左*/{-1, 13, 14, 15, 16},
 					switch (pointDirectArray[outPointDirect * 5 + inPointDirect])
 					{
 					case 1://上上
 					{
 						//1.两者在y上过于接近,让两者在y上对齐
-						if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
+						if (outPointTPos.y != inPointTPos.y && getAbs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
 						{
 							moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
 							position_GPU[index * dim + OutPosIndex_Y] -= moveLength;
@@ -560,7 +552,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					case 11://下下
 					{
 						//1.两者在y上过于接近,让两者在y上对齐
-						if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < conveyMinDist)//这个待定
+						if (outPointTPos.y != inPointTPos.y && getAbs(outPointTPos.y - inPointTPos.y) < conveyMinDist)//这个待定
 						{
 							moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
 							position_GPU[index * dim + OutPosIndex_Y] -= moveLength;
@@ -614,7 +606,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					case 16://左左
 					{
 						//1.两者在x上过于接近,让两者在x上对齐
-						if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
+						if (outPointTPos.x != inPointTPos.x && getAbs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
 						{
 							moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
 							position_GPU[index * dim + OutPosIndex_X] -= moveLength;
@@ -672,7 +664,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					case 6://右右
 					{
 						//1.两者在x上过于接近,让两者在x上对齐
-						if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
+						if (outPointTPos.x != inPointTPos.x && getAbs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
 						{
 							moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
 							position_GPU[index * dim + OutPosIndex_X] -= moveLength;
@@ -733,7 +725,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 						inUp2OutBool = IsInUp2Out(inDownPos, outUpPos);
 						if (inUp2OutBool)
 						{
-							if (outPointTPos.x != inPointTPos.x && abs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
+							if (outPointTPos.x != inPointTPos.x && getAbs(outPointTPos.x - inPointTPos.x) < conveyMinDist)
 							{
 								moveLength = (outPointTPos.x - inPointTPos.x) * 0.5;
 								position_GPU[index * dim + OutPosIndex_X] -= moveLength;
@@ -784,7 +776,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 						inLeft2OutBool = IsInLeft2Out(inRightPos, outLeftPos);
 						if (inLeft2OutBool)
 						{
-							if (outPointTPos.y != inPointTPos.y && abs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
+							if (outPointTPos.y != inPointTPos.y && getAbs(outPointTPos.y - inPointTPos.y) < conveyMinDist)
 							{
 								moveLength = (outPointTPos.y - inPointTPos.y) * 0.5;
 								position_GPU[index * dim + OutPosIndex_Y] -= moveLength;
@@ -967,7 +959,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				AdjPoint& point = adjPointsIn[accumAdjPInCount[i] + pointIndex];
 				InoutPoint ioPoint;
 				ioPoint.pointDirect = point.direct;
-				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1]);
+				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1], -1);
 				ioPoint.pointAxis = axis;
 				inoutPoints[index * inoutPSize + ioPIndex] = ioPoint;//注意偏移值
 				ioPIndex++;
@@ -977,7 +969,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				AdjPoint& point = adjPointsOut[accumAdjPOutCount[i] + pointIndex];
 				InoutPoint ioPoint;
 				ioPoint.pointDirect = point.direct;
-				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1]);
+				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1], -1);
 				ioPoint.pointAxis = axis;
 				inoutPoints[index * inoutPSize + ioPIndex] = ioPoint;//注意偏移值
 				ioPIndex++;
@@ -1089,7 +1081,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		
 		for (int i = 0; i < pathColNum * pathRowNum; i++)
 		{
-			pathPointMap[i] = new APoint();
+			pathPointMap[i] = new APoint();//二级分配内存
 			int rowIndex = i / pathColNum;//对应下面的i
 			int colIndex = i % pathColNum;//对应下面的j
 			pathPointMap[i]->x = horizonAxisList[colIndex];
@@ -1112,8 +1104,9 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 #pragma endregion
 
 #pragma region 寻路
-		CAstar* star = new CAstar();//
-		star->_allPoints = pathPointMap;
+		CAstar* star = new CAstar();/////////////////////
+		//这里内存复制需要修正
+		star->_allPoints = pathPointMap;///
 		star->pointColNum = pathColNum;
 		star->pointRowNum = pathRowNum;
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
@@ -1140,7 +1133,6 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				double outDSizeL, inDSizeL;
 
 				forwardDeviceIndex = deviceLinkList[accumLinkSum[i] + j].outDeviceIndex;
-					//proParas.cargoTypeList[i].deviceLinkList[j].outDeviceIndex;//这个下标？
 				curDeviceIndex = deviceLinkList[accumLinkSum[i] + j].inDeviceIndex;
 
 				forwardOutIndex = deviceLinkList[accumLinkSum[i] + j].outPointIndex;
@@ -1312,16 +1304,16 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				//这个路径中的点还没有简化，先给每个路径设置大小为50
 				Vector2* points1 = new Vector2[fixedLinkPointSum];
 				int points1Index = 0;
-				Vector2 endP1(initDevice2PosX, initDevice2PosY);
+				Vector2 endP1(initDevice2PosX, initDevice2PosY, -1);
 				points1[points1Index++] = endP1;
 				APoint* copyPath = path;
 				while (copyPath)
 				{
-					Vector2 tempP(copyPath->x, copyPath->y);
+					Vector2 tempP(copyPath->x, copyPath->y, -1);
 					points1[points1Index++] = tempP;
 					copyPath = copyPath->parent;
 				}
-				Vector2 startP1(initDevice1PosX, initDevice1PosY);
+				Vector2 startP1(initDevice1PosX, initDevice1PosY, -1);
 				points1[points1Index++] = startP1;//points1Index是某一个link的实际点的数目
 				totalLinkPointSum += points1Index;//统计link中所有的实际点的数目（方便之后分配空间）
 
@@ -1382,9 +1374,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				//particle.pointLinks.push_back(pointLink);
 #pragma endregion
 
-
-
-//计算输送时间(物料总量 * 路线长度 * 输送效率) 
+				//计算输送时间(物料总量 * 路线长度 * 输送效率) 
 				totalTime += totalVolume[i] * deviceDistance * conveySpeed;
 				//计算设备处理时间(物料总量 * 处理效率)
 				//totalTime += curCargoType.totalVolume * curDevice.workSpeed;
@@ -1416,7 +1406,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				Vector2Int p2 = Multi10000ToInt(copyPLinks[i].points[j - 1]);
 				if (p1 != p2)//坐标不能一样
 				{
-					SegPath temp(p1, p2);
+					SegPath temp(p1, p2, -1);
 					segPathSet[segPathSet_CurIndex++] = temp;
 				}
 			}
@@ -1442,13 +1432,13 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		for (int segIndex = 0; segIndex < segPathSet_UniqueSum; segIndex++)
 		{
 			if (segPathSet[segIndex].direct == PathPointDirect::Vert) {
-				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 1, 0, false);
-				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 1, 0, false);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 1, 0, false, -1);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 1, 0, false, -1);
 			}
 			else
 			{
-				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 0, 1, false);
-				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 0, 1, false);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p1, 0, 1, false, -1);
+				pathPointInfoMap[pathPointInfoMap_CurIndex++] = PointInfo(segPathSet[segIndex].p2, 0, 1, false, -1);
 			}
 		}
 		//2.对所有点进行排序，目的是将所有相同的点聚集到一起
@@ -1484,7 +1474,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		int tempCurveConveyorList_CurIndex = 0;
 
 		for (int i = 0; i < totalLinkSum; i++) {
-			StraightConveyorInfo tempStrInfo;
+			StraightConveyorInfo tempStrInfo;//这里是否会出错？
 			tempStrInfo.startPos = Multi10000ToInt(copyPLinks[i].points[copyPLinks[i].pointNum - 1]);//开头
 			PointInfo curPointInfo = FindPointInfo(pathPointInfoMap, 0, pathPointInfoMap_UniqueSum - 1, tempStrInfo.startPos);
 			tempStrInfo.startVnum = curPointInfo.vertDirNum;
@@ -1599,10 +1589,10 @@ __device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle
 {
 	float xx = (pointPos.x - centerPos.x) * cos(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * sin(rotateAngle * (PI / 180)) + centerPos.x;
 	float yy = -(pointPos.x - centerPos.x) * sin(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * cos(rotateAngle * (PI / 180)) + centerPos.y;
-	Vector2 result(xx, yy);
+	Vector2 result(xx, yy, -1);
 	return result;
 }
-int FindAxisIndex(double axis, const double* axisList, int axisCount)
+__device__ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 {
 	//用二分法更快
 	int low = 0;
@@ -1611,7 +1601,7 @@ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 	while (low <= high)
 	{
 		int middle = (low + high) >> 1;
-		if (abs(axisList[middle] - axis) <= 0.0001)
+		if (getAbs(axisList[middle] - axis) <= 0.0001)
 		{
 			result = middle;
 			break;
@@ -1628,10 +1618,10 @@ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 	return result;
 }
 //计算曼哈段距离
-double CalcuDeviceDist(Vector2 pos1, Vector2 pos2)
-{
-	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y);
-}
+//double CalcuDeviceDist(Vector2 pos1, Vector2 pos2)
+//{
+//	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y);
+//}
 //计算占地面积
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 	double area = 0;
@@ -1656,7 +1646,7 @@ int Multi10000ToInt(double num)
 	//使用自定义的Round函数
 	return MyRound(num * 10000);
 }
-Vector2Int Multi10000ToInt(Vector2 v)
+__device__ Vector2Int Multi10000ToInt(Vector2 v)
 {
-	return Vector2Int(Multi10000ToInt(v.x), Multi10000ToInt(v.y));
+	return Vector2Int(Multi10000ToInt(v.x), Multi10000ToInt(v.y), -1);
 }

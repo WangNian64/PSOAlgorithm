@@ -61,7 +61,7 @@ void CAstar::resetAStar()
 {
     for (int i = 0; i < pointRowNum; i++)
     {
-        for (int j = 0; j < pointColNum; j++)
+         for (int j = 0; j < pointColNum; j++)
         {
             _allPoints[i * pointColNum + j]->resetAPoint();
         }

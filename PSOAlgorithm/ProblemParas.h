@@ -37,11 +37,6 @@ struct ProblemParas
 	AdjPoint* adjPointsIn;	//入口
 	AdjPoint* adjPointsOut;	//出口
 
-
-
-
-
-
 	int totalInPoint;					//入口点的总数目
 	int totalOutPoint;					//出口点的总数目
 

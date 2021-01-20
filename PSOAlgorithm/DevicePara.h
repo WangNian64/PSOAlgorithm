@@ -1,5 +1,5 @@
 #pragma once
-#include <cmath>
+#include <cuda_runtime.h>
 using namespace std;
 //表示一个坐标
 struct Vector2
@@ -9,6 +9,12 @@ public:
 	double y;
 	Vector2(){}
 	Vector2(double x, double y)
+	{
+		this->x = x;
+		this->y = y;
+	}
+	//device构造函数
+	__device__ Vector2(double x, double y, int i)//device构造函数
 	{
 		this->x = x;
 		this->y = y;
@@ -58,9 +64,14 @@ public:
 		this->x = x;
 		this->y = y;
 	}
-	double Distance(Vector2Int v) const
+	__device__ Vector2Int(int x, int y, int i)
 	{
-		return sqrt(pow((this->x - v.x)/10000.0f, 2) + pow((this->y - v.y)/10000.0f, 2));
+		this->x = x;
+		this->y = y;
+	}
+	__device__ double Distance(Vector2Int v) const
+	{
+		return sqrt(powf((this->x - v.x)/10000.0f, 2) + powf((this->y - v.y)/10000.0f, 2));
 	}
 	bool operator<(const Vector2Int& v) const
 	{
@@ -187,6 +198,13 @@ struct PointInfo
 		horiDirNum = hDirNum;
 		isKeep = iK;
 	}
+	__device__ PointInfo(Vector2Int pointAxis, int vDirNum, int hDirNum, bool iK, int i)
+	{
+		this->pointAxis = pointAxis;
+		vertDirNum = vDirNum;
+		horiDirNum = hDirNum;
+		isKeep = iK;
+	}
 	bool AEqualB(const PointInfo& obj)//A==B
 	{
 		return this->pointAxis == obj.pointAxis;
@@ -219,6 +237,41 @@ struct PointInfo
 	{
 		return !this->ABigB(obj);
 	}
+
+
+	//device版本的函数
+	__device__ bool AEqualB(const PointInfo& obj, int i)//A==B
+	{
+		return this->pointAxis == obj.pointAxis;
+	}
+	__device__ bool ABigB(const PointInfo& obj, int i)//A>B
+	{
+		if (this->pointAxis == obj.pointAxis)
+			return false;
+		else//A!=B
+		{
+			if (this->pointAxis.x == obj.pointAxis.x)
+			{
+				return this->pointAxis.y > obj.pointAxis.y;
+			}
+			else
+			{
+				return this->pointAxis.x > obj.pointAxis.x;
+			}
+		}
+	}
+	__device__ bool ABigEqualB(const PointInfo& obj, int i) //A>=B
+	{
+		return this->AEqualB(obj, i) || this->ABigB(obj, i);
+	}
+	__device__ bool ASmallB(const PointInfo& obj, int i)//A<B
+	{
+		return !this->ABigEqualB(obj, i);
+	}
+	__device__ bool ASmallEqualB(const PointInfo& obj, int i)//A<=B
+	{
+		return !this->ABigB(obj, i);
+	}
 };
 //设备相关性(从0到5依次增大）
 enum DeviceRelation
@@ -231,6 +284,10 @@ struct DeviceIDSize
 	Vector2 size;
 	DeviceIDSize() {}
 	DeviceIDSize(int id, Vector2 s) {
+		ID = id;
+		size = s;
+	}
+	__device__ DeviceIDSize(int id, Vector2 s, int i) {
 		ID = id;
 		size = s;
 	}
@@ -279,6 +336,15 @@ public:
 		this->points = points;
 		this->pointNum = pointNum;
 	}
+	__device__ PointLink(int device1Index, int device1PointIndex, int device2Index, int device2PointIndex, Vector2* points, int pointNum, int i)
+	{
+		this->device1Index = device1Index;
+		this->device1PointIndex = device1PointIndex;
+		this->device2Index = device2Index;
+		this->device2PointIndex = device2PointIndex;
+		this->points = points;
+		this->pointNum = pointNum;
+	}
 };
 struct InoutPoint
 {
@@ -286,6 +352,11 @@ struct InoutPoint
 	Vector2 pointAxis;//点坐标
 	InoutPoint() {}
 	InoutPoint(int pointDirect, Vector2 pointAxis)
+	{
+		this->pointAxis = pointAxis;
+		this->pointDirect = pointDirect;
+	}
+	__device__ InoutPoint(int pointDirect, Vector2 pointAxis, int i)
 	{
 		this->pointAxis = pointAxis;
 		this->pointDirect = pointDirect;
@@ -315,15 +386,23 @@ struct SegPath
 	Vector2Int p1;
 	Vector2Int p2;
 	PathPointDirect direct;
-	SegPath()
-	{
-
-	}
+	SegPath() {}
 	SegPath(Vector2Int p1, Vector2Int p2)
 	{
 		this->p1 = p1;
 		this->p2 = p2;
 		if (abs(p1.x - p2.x) > abs(p1.y - p2.y)) {
+			direct = PathPointDirect::Hori;
+		}
+		else {
+			direct = PathPointDirect::Vert;
+		}
+	}
+	__device__ SegPath(Vector2Int p1, Vector2Int p2, int i)
+	{
+		this->p1 = p1;
+		this->p2 = p2;
+		if (getAbs(p1.x - p2.x) > getAbs(p1.y - p2.y)) {
 			direct = PathPointDirect::Hori;
 		}
 		else {
@@ -354,6 +433,10 @@ struct SegPath
 	{
 		return this->AEqualB(sg) || this->ABigB(sg);
 	}
+	bool ABigEqualB(const SegPath& sg) //A>=B
+	{
+		return this->AEqualB(sg) || this->ABigB(sg);
+	}
 	bool ASmallB(const SegPath& sg)//A<B
 	{
 		return !this->ABigEqualB(sg);
@@ -362,6 +445,49 @@ struct SegPath
 	{
 		return !this->ABigB(sg);
 	}
+
+
+
+	/////////__device__版本的
+	__device__ bool AEqualB(const SegPath& sg, int i)//A==B
+	{
+		return (this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1);
+	}
+	__device__ bool ABigB(const SegPath& sg, int i)//A>B
+	{
+		if ((this->p1 == sg.p1 && this->p2 == sg.p2) || (this->p1 == sg.p2 && this->p2 == sg.p1))
+			return false;
+		else//A!=B
+		{
+			if (this->p1 == sg.p1)
+			{
+				return this->p2 > sg.p2;
+			}
+			else
+			{
+				return this->p1 > sg.p1;
+			}
+		}
+	}
+	__device__ bool ABigEqualB(const SegPath& sg, int i) //A>=B
+	{
+		return this->AEqualB(sg, i) || this->ABigB(sg, i);
+	}
+	__device__ bool ABigEqualB(const SegPath& sg, int i) //A>=B
+	{
+		return this->AEqualB(sg, i) || this->ABigB(sg, i);
+	}
+	__device__ bool ASmallB(const SegPath& sg, int i)//A<B
+	{
+		return !this->ABigEqualB(sg, i);
+	}
+	__device__ bool ASmallEqualB(const SegPath& sg, int i)//A<=B
+	{
+		return !this->ABigB(sg, i);
+	}
+
+
+
 
 	bool operator<(const SegPath& sg) const
 	{
@@ -389,7 +515,13 @@ struct StraightConveyorInfo
 	int endVnum;
 	int endHnum;
 	StraightConveyorInfo() = default;
-	StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos) {
+	StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos)
+	{
+		startPos = sPos;
+		endPos = ePos;
+	}
+	__device__ StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos, int i)
+	{
 		startPos = sPos;
 		endPos = ePos;
 	}
