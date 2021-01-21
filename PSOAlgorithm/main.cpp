@@ -18,10 +18,10 @@ int main()
 		inputFile.open("../../InputParas/InputPara" + to_string(curProblem + 1) + ".txt");
 
 		//CPU
-		ProblemParas proParas(inputFile);					//初始化所有设备相关参数 
+		ProblemParas proParas(inputFile);					// 初始化所有设备相关参数 
 
-		int ThreadsPerBlock = 100;							//一个Block中100个thread
-		int BlockSum = 1;									//Block的数目
+		int ThreadsPerBlock = 100;							// 一个Block中100个thread
+		int BlockSum = 1;									// Block的数目
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
 		//CPU
 		PSOPara psopara(dim);					
@@ -54,9 +54,9 @@ int main()
 
 			startTime = clock();//计时开始
 			#pragma region 初始化
-			psooptimizer.InitialAllParticles();//初始化所有粒子 CPU(主要是不好改)
+			psooptimizer.InitialAllParticles();//初始化所有粒子 CPU
 			psooptimizer.InitialArchiveList();//初始化Archive存档	CPU
-			psooptimizer.InitGbest();//初始化全局最优		GPU
+			psooptimizer.InitGbest();//初始化全局最优		CPU
 			#pragma endregion
 
 			#pragma region 迭代更新粒子&存每一次的适应度值
@@ -174,9 +174,10 @@ int main()
 			#pragma region 记录出入口坐标（旋转之后的，不带设备坐标）
 
 			//复制一遍inoutPoints
-			int ioPointsSize = psooptimizer.bestPathInfoList[fitnessIndex].inoutPSize;
+			//int ioPointsSize = psooptimizer.bestPathInfoList[fitnessIndex].inoutPSize;
+			int ioPointsSize = psooptimizer.inoutPSize;//
 			InoutPoint* ioPoints = new InoutPoint[ioPointsSize];
-			cudaMemcpy(ioPoints, psooptimizer.bestPathInfoList[fitnessIndex].inoutPoints, sizeof(InoutPoint) * ioPointsSize, cudaMemcpyDeviceToHost);
+			cudaMemcpy(ioPoints, psooptimizer.curBestPath_InoutPoints, sizeof(InoutPoint) * ioPointsSize, cudaMemcpyDeviceToHost);
 
 			OutFile << to_string(ioPointsSize) + "\n";//出入口数目
 			for (int i = 0; i < ioPointsSize; i++)
@@ -238,13 +239,13 @@ int main()
 
 			#pragma region 记录直线输送机和转弯输送机参数
 			//GPU->CPU
-			int strInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].strConveyorListSum;
+			int strInfoListSum = psooptimizer.curBestPath_StrConveyorListSum[0];
 			StraightConveyorInfo* strInfoList = new StraightConveyorInfo[strInfoListSum];
-			cudaMemcpy(strInfoList, psooptimizer.bestPathInfoList[fitnessIndex].strConveyorList, sizeof(StraightConveyorInfo) * strInfoListSum, cudaMemcpyDeviceToHost);
+			cudaMemcpy(strInfoList, psooptimizer.curBestPath_StrConveyorList, sizeof(StraightConveyorInfo) * strInfoListSum, cudaMemcpyDeviceToHost);
 
-			int curveInfoListSum = psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorListSum;
+			int curveInfoListSum = psooptimizer.curBestPath_CurveConveyorListSum[0];
 			Vector2Int* curveInfoList = new Vector2Int[curveInfoListSum];
-			cudaMemcpy(curveInfoList, psooptimizer.bestPathInfoList[fitnessIndex].curveConveyorList, sizeof(Vector2Int)* curveInfoListSum, cudaMemcpyDeviceToHost);
+			cudaMemcpy(curveInfoList, psooptimizer.curBestPath_CurveConveyorList, sizeof(Vector2Int)* curveInfoListSum, cudaMemcpyDeviceToHost);
 
 			OutFile << strInfoListSum << "\n";
 			for (int i = 0; i < strInfoListSum; i++)

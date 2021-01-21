@@ -323,7 +323,7 @@ public:
 	int device1PointIndex;
 	int device2Index;
 	int device2PointIndex;
-	Vector2* points;
+	Vector2* points;//这个
 	int pointNum;//点的数目
 
 	PointLink() {}

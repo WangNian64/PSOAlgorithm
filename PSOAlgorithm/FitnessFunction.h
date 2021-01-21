@@ -5,26 +5,43 @@
 #include <math.h>
 
 #pragma region 判断两个坐标的上下或者左右关系
-bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
+__device__ bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x <= outPos.x;
 }
-bool IsInRight2Out(Vector2 inPos, Vector2 outPos)
+__device__ bool IsInRight2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x >= outPos.x;
 }
-bool IsInUp2Out(Vector2 inPos, Vector2 outPos)
+__device__ bool IsInUp2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.y >= outPos.y;
 }
-bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
+__device__ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.y <= outPos.y;
 }
 
 #pragma endregion
-void FitnessFunction(int curIterNum, int maxIterNum, BestPathInfo* bestPathInfoList, ProblemParas proParas, 
-	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU);
+__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
+	/*ProblemParas proParas, 固定参数的，不用管*/
+	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
+	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
+	int CargoTypeNum, int totalLinkSum,
+
+	/*CargoType* 固定参数*/
+	/*int* deviceSum, */int* linkSum, int* accumLinkSum, DeviceLink* deviceLinkList, double* totalVolume,
+
+	/*DevicePara**/
+	Vector2* size, double* spaceLength, int* adjPInCount, int* adjPOutCount, int* accumAdjPInCount, int* accumAdjPOutCount,
+	int totalInPoint, int totalOutPoint, AdjPoint* adjPointsIn, AdjPoint* adjPointsOut,
+	/*Particle*/
+	int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, /*double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU*/
+	/*存储所有粒子输送线路信息*/
+	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
+	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum,
+	int* pointDirectArray, curandState* globalState);
+
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 //double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
@@ -54,8 +71,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	/*存储所有粒子输送线路信息*/
 	double* curBestFitnessVal, int inoutPSize, InoutPoint* inoutPoints, StraightConveyorInfo* strConveyorList,
 	int* strConveyorListSum, Vector2Int* curveConveyorList, int* curveConveyorListSum, 
-	int* pointDirectArray, curandState* globalState
-)
+	int* pointDirectArray, curandState* globalState)
 {
 	//粒子的下标i需要自己计算
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1104,11 +1120,12 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 #pragma endregion
 
 #pragma region 寻路
-		CAstar* star = new CAstar();/////////////////////
+		CAstar* star = new CAstar();//
 		//这里内存复制需要修正
-		star->_allPoints = pathPointMap;///
+		star->_allPoints = pathPointMap;
 		star->pointColNum = pathColNum;
 		star->pointRowNum = pathRowNum;
+
 		int beginRowIndex, beginColIndex, endRowIndex, endColIndex;
 
 		double totalTime = 0.0;
@@ -1317,7 +1334,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				points1[points1Index++] = startP1;//points1Index是某一个link的实际点的数目
 				totalLinkPointSum += points1Index;//统计link中所有的实际点的数目（方便之后分配空间）
 
-				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1, points1Index);
+				PointLink pointLink1(forwardDeviceIndex, forwardOutIndex, curDeviceIndex, curInIndex, points1, points1Index, -1);
 				copyPLinks[curLinkIndex++] = pointLink1;
 
 				//Vector2 lastP(path->x, path->y);//从最后一个点开始

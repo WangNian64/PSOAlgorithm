@@ -38,15 +38,14 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMalloc((void**)& velocity_GPU, sizeof(double) * particle_num_ * dim_);
 	cudaMalloc((void**)& best_position_GPU, sizeof(double) * particle_num_ * dim_);
 
-	//////////////特殊，分配空间需要是2的n次方
 	cudaMalloc((void**)& fitness_GPU, sizeof(double) * particle_num_ * fitness_count);
 	cudaMalloc((void**)& best_fitness_GPU, sizeof(double) * particle_num_ * fitness_count);
 
 
 
 	//初始化随机数种子
-	cudaMalloc(&devStates, particle_num_ * sizeof(curandState));
-	initRandomGenerator <<< 1, particle_num_ >>> (devStates, unsigned(time(NULL)));//time作为随机数种子
+	cudaMalloc(&globalState, particle_num_ * sizeof(curandState));
+	initRandomGenerator <<< 1, particle_num_ >>> (globalState, unsigned(time(NULL)));
 
 	//给随机数数组分配GPU空间
 	cudaMalloc((void**)& randomNumList, sizeof(double) * particle_num_);
@@ -72,11 +71,10 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	cudaMalloc((void**)& all_best_fitness_, sizeof(double) * particle_num_ * fitness_count);
 
 
-	this->problemParas = problemParas;//CPU端的
-	//this->bestPathInfoList = new BestPathInfo[fitness_count];//默认初始化(这也是个问题，因为list内部还有子结构也是*数组
+	this->problemParas = problemParas;//CPU
 
 
-	//给problemParas的参数赋值
+	//给problemParas的参数赋值（GPU）
 	DeviceSum = problemParas.DeviceSum;									//设备总数
 
 	horiPointCount = problemParas.horiPointCount;						//未去重前所有水平方向的点的数目
@@ -179,7 +177,6 @@ PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 	//初始化
 	InitCurBestPathFit<<<1, 1>>>(curBestPath_FitnessVal);
 
-	//
 	cudaMalloc((void**)& pointDirectArray, sizeof(int) * 25);
 	InitPointDirectArray(pointDirectArray);
 }
@@ -275,7 +272,7 @@ void PSOOptimizer::InitialAllParticles()
 	cudaMemcpy(fitness_GPU, fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
 	cudaMemcpy(best_fitness_GPU, best_fitness_CPU, sizeof(double) * particle_num_ * fitness_count, cudaMemcpyHostToDevice);
 	//计算Fitness值 GPU
-	GetFitness(dim_, fitness_count, fitness_CPU, position_CPU, velocity_CPU, best_position_CPU, best_fitness_CPU);
+	GetFitness();
 	//初始化pbest和gbest CPU
 	for (int i = 0; i < particle_num_; ++i)
 	{
@@ -324,7 +321,7 @@ void PSOOptimizer::InitialArchiveList()
 }
 
 // 更新Archive数组 这个不是每个粒子都计算，也就是说，只需要一个线程就可以
-// CPU
+// 为了方便，这里使用CPU函数
 void PSOOptimizer::UpdateArchiveList() 
 {
 	//GPU->CPU
@@ -365,7 +362,7 @@ void PSOOptimizer::UpdateArchiveList()
 	curParetos.insert(curParetos.end(), this->archive_list.begin(), this->archive_list.end());//合并cur和原Archive
 	Pareto pareto2(curParetos);
 	vector<Particle> curArchives = pareto2.GetPareto();
-
+	//更新当前archive
 	this->archive_list = curArchives;
 }
 
@@ -374,23 +371,47 @@ void PSOOptimizer::InitGbest()
 {
 	GetGbest getG(this->archive_list, this->meshDivCount, this->lower_bound_, this->upper_bound_, this->dim_, this->particle_num_);
 	Particle* gbestList = getG.getGbest();
+	//复制gbestList的部分数据到CPU，然后到GPU
+	double* bestFitnessList = (double*)malloc(sizeof(double) * fitness_count * particle_num_);
+	double* bestPositionList = (double*)malloc(sizeof(double) * dim_ * particle_num_);
 	for (int i = 0; i < particle_num_; i++)
 	{
 		for (int j = 0; j < fitness_count; j++)
 		{
-			this->all_best_fitness_[i * fitness_count + j] = gbestList[i].best_fitness_[j];
+			bestFitnessList[i * fitness_count + j] = gbestList[i].best_fitness_[j];
 		}
 		for (int k = 0; k < dim_; k++)
 		{
-			this->all_best_position_[i * dim_ + k] = gbestList[i].best_position_[k];
+			bestPositionList[i * dim_ + k] = gbestList[i].best_position_[k];
 		}
 	}
+	//CPU->GPU
+	cudaMemcpy(this->all_best_fitness_, bestFitnessList, sizeof(double) * fitness_count * particle_num_, cudaMemcpyHostToDevice);
+	cudaMemcpy(this->all_best_position_, bestPositionList, sizeof(double) * dim_ * particle_num_, cudaMemcpyHostToDevice);
 }
 
-void PSOOptimizer::GetFitness(int dim, int fitnessCount, double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU)
+void PSOOptimizer::GetFitness()
 {
-	FitnessFunction <<<blockSum, threadsPerBlock>>> (curr_iter_, max_iter_num_, bestPathInfoList, problemParas,
-		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);
+	FitnessFunction<<<blockSum, threadsPerBlock >>>(curr_iter_, max_iter_num_, particle_num_, bestParticleIndex,
+		/*ProblemParas proParas, 固定参数的，不用管*/
+		DeviceSum, fixedLinkPointSum, fixedUniqueLinkPointSum, vertPointCount, horiPointCount, workShopLength, workShopWidth, convey2DeviceDist, /*double conveyWidth, */
+		strConveyorUnitCost, curveConveyorUnitCost, conveyMinDist, /*double conveyMinLength, */conveySpeed, entrancePos, exitPos,
+		CargoTypeNum, totalLinkSum,
+
+		/*CargoType* 固定参数*/
+		linkSum, accumLinkSum, deviceLinkList, totalVolume,
+
+		/*DevicePara**/
+		size, spaceLength, adjPInCount, adjPOutCount, accumAdjPInCount, accumAdjPOutCount,
+		totalInPoint, totalOutPoint, adjPointsIn, adjPointsOut,
+		/*Particle*/
+		dim_, fitness_count, fitness_GPU, position_GPU, /*double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU*/
+		/*存储所有粒子输送线路信息*/
+		curBestFitnessVal, inoutPSize, inoutPoints, strConveyorList,
+		strConveyorListSum, curveConveyorList, curveConveyorListSum,
+		pointDirectArray, globalState);
+	//FitnessFunction <<<blockSum, threadsPerBlock>>> (curr_iter_, max_iter_num_, bestPathInfoList, problemParas,
+	//	dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);
 }
 
 //先改第一个
@@ -402,20 +423,18 @@ void PSOOptimizer::UpdateAllParticles()
 	w_ = wstart_ - (wstart_ - wend_) * temp;
 	//更新当前代所有粒子
 	//参数只能从外面传进去
-	UpdateParticle<<<blockSum, threadsPerBlock>>>(curr_iter_, max_iter_num_, dim_, w_, C1_, C2_, dt_,
-			bestPathInfoList, particles_GPU, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, 
-			size, spaceLength, workShopLength, workShopWidth);//这个是并行的
+	UpdateParticle_Kernal <<<blockSum, threadsPerBlock >>> (curr_iter_, max_iter_num_, dim_, fitness_count, w_, C1_, C2_, dt_,
+		fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU, 
+		globalState, randomNumList, range_interval_, upper_bound_, lower_bound_, all_best_position_, 
+		size, spaceLength, workShopLength, workShopWidth);//这个allBest是CPU的！
 
-	//计算更新后粒子的适应度值数组
-	//也要改成GPU并行的
-	FitnessFunction<<<blockSum, threadsPerBlock>>>(curIterNum, maxIterNum, bestPathInfoList, problemParas,
-		dim, fitnessCount, fitness_GPU, position_GPU, velocity_GPU, best_position_GPU, best_fitness_GPU);//这个也要改
+	GetFitness();
 
 	curr_iter_++;
 }
 
 //更新粒子&计算适应度
-static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim, int fitnessCount, double w_, double C1_, double C2_, double dt_, BestPathInfo* bestPathInfoList, 
+static __global__ void UpdateParticle_Kernal(int curIterNum, int maxIterNum, int dim, int fitnessCount, double w_, double C1_, double C2_, double dt_,
 	/*用于替代Particle Particle* particles_,*/double* fitness_GPU, double* position_GPU, double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU,
 	curandState* globalState, double* randomNumList,double* range_interval_, double* upper_bound_, double* lower_bound_, double* all_best_position_, 
 	/*ProblemParas problemParas*/Vector2* size, double* spaceLength, double workShopLength, double workShopWidth)
@@ -554,33 +573,34 @@ static __global__ void UpdateParticle(int curIterNum, int maxIterNum, int dim, i
 }
 
 //更新Pbest的GPU函数
-static __global__ void UpdatePbest_kernal(Particle* particles_, int dim_, int fitness_count, curandState* globalState)
+static __global__ void UpdatePbest_Kernal(int dim_, int fitness_count, double* fitness_GPU, double* position_GPU, 
+	double* velocity_GPU, double* best_position_GPU, double* best_fitness_GPU, curandState* globalState)
 {
 	//i需要计算
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	//比较历史pbest和当前适应度，决定是否要更新
-	if (ComparePbest(i, fitness_count, particles_[i].fitness_, particles_[i].best_fitness_, globalState));
+	if (ComparePbest(i, fitness_count, fitness_GPU + i * fitness_count, best_fitness_GPU + i * fitness_count, globalState));
 	{
 		for (int j = 0; j < fitness_count; j++)
 		{
-			particles_[i].best_fitness_[j] = particles_[i].fitness_[j];
+			best_fitness_GPU[i * fitness_count + j] = fitness_GPU[i * fitness_count + j];
+			//particles_[i].best_fitness_[j] = particles_[i].fitness_[j];
 		}
 		for (int j = 0; j < dim_; j++)
 		{
-			particles_[i].best_position_[j] = particles_[i].position_[j];
+			best_position_GPU[i * dim_ + j] = position_GPU[i * dim_ + j];
+			//particles_[i].best_position_[j] = particles_[i].position_[j];
 		}
 	}
 }
-
 //更新Pbest
 void PSOOptimizer::UpdatePbest()
 {
 	//调用GPU函数
-	UpdatePbest_kernal <<<blockSum, threadsPerBlock>>> (particles_GPU, dim_, fitness_count, globalState);
+	UpdatePbest_Kernal <<<blockSum, threadsPerBlock>>> (dim_, fitness_count, fitness_GPU, position_GPU, velocity_GPU,
+		best_position_GPU, best_fitness_GPU, globalState);
 }
-// 更新Gbest
-// 这个是否需要改成GPU并行的
-// 如果要改，涉及到数据转移，而且这个函数的代码也不多，不如先不改成GPU的
+// 更新Gbest GPU
 void PSOOptimizer::UpdateGbest()
 {
 	vector<Particle> tempArchiveL(this->archive_list);
@@ -598,11 +618,11 @@ void PSOOptimizer::UpdateGbest()
 	Particle* gbestList = getG.getGbest();
 
 	//GPU
-	UpdateGbest_GPU <<<blockSum, threadsPerBlock>>> (fitness_count, dim_, all_best_fitness_, all_best_position_, gbestList);
+	UpdateGbest_Kernal <<<blockSum, threadsPerBlock >>> (fitness_count, dim_, all_best_fitness_, all_best_position_, gbestList);
 }
 
 //更新Gbest的GPU函数
-static __global__ void UpdateGbest_GPU(int fitness_count, int dim_, double* all_best_fitness_, double* all_best_position_, Particle* gbestList)
+static __global__ void UpdateGbest_Kernal(int fitness_count, int dim_, double* all_best_fitness_, double* all_best_position_, Particle* gbestList)
 {
 	//下标自己算
 	int i = blockIdx.x * blockDim.x + threadIdx.x;

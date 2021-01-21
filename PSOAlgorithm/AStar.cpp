@@ -15,7 +15,7 @@ bool mySort(const APoint* p1, const APoint* p2)
     return p1->f < p2->f;
 }
 
-APoint::APoint() :x(0)
+__device__ APoint::APoint() :x(0)
 , y(0)
 , h(0)
 , f(0)
@@ -32,8 +32,7 @@ APoint::~APoint()
 
 #pragma mark------CAstar-------
 
-CAstar::CAstar() :_endPoint(nullptr)
-, _curPoint(nullptr)
+__device__ CAstar::CAstar() :_endPoint(nullptr), _curPoint(nullptr)
 {
 }
 
@@ -73,7 +72,8 @@ void CAstar::resetAStar()
 	closeList_CurSize = 0;
 	neighbourList_CurSize = 0;
 }
-APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
+//要改成__device__的
+__device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
     curPathDirect = beginDirect;
     _endPoint = _allPoints[endRowIndex * pointColNum + endColIndex];

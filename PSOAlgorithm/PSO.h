@@ -209,7 +209,7 @@ public:
 	double* best_fitness_GPU;				//粒子的个体最优适应度数组
 
 	double* randomNumList;					//存随机数的数组
-	curandState* devStates;					//cuda随机数状态数组
+	curandState* globalState;				//cuda随机数状态数组
 
 	double* upper_bound_;					//position搜索范围上限
 	double* lower_bound_;					//position搜索范围下限
@@ -225,13 +225,10 @@ public:
 	double C1_;								//加速度因子
 	double C2_;								//加速度因子
 
-	double* all_best_fitness_;				//全局最优粒子的适应度数组 100x2
-	double* all_best_position_;				//全局最优粒子的position 100x12
+	double* all_best_fitness_;				//全局最优粒子的适应度数组 100x2 GPU
+	double* all_best_position_;				//全局最优粒子的position 100x12 GPU
 
-
-
-
-	ProblemParas problemParas;				//布局问题参数 CPU!
+	ProblemParas problemParas;				//布局问题参数 CPU
 
 
 	//拆解后的problemParas,GPU
@@ -275,8 +272,8 @@ public:
 
 	int totalInPoint;						//入口点的总数目
 	int totalOutPoint;						//出口点的总数目
-	AdjPoint* adjPointsIn;	//入口
-	AdjPoint* adjPointsOut;	//出口
+	AdjPoint* adjPointsIn;					//入口点的数组
+	AdjPoint* adjPointsOut;					//出口点的数组
 
 
 	//CargoType* cargoTypeList;				//货物类型列表
@@ -349,7 +346,7 @@ public:
 	void InitGbest();
 
 	// 计算该粒子的适应度值
-	void GetFitness(int dim, int fitnessCount, double* fitness_CPU, double* position_CPU, double* velocity_CPU, double* best_position_CPU, double* best_fitness_CPU);
+	void GetFitness();
 
 	// 更新所有粒子参数
 	void UpdateAllParticles();

@@ -33,14 +33,14 @@ enum class AType
 class APoint
 {
 public:
-	APoint();
+	__device__ APoint();
 	~APoint();
 	int rowIndex;
 	int colIndex;
 	double x;
 	double y;
-	AType type;   //类型:障碍、开放列表、关闭列表
-	double f;  //f = g+h
+	AType type;		//类型:障碍、开放列表、关闭列表
+	double f;		//f = g+h
 	double g;
 	double h;
 	APoint* parent;
@@ -93,10 +93,10 @@ public:
 	int pointColNum;	//点的列数目
 
 	PathDirection curPathDirect;
-	CAstar();
+	__device__ CAstar();
 	~CAstar();
 	double CalcuPathLength(APoint* point);
-	APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
+	__device__ APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
 	void resetAStar();
 	bool SameDirect(APoint* curPoint, APoint* nextPoint);
 	//    APoint* findWay(int beginX,int beginY,int endX,int endY);
