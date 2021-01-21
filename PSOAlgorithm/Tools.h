@@ -154,7 +154,7 @@ static __device__ int Double_Unique(double* numArray, int start, int end)
 }
 
 //自定义四舍五入算法
-static int MyRound(double num)
+static __device__ int MyRound(double num)
 {
 	return (num > 0.0) ? floor(num + 0.5) : ceil(num - 0.5);
 }
@@ -298,7 +298,7 @@ static __device__ PointInfo FindPointInfo(PointInfo* pointInfoList, int start, i
 
 //归并排序(APoint版本)
 //注意排序规则，是按照APoint的f值进行比较
-void Merge(APoint** objArray, int start, int middle, int end, APoint** tempArray)
+__device__ void Merge(APoint** objArray, int start, int middle, int end, APoint** tempArray)
 {
 	int i = start;
 	int j = middle + 1;
@@ -324,11 +324,11 @@ void Merge(APoint** objArray, int start, int middle, int end, APoint** tempArray
 }
 
 //使用归并排序实现稳定的sort(APoint)
-static void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray)
+static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray)
 {
 	if (start < end)
 	{
-		int middle = (start + end) >> 1;
+		int middle = (start + end) / 2;
 		StableSort_APoint(objArray, start, middle, tempArray);
 		StableSort_APoint(objArray, middle + 1, end, tempArray);
 		Merge(objArray, start, middle, end, tempArray);

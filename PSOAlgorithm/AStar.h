@@ -60,7 +60,11 @@ public:
 	{
 		return abs(this->y - point.y) + abs(this->x - point.x);
 	}
-	void resetAPoint()
+	__device__ double CalcuPointDist(const APoint& point, int i)
+	{
+		return abs(this->y - point.y) + abs(this->x - point.x);
+	}
+	__device__ void resetAPoint()
 	{
 		f = g = h = 0;
 		type = AType::ATYPE_UNKNOWN;
@@ -95,19 +99,18 @@ public:
 	PathDirection curPathDirect;
 	__device__ CAstar();
 	~CAstar();
-	double CalcuPathLength(APoint* point);
+	__device__ double CalcuPathLength(APoint* point);
 	__device__ APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
-	void resetAStar();
-	bool SameDirect(APoint* curPoint, APoint* nextPoint);
-	//    APoint* findWay(int beginX,int beginY,int endX,int endY);
+	__device__ void resetAStar();
+	//bool SameDirect(APoint* curPoint, APoint* nextPoint);
 private:
-	double getF(APoint* point);
-	double getH(APoint* point);
-	double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint);
-	APoint** getNeighboringPoint(APoint* point);
+	__device__ double getF(APoint* point);
+	__device__ double getH(APoint* point);
+	__device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint);
+	__device__ APoint** getNeighboringPoint(APoint* point);
 };
 
 
 
 
-#endif /* defined(__Astar__CAstar__) */
+#endif 

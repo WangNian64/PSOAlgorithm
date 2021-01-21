@@ -45,14 +45,14 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 //double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
 
-int FindAxisIndex(double axis, const double* axisList, int axisCount);
+__device__ int FindAxisIndex(double axis, const double* axisList, int axisCount);
 
 //顺时针旋转后的坐标
-Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
+__device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
 //对一个数字*10000然后四舍五入到int
-int Multi10000ToInt(double num);
+__device__ int Multi10000ToInt(double num);
 
-Vector2Int Multi10000ToInt(Vector2 v);
+__device__ Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
 __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
 	/*ProblemParas proParas, 固定参数的，不用管*/
@@ -1120,8 +1120,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 #pragma endregion
 
 #pragma region 寻路
-		CAstar* star = new CAstar();//
-		//这里内存复制需要修正
+		CAstar* star = new CAstar();
+		//没问题
 		star->_allPoints = pathPointMap;
 		star->pointColNum = pathColNum;
 		star->pointRowNum = pathRowNum;
@@ -1491,7 +1491,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		int tempCurveConveyorList_CurIndex = 0;
 
 		for (int i = 0; i < totalLinkSum; i++) {
-			StraightConveyorInfo tempStrInfo;//这里是否会出错？
+			StraightConveyorInfo tempStrInfo;
 			tempStrInfo.startPos = Multi10000ToInt(copyPLinks[i].points[copyPLinks[i].pointNum - 1]);//开头
 			PointInfo curPointInfo = FindPointInfo(pathPointInfoMap, 0, pathPointInfoMap_UniqueSum - 1, tempStrInfo.startPos);
 			tempStrInfo.startVnum = curPointInfo.vertDirNum;
@@ -1525,7 +1525,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					//只要不是始终点，都需要更新转弯输送机
 					if (!(pPathPoint.horiDirNum == 1 && pPathPoint.vertDirNum == 0)
 						&& !(pPathPoint.horiDirNum == 0 && pPathPoint.vertDirNum == 1)) {
-						//tempCurveConveyorList.insert(p);////
+						//tempCurveConveyorList.insert(p);
 						curveConveyorList[index * tempCurveConveyorList_PointSum + tempCurveConveyorList_CurIndex++] = p;
 					}
 				}
@@ -1634,11 +1634,6 @@ __device__ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 	}
 	return result;
 }
-//计算曼哈段距离
-//double CalcuDeviceDist(Vector2 pos1, Vector2 pos2)
-//{
-//	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y);
-//}
 //计算占地面积
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 	double area = 0;
@@ -1658,7 +1653,7 @@ double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
 	return area;
 }
 //先乘以10000，然后四舍五入到Int
-int Multi10000ToInt(double num)
+__device__ int Multi10000ToInt(double num)
 {
 	//使用自定义的Round函数
 	return MyRound(num * 10000);
