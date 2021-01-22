@@ -1085,8 +1085,6 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		int* barrierColIndexList = new int[barrierColNum];
 		int totalBarRowNum = 0;//记录barrier的实际行数目
 		int totalBarColNum = 0;//记录barrier的实际列数目
-		//vector<int> barrierRowIndexList;
-		//vector<int> barrierColIndexList;
 
 		//用这些坐标去组成路径点map，map是二维的，相当于二维点矩阵
 		//用一维代替二维
@@ -1121,7 +1119,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 
 #pragma region 寻路
 		CAstar* star = new CAstar();
-		//没问题
+		//只在kernal函数内部执行，用new和delete就行
 		star->_allPoints = pathPointMap;
 		star->pointColNum = pathColNum;
 		star->pointRowNum = pathRowNum;

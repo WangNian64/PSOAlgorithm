@@ -249,10 +249,72 @@ static __global__ void UpdateCurBestPathInfo(int fitnessCount, double* fitness_G
 }
 PSOOptimizer::~PSOOptimizer()//析构函数都需要修改
 {
-	if (upper_bound_) { delete[]upper_bound_; }
-	if (lower_bound_) { delete[]lower_bound_; }
-	if (range_interval_) { delete[]range_interval_; }
-	if (all_best_position_) { delete[]all_best_position_; }
+	//CPU
+	if (fitness_CPU) { delete[] fitness_CPU; }
+	if (position_CPU) { delete[] position_CPU; }
+	if (velocity_CPU) { delete[] velocity_CPU; }
+	if (best_position_CPU) { delete[] best_position_CPU; }
+	if (best_fitness_CPU) { delete[] best_fitness_CPU; }
+
+	if (lower_bound_CPU) { delete[] lower_bound_CPU; }
+	if (upper_bound_CPU) { delete[] upper_bound_CPU; }
+	if (range_interval_) { delete[] range_interval_; }
+	if (all_best_position_) { delete[] all_best_position_; }
+	//GPU
+	cudaFree(fitness_GPU);
+	cudaFree(position_GPU);
+	cudaFree(velocity_GPU);
+	cudaFree(best_position_GPU);
+	cudaFree(best_fitness_GPU);
+	cudaFree(randomNumList);
+	cudaFree(globalState);
+	cudaFree(upper_bound_);
+	cudaFree(lower_bound_);
+	cudaFree(range_interval_);
+	cudaFree(all_best_fitness_);
+	cudaFree(all_best_position_);
+	cudaFree(bestParticleIndex);
+
+	//DevicePara* deviceParaList;
+	cudaFree(ID);
+	cudaFree(workSpeed);
+	cudaFree(size);
+	cudaFree(axis);
+	cudaFree(direct);
+	cudaFree(spaceLength);
+	cudaFree(adjPInCount);
+	cudaFree(adjPOutCount);
+	cudaFree(accumAdjPInCount);
+	cudaFree(accumAdjPOutCount);
+	cudaFree(adjPointsIn);
+	cudaFree(adjPointsOut);
+
+
+	//CargoType* cargoTypeList;				//货物类型
+	cudaFree(deviceSum);
+	cudaFree(linkSum);
+	cudaFree(accumLinkSum);
+	cudaFree(deviceLinkList);
+	cudaFree(totalVolume);
+
+
+	//所有粒子的输送线信息
+	cudaFree(curBestFitnessVal);
+	cudaFree(inoutPoints);
+	cudaFree(strConveyorList);
+	cudaFree(strConveyorListSum);
+	cudaFree(curveConveyorList);
+	cudaFree(curveConveyorListSum);
+
+
+	//当前最佳的输送线信息
+	cudaFree(curBestPath_FitnessVal);
+	cudaFree(curBestPath_InoutPoints);
+	cudaFree(curBestPath_StrConveyorList);
+	cudaFree(curBestPath_StrConveyorListSum);
+	cudaFree(curBestPath_CurveConveyorList);
+	cudaFree(curBestPath_CurveConveyorListSum);
+	cudaFree(pointDirectArray);
 }
 
 // 初始化所有粒子（没有更新全局最佳）

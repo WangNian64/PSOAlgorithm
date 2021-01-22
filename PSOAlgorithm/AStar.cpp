@@ -38,9 +38,9 @@ __device__ CAstar::CAstar() :_endPoint(nullptr), _curPoint(nullptr)
 
 CAstar::~CAstar()
 {
-	delete[] _openList;
-	delete[] _closeList;
-	delete[] _neighbourList;
+	if (_openList) { delete[] _openList; }
+	if (_closeList) { delete[] _closeList; }
+	if (_neighbourList) { delete[] _neighbourList; }
 	openList_CurSize = 0;
 	closeList_CurSize = 0;
 	neighbourList_CurSize = 0;

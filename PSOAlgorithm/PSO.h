@@ -193,14 +193,15 @@ public:
 	//Particle* particles_GPU;				//所有粒子（GPU）
 	//Particle* particles_CPU;				//所有粒子（CPU）
 	
-	int* bestParticleIndex;					//每轮迭代中最优Fitness所在的index
-
 	//粒子参数CPU
 	double* fitness_CPU;					//适应度数组 总长度：粒子数目*fitnessCount
 	double* position_CPU;					//粒子位置数组 总长度：粒子数目*dim
 	double* velocity_CPU;					//粒子速度数组
 	double* best_position_CPU;				//粒子的个体最优位置数组
 	double* best_fitness_CPU;				//粒子的个体最优适应度数组
+
+	double* lower_bound_CPU;				//position搜索范围下限
+	double* upper_bound_CPU;				//position搜索范围上限
 	//粒子参数GPU
 	double* fitness_GPU;					//适应度数组
 	double* position_GPU;					//粒子位置数组
@@ -208,15 +209,18 @@ public:
 	double* best_position_GPU;				//粒子的个体最优位置数组
 	double* best_fitness_GPU;				//粒子的个体最优适应度数组
 
-	double* randomNumList;					//存随机数的数组
-	curandState* globalState;				//cuda随机数状态数组
-
 	double* upper_bound_;					//position搜索范围上限
 	double* lower_bound_;					//position搜索范围下限
 	double* range_interval_;				//position搜索区间长度
 
-	double* lower_bound_CPU;				//position搜索范围下限
-	double* upper_bound_CPU;				//position搜索范围上限
+	double* all_best_fitness_;				//全局最优粒子的适应度数组 100x2 GPU
+	double* all_best_position_;				//全局最优粒子的position 100x12 GPU
+
+	double* randomNumList;					//存随机数的数组
+	curandState* globalState;				//cuda随机数状态数组
+
+
+	int* bestParticleIndex;					//每轮迭代中最优Fitness所在的index
 
 	double dt_;								//时间步长
 	double wstart_;							//初始权重
@@ -225,8 +229,6 @@ public:
 	double C1_;								//加速度因子
 	double C2_;								//加速度因子
 
-	double* all_best_fitness_;				//全局最优粒子的适应度数组 100x2 GPU
-	double* all_best_position_;				//全局最优粒子的position 100x12 GPU
 
 	ProblemParas problemParas;				//布局问题参数 CPU
 
