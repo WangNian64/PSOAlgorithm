@@ -15,15 +15,7 @@
 //    return p1->f < p2->f;
 //}
 
-__device__ APoint::APoint() :x(0)
-, y(0)
-, h(0)
-, f(0)
-, g(0)
-, parent(nullptr)
-, type(AType::ATYPE_UNKNOWN)
-{
-}
+
 APoint::~APoint()
 {
     if (parent) { delete[] parent; }
@@ -31,22 +23,18 @@ APoint::~APoint()
 
 
 #pragma mark------CAstar-------
-
-__device__ CAstar::CAstar() :_endPoint(nullptr), _curPoint(nullptr)
-{
-}
-
 CAstar::~CAstar()
 {
 	if (_openList) { delete[] _openList; }
 	if (_closeList) { delete[] _closeList; }
 	if (_neighbourList) { delete[] _neighbourList; }
-	openList_CurSize = 0;
-	closeList_CurSize = 0;
-	neighbourList_CurSize = 0;
+	openList_CurSize = nullptr;
+	closeList_CurSize = nullptr;
+	neighbourList_CurSize = nullptr;
+	curPathDirect = nullptr;
 }
 //¼ÆËãÒ»ÌõÂ·¾¶µÄ×Ü³¤¶È
-__device__ double CAstar::CalcuPathLength(APoint* point)
+__device__ double CalcuPathLength(APoint* point)
 {
     double length = 0.0;
     while (point->parent)
@@ -56,7 +44,8 @@ __device__ double CAstar::CalcuPathLength(APoint* point)
     }
     return length;
 }
-__device__ void CAstar::resetAStar()
+__device__ void resetAStar(int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _openList, APoint** _closeList, APoint** _neighbourList, 
+	int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize)
 {
     for (int i = 0; i < pointRowNum; i++)
     {
@@ -68,14 +57,16 @@ __device__ void CAstar::resetAStar()
 	delete[] _openList;
 	delete[] _closeList;
 	delete[] _neighbourList;
-	openList_CurSize = 0;
-	closeList_CurSize = 0;
-	neighbourList_CurSize = 0;
+	openList_CurSize[0] = 0;
+	closeList_CurSize[0] = 0;
+	neighbourList_CurSize[0] = 0;
 }
 //Òª¸Ä³É__device__µÄ
-__device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
+__device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDirect, APoint** _allPoints, APoint* _endPoint, APoint** _neighbourList,
+	APoint* _curPoint, APoint** _openList, APoint** _closeList, int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize,
+	int pointColNum, int pointRowNum, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
-	curPathDirect = beginDirect;
+	curPathDirect[0] = beginDirect;
 	_endPoint = _allPoints[endRowIndex * pointColNum + endColIndex];//Õâ¸öÄÚ´æµÃÊÇGPUÄÚ²¿µÄ
 	APoint* beginPoint = _allPoints[beginRowIndex * pointColNum + beginColIndex];
 
@@ -91,9 +82,9 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 		return _curPoint;
 	}
 
-	_openList[openList_CurSize++] = beginPoint;
+	_openList[openList_CurSize[0]++] = beginPoint;
 	beginPoint->type = AType::ATYPE_OPENED;
-	beginPoint->f = getF(beginPoint);
+	beginPoint->f = getF(beginPoint, _endPoint);
 	//---------
 	do
 	{
@@ -101,7 +92,7 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 		_curPoint = _openList[0];
 
 		//É¾³ý×îÇ°ÃæµÄ½Úµã
-		if (openList_CurSize == 1) {
+		if (openList_CurSize[0] == 1) {
 			_openList = NULL;//Õâ¸öÒ²Òª¸Ä
 		}
 		else {
@@ -110,7 +101,7 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 		openList_CurSize--;
 
 		_curPoint->type = AType::ATYPE_CLOSED;
-		_closeList[closeList_CurSize++] = _curPoint;
+		_closeList[closeList_CurSize[0]++] = _curPoint;
 
 		if (*_curPoint == *_endPoint)
 		{
@@ -118,11 +109,11 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 			return _curPoint;
 		}
 		//»ñÈ¡ÏàÁÚµÄ½Úµã
-		APoint** neVec = getNeighboringPoint(_curPoint);//
-		for (int i = 0; i < neighbourList_CurSize; i++)
+		APoint** neVec = getNeighboringPoint(_curPoint, neighbourList_CurSize, curPathDirect, pointRowNum, pointColNum, _allPoints, _neighbourList);
+		for (int i = 0; i < neighbourList_CurSize[0]; i++)
 		{
 			APoint* tmpoint = neVec[i];
-			double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint);
+			double tempG = _curPoint->g + tmpoint->CalcuPointDist(*_curPoint) + getE(_curPoint, tmpoint, _endPoint, curPathDirect);
 			if (tmpoint->type == AType::ATYPE_CLOSED)
 			{
 				continue;
@@ -142,10 +133,10 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 				//{
 				//    curPathDirect = PathDirection::Horizon;
 				//}
-				tmpoint->h = getH(tmpoint);
-				tmpoint->f = getF(tmpoint);
+				tmpoint->h = getH(tmpoint, _endPoint);
+				tmpoint->f = getF(tmpoint, _endPoint);
 				//Ìí¼Óµ½¿ª·ÅÁÐ±íÀï
-				_openList[openList_CurSize++] = tmpoint;
+				_openList[openList_CurSize[0]++] = tmpoint;
 				tmpoint->type = AType::ATYPE_OPENED;
 			}
 			else
@@ -160,13 +151,13 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 					//¸üÐÂ·½Ïò
 					if (tmpoint->x == _curPoint->x)
 					{
-						curPathDirect = PathDirection::Vertical;
+						curPathDirect[0] = PathDirection::Vertical;
 					}
 					if (tmpoint->y == _curPoint->y)
 					{
-						curPathDirect = PathDirection::Horizon;
+						curPathDirect[0] = PathDirection::Horizon;
 					}
-					tmpoint->f = getF(tmpoint);
+					tmpoint->f = getF(tmpoint, _endPoint);
 				}
 			}
 		}
@@ -174,7 +165,7 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 		//ÐèÒª×Ô¼ºÊµÏÖ
 		//¹é²¢ÅÅÐòÊÇÎÈ¶¨µÄ£¬ÓÃÕâ¸öÊµÏÖ
 		//stable_sort(_openList.begin(), _openList.end(), mySort);
-		APoint** tempOpenList = new APoint * [openList_CurSize];
+		APoint** tempOpenList = new APoint * [openList_CurSize[0]];
 		StableSort_APoint(_openList, 0, openList_CurSize - 1, tempOpenList);
 
 	} while (openList_CurSize > 0);
@@ -189,33 +180,32 @@ __device__ APoint* CAstar::findWay(PathDirection beginDirect, int beginRowIndex,
 //        || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y);
 //}
 //µÃµ½F=G+H+E(EÊÇÎªÁË¶ÔÂ·¾¶½øÐÐÎ¢µ÷£¬¼õÉÙ¹Õµã£©
-__device__ double CAstar::getF(APoint* point)
+__device__ double getF(APoint* point, APoint* _endPoint)
 {
-    return (point->g + getH(point));
+    return (point->g + getH(point, _endPoint));
 }
 //¹ÀËãH
-__device__ double CAstar::getH(APoint* point)
+__device__ double getH(APoint* point, APoint* _endPoint)
 {
     //Âü¹þ¶Ù³ÇÊÐ½ÖÇø¹ÀËã·¨
     return abs(_endPoint->y - point->y) + abs(_endPoint->x - point->x);
 }
 //¼ÆËãE
-__device__ double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint)
+__device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint, PathDirection* curPathDirect)
 {
     //µÚÒ»¸öµã»òÕßÊÇÖ±Ïßµã£¨²»ÊÇ¹Õµã£©£¬E=0
     if (curPoint->parent == NULL)//µÚÒ»¸öµã
     {
-        if (curPathDirect == PathDirection::Horizon)
+        if (curPathDirect[0] == PathDirection::Horizon)
         {
             return (nextPoint->y == curPoint->y) ? 0 : 2;
         }
-        if (curPathDirect == PathDirection::Vertical)
+        if (curPathDirect[0] == PathDirection::Vertical)
         {
             return (nextPoint->x == curPoint->x) ? 0 : 2;
         }
     }
-    if (nextPoint->x == curPoint->parent->x
-        || nextPoint->y == curPoint->parent->y)//Î¬³ÖÔ­·½Ïò
+    if (nextPoint->x == curPoint->parent->x || nextPoint->y == curPoint->parent->y)//Î¬³ÖÔ­·½Ïò
     {
         return 0.0;
     }
@@ -225,41 +215,41 @@ __device__ double CAstar::getE(APoint* curPoint, APoint* nextPoint, APoint* endP
     {
         return 1.0;
     }
-
     return 2.0;
 }
-__device__ APoint** CAstar::getNeighboringPoint(APoint* point)//ÏàÁÚ½Úµã×î¶à¾Í4¸ö
+__device__ APoint** getNeighboringPoint(APoint* point, int* neighbourList_CurSize, PathDirection* curPathDirect, 
+	int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _neighbourList)//ÏàÁÚ½Úµã×î¶à¾Í4¸ö
 {
 	neighbourList_CurSize = 0;//Çå¿Õneighbor
     //¿ÉÒÔÑ¡Ôñ¸ù¾Ýµ±Ç°·½Ïòµ÷ÕûµãµÄÌí¼ÓË³Ðò
-    if (curPathDirect == PathDirection::Vertical)//Â·Ïß·½Ïò´¹Ö±£¬ÏÈ¼ì²é´¹Ö±·½Ïò
+    if (curPathDirect[0] == PathDirection::Vertical)//Â·Ïß·½Ïò´¹Ö±£¬ÏÈ¼ì²é´¹Ö±·½Ïò
     {
         if (point->rowIndex < pointRowNum - 1)
         {
             if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
             }
         }
         if (point->rowIndex > 0)
         {
             if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
             }
         }
         if (point->colIndex < pointColNum - 1)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
             }
         }
         if (point->colIndex > 0)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
             }
         }
     }  
@@ -269,28 +259,28 @@ __device__ APoint** CAstar::getNeighboringPoint(APoint* point)//ÏàÁÚ½Úµã×î¶à¾Í4¸
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex + 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[point->rowIndex * pointColNum + point->colIndex + 1];
             }
         }
         if (point->colIndex > 0)
         {
             if (_allPoints[point->rowIndex * pointColNum + point->colIndex - 1]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[point->rowIndex * pointColNum + point->colIndex - 1];
             }
         }
         if (point->rowIndex < pointColNum - 1)
         {
             if (_allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[(point->rowIndex + 1) * pointColNum + point->colIndex];
             }
         }
         if (point->rowIndex > 0)
         {
             if (_allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex]->type != AType::ATYPE_BARRIER)
             {
-                _neighbourList[neighbourList_CurSize++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
+                _neighbourList[neighbourList_CurSize[0]++] = _allPoints[(point->rowIndex - 1) * pointColNum + point->colIndex];
             }
         }
     }

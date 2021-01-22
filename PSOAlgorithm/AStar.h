@@ -33,7 +33,16 @@ enum class AType
 class APoint
 {
 public:
-	__device__ APoint();
+	__device__ APoint() :x(0)
+		, y(0)
+		, h(0)
+		, f(0)
+		, g(0)
+		, parent(nullptr)
+		, type(AType::ATYPE_UNKNOWN)
+	{
+
+	}
 	~APoint();
 	int rowIndex;
 	int colIndex;
@@ -82,32 +91,43 @@ public:
 	int openList_MaxSize = 100;		//开放列表数组最大大小
 	int closeList_MaxSize = 100;	//关闭列表数组最大大小
 	int neighbourList_MaxSize = 4;	//周边节点列表数组最大大小
-
-	int openList_CurSize = 0;//当前大小
-	int closeList_CurSize = 0;
-	int neighbourList_CurSize = 0;
+	//当前大小
+	int* openList_CurSize;			
+	int* closeList_CurSize;
+	int* neighbourList_CurSize;
 	APoint** _openList;				//开放列表
 	APoint** _closeList;			//关闭列表
 	APoint** _neighbourList;		//周边节点
 	APoint* _endPoint;
 	APoint* _curPoint;
 
-	APoint** _allPoints;//修改这个数据结构
-	int pointRowNum;	//点的行数目
-	int pointColNum;	//点的列数目
+	APoint** _allPoints;			//修改这个数据结构
+	int pointRowNum;				//点的行数目
+	int pointColNum;				//点的列数目
 
-	PathDirection curPathDirect;
-	__device__ CAstar();
+	PathDirection* curPathDirect;
+	__device__ CAstar():_endPoint(nullptr), _curPoint(nullptr)//合法
+	{
+		openList_CurSize = new int[1];
+		closeList_CurSize = new int[1];
+		neighbourList_CurSize = new int[1];
+		curPathDirect = new PathDirection[1];
+
+		openList_CurSize[0] = 0;
+		closeList_CurSize[0] = 0;
+		neighbourList_CurSize[0] = 0;
+	}
+
 	~CAstar();
-	__device__ double CalcuPathLength(APoint* point);
-	__device__ APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
-	__device__ void resetAStar();
+	//__device__ double CalcuPathLength(APoint* point);
+	//__device__ APoint* findWay(PathDirection beginDirect, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
+	//__device__ void resetAStar();
 	//bool SameDirect(APoint* curPoint, APoint* nextPoint);
 private:
-	__device__ double getF(APoint* point);
-	__device__ double getH(APoint* point);
-	__device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint);
-	__device__ APoint** getNeighboringPoint(APoint* point);
+	//__device__ double getF(APoint* point);
+	//__device__ double getH(APoint* point);
+	//__device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint);
+	//__device__ APoint** getNeighboringPoint(APoint* point);
 };
 
 
