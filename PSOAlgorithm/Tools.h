@@ -16,6 +16,7 @@ using namespace std;
 //所有函数都加上定义
 //生成一个随机数
 __device__ float createARandomNum(curandState* globalState, int index);
+static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray);
 static __device__ double getAbs(double num)
 {
 	return num > 0 ? num : -num;

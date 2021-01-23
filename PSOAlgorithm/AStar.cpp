@@ -34,7 +34,7 @@ CAstar::~CAstar()
 	curPathDirect = nullptr;
 }
 //计算一条路径的总长度
-__device__ double CalcuPathLength(APoint* point)
+static __device__ double CalcuPathLength(APoint* point)
 {
     double length = 0.0;
     while (point->parent)
@@ -44,7 +44,7 @@ __device__ double CalcuPathLength(APoint* point)
     }
     return length;
 }
-__device__ void resetAStar(int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _openList, APoint** _closeList, APoint** _neighbourList, 
+static __device__ void resetAStar(int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _openList, APoint** _closeList, APoint** _neighbourList,
 	int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize)
 {
     for (int i = 0; i < pointRowNum; i++)
@@ -62,7 +62,7 @@ __device__ void resetAStar(int pointRowNum, int pointColNum, APoint** _allPoints
 	neighbourList_CurSize[0] = 0;
 }
 //要改成__device__的
-__device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDirect, APoint** _allPoints, APoint* _endPoint, APoint** _neighbourList,
+static __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDirect, APoint** _allPoints, APoint* _endPoint, APoint** _neighbourList,
 	APoint* _curPoint, APoint** _openList, APoint** _closeList, int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize,
 	int pointColNum, int pointRowNum, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex)
 {
@@ -166,7 +166,7 @@ __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDire
 		//归并排序是稳定的，用这个实现
 		//stable_sort(_openList.begin(), _openList.end(), mySort);
 		APoint** tempOpenList = new APoint * [openList_CurSize[0]];
-		StableSort_APoint(_openList, 0, openList_CurSize - 1, tempOpenList);
+		StableSort_APoint(_openList, 0, openList_CurSize[0] - 1, tempOpenList);
 
 	} while (openList_CurSize > 0);
 
@@ -180,18 +180,18 @@ __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDire
 //        || (curPathDirect == PathDirection::Horizon && nextPoint->y == curPoint->y);
 //}
 //得到F=G+H+E(E是为了对路径进行微调，减少拐点）
-__device__ double getF(APoint* point, APoint* _endPoint)
+static __device__ double getF(APoint* point, APoint* _endPoint)
 {
     return (point->g + getH(point, _endPoint));
 }
 //估算H
-__device__ double getH(APoint* point, APoint* _endPoint)
+static __device__ double getH(APoint* point, APoint* _endPoint)
 {
     //曼哈顿城市街区估算法
     return abs(_endPoint->y - point->y) + abs(_endPoint->x - point->x);
 }
 //计算E
-__device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint, PathDirection* curPathDirect)
+static __device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint, PathDirection* curPathDirect)
 {
     //第一个点或者是直线点（不是拐点），E=0
     if (curPoint->parent == NULL)//第一个点
@@ -217,7 +217,7 @@ __device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint, Pa
     }
     return 2.0;
 }
-__device__ APoint** getNeighboringPoint(APoint* point, int* neighbourList_CurSize, PathDirection* curPathDirect, 
+static __device__ APoint** getNeighboringPoint(APoint* point, int* neighbourList_CurSize, PathDirection* curPathDirect,
 	int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _neighbourList)//相邻节点最多就4个
 {
 	neighbourList_CurSize = 0;//清空neighbor

@@ -1303,7 +1303,9 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				endColIndex = FindAxisIndex(device2PosX, horizonAxisList, uniqueHoriPCount);
 
 				//得到路径，path是第一个节点
-				APoint* path = star->findWay(pathBeginDirect, beginRowIndex, beginColIndex, endRowIndex, endColIndex);
+				APoint* path = findWay(star->curPathDirect, pathBeginDirect, star->_allPoints, star->_endPoint, star->_neighbourList,
+					star->_curPoint, star->_openList, star->_closeList, star->openList_CurSize, star->closeList_CurSize, star->neighbourList_CurSize, 
+					star->pointColNum, star->pointRowNum, beginRowIndex, beginColIndex, endRowIndex, endColIndex);
 				//不可行的解，直接退出
 				if (path == nullptr)
 				{
@@ -1311,7 +1313,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 					return;
 				}
 				//根据路径计算长度
-				deviceDistance = star->CalcuPathLength(path) + outDSizeL + inDSizeL;
+				deviceDistance = CalcuPathLength(path) + outDSizeL + inDSizeL;
 
 
 #pragma region 计算路径（只带上起始点 + 路径中的转弯点）
@@ -1394,7 +1396,8 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				//计算设备处理时间(物料总量 * 处理效率)
 				//totalTime += curCargoType.totalVolume * curDevice.workSpeed;
 
-				star->resetAStar();
+				resetAStar(star->pointRowNum, star->pointColNum, star->_allPoints, star->_openList, star->_closeList, star->_neighbourList,
+					star->openList_CurSize, star->closeList_CurSize, star->neighbourList_CurSize);
 				//给障碍点重新标记
 				for (int i = 0; i < totalBarRowNum; i++)
 				{

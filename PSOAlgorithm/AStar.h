@@ -132,5 +132,13 @@ private:
 
 
 
-
+static __device__ double CalcuPathLength(APoint* point);
+static __device__ void resetAStar(int pointRowNum, int pointColNum, APoint** _allPoints, APoint** _openList, APoint** _closeList, APoint** _neighbourList,
+	int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize);
+static __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection beginDirect, APoint** _allPoints, APoint* _endPoint, APoint** _neighbourList,
+	APoint* _curPoint, APoint** _openList, APoint** _closeList, int* openList_CurSize, int* closeList_CurSize, int* neighbourList_CurSize,
+	int pointColNum, int pointRowNum, int beginRowIndex, int beginColIndex, int endRowIndex, int endColIndex);
+static __device__ double getF(APoint* point, APoint* _endPoint);
+static __device__ double getH(APoint* point, APoint* _endPoint);
+static __device__ double getE(APoint* curPoint, APoint* nextPoint, APoint* endPoint, PathDirection* curPathDirect);
 #endif 
