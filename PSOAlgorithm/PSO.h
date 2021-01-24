@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <vector>
 #include <set>
 #include <map>
@@ -7,6 +6,8 @@
 #include "ProblemParas.h"
 
 #include <cuda_runtime.h>//几个cuda的API
+#include <cuda_runtime_api.h>
+#include "device_launch_parameters.h"
 #include <curand.h>
 #include <curand_kernel.h>
 // 适应度是越大越好还是越小越好
@@ -28,9 +29,9 @@ struct PSOPara
 	double C1_;									// 加速度因子1
 	double C2_;									// 加速度因子2
 
-	double* lower_bound_ = nullptr;				// position搜索范围下限
-	double* upper_bound_ = nullptr;				// position搜索范围上限
-	double* range_interval_ = nullptr;			// position搜索区间长度
+	double* lower_bound_;				// position搜索范围下限
+	double* upper_bound_;				// position搜索范围上限
+	double* range_interval_;			// position搜索区间长度
 
 	int archive_max_count;						// pareto最优解数组的最大值
 	ProblemParas problemParas;					// 和粒子对应的设备布局参数 全局参数
@@ -192,7 +193,7 @@ public:
 	int fitness_count;						//适应度数目
 	//Particle* particles_GPU;				//所有粒子（GPU）
 	//Particle* particles_CPU;				//所有粒子（CPU）
-	
+
 	//粒子参数CPU
 	double* fitness_CPU;					//适应度数组 总长度：粒子数目*fitnessCount
 	double* position_CPU;					//粒子位置数组 总长度：粒子数目*dim
@@ -235,8 +236,8 @@ public:
 
 	//拆解后的problemParas,GPU
 	int DeviceSum;							//设备总数
-	int horiPointCount = 0;					//未去重前所有水平方向的点的数目
-	int vertPointCount = 0;					//未去重前所有垂直方向的点的数目
+	int horiPointCount;					//未去重前所有水平方向的点的数目
+	int vertPointCount;					//未去重前所有垂直方向的点的数目
 
 	double workShopLength;					//车间长度
 	double workShopWidth;					//车间宽度
@@ -246,8 +247,8 @@ public:
 
 	//物料参数列表
 
-	int fixedLinkPointSum = 50;				//每一条link的固定点数目为50(没有去重之前的)
-	int fixedUniqueLinkPointSum = 20;		//去重后的每一条link的固定点数目为20
+	int fixedLinkPointSum;				//每一条link的固定点数目为50(没有去重之前的)
+	int fixedUniqueLinkPointSum;		//去重后的每一条link的固定点数目为20
 	//输送机参数
 	double convey2DeviceDist;				//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;						//输送机宽度

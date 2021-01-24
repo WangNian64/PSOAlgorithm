@@ -4,7 +4,6 @@
 #include <fstream>
 #include "DevicePara.h"
 #include "Tools.h"
-#include "Graph.h"
 using namespace std;
 //成本计算参数
 struct CostPara {
@@ -37,11 +36,8 @@ struct ProblemParas
 	AdjPoint* adjPointsIn;	//入口
 	AdjPoint* adjPointsOut;	//出口
 
-	int totalInPoint;					//入口点的总数目
-	int totalOutPoint;					//出口点的总数目
-
-	int horiPointCount = 0;				//未去重前所有水平方向的点的数目
-	int vertPointCount = 0;				//未去重前所有垂直方向的点的数目
+	int horiPointCount;				//未去重前所有水平方向的点的数目
+	int vertPointCount;				//未去重前所有垂直方向的点的数目
 
 	double workShopLength;				//车间长度
 	double workShopWidth;				//车间宽度
@@ -61,8 +57,8 @@ struct ProblemParas
 	DeviceLink* deviceLinkList;				//设备连接列表
 	double* totalVolume;					//该物料的总物流量
 
-	int fixedLinkPointSum = 50;			//每一条link的固定点数目为50(没有去重之前的)
-	int fixedUniqueLinkPointSum = 20;	//去重后的每一条link的固定点数目为20
+	int fixedLinkPointSum;					//每一条link的固定点数目为50(没有去重之前的)
+	int fixedUniqueLinkPointSum ;			//去重后的每一条link的固定点数目为20
 	//输送机参数
 	double convey2DeviceDist;//输送机到设备的距离（寻路的时候要考虑）
 	double conveyWidth;//输送机宽度
@@ -84,6 +80,12 @@ struct ProblemParas
 		string line;
 		if (inputFile) // 有该文件
 		{
+			horiPointCount = 0;
+			vertPointCount = 0;
+
+			fixedLinkPointSum = 50;
+			fixedUniqueLinkPointSum = 20;
+
 			#pragma region 这几个参数目前不用
 			//costParaArray = new CostPara * [DeviceSum];
 			//for (int i = 0; i < DeviceSum; i++) {

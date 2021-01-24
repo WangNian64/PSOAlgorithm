@@ -5,10 +5,10 @@
 #include <algorithm>
 #include <Windows.h>
 #include "DevicePara.h"
+#include "APoint.h"
+#include <curand.h>
+#include <curand_kernel.h>
 
-#include <cuda.h>  
-#include <curand.h>  
-#include <curand_kernel.h>  
 
 #define PI 3.14159265358979
 #define MAX_FITNESS 10000000.0
@@ -16,11 +16,8 @@ using namespace std;
 //所有函数都加上定义
 //生成一个随机数
 __device__ float createARandomNum(curandState* globalState, int index);
+//使用归并排序实现稳定的sort(APoint)
 static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray);
-static __device__ double getAbs(double num)
-{
-	return num > 0 ? num : -num;
-}
 
 static __device__ double getMax(double a, double b)
 {
@@ -84,15 +81,6 @@ static unsigned GetRamdonSeed()
 	}
 	return res;
 }
-//快速排序（DeviceIDSize版本）
-static __device__ void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
-{
-	if (start < end) {
-		int pivot = DeviceIDSize_Partition(sizeArray, start, end);
-		DeviceIDSize_Sort(sizeArray, start, pivot - 1);
-		DeviceIDSize_Sort(sizeArray, pivot + 1, end);
-	}
-}
 __device__ int DeviceIDSize_Partition(DeviceIDSize* sizeArray, int start, int end)
 {
 	DeviceIDSize& temp = sizeArray[start];//引用可以使用吗？？？
@@ -109,6 +97,15 @@ __device__ int DeviceIDSize_Partition(DeviceIDSize* sizeArray, int start, int en
 	}
 	sizeArray[i] = temp;//插入到正确位置
 	return i;
+}
+//快速排序（DeviceIDSize版本）
+static __device__ void DeviceIDSize_Sort(DeviceIDSize* sizeArray, int start, int end)
+{
+	if (start < end) {
+		int pivot = DeviceIDSize_Partition(sizeArray, start, end);
+		DeviceIDSize_Sort(sizeArray, start, pivot - 1);
+		DeviceIDSize_Sort(sizeArray, pivot + 1, end);
+	}
 }
 //快速排序（double版本）
 static __device__ int Double_Partition(double* numArray, int start, int end)

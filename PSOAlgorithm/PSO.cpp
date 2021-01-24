@@ -7,6 +7,11 @@
 // 构造函数(初始化各种算法的参数，给数组分配空间)
 PSOOptimizer::PSOOptimizer(PSOPara* pso_para, ProblemParas& problemParas)
 {
+	horiPointCount = 0;
+	vertPointCount = 0;
+	fixedLinkPointSum = 50;
+	fixedUniqueLinkPointSum = 20;
+
 	particle_num_ = pso_para->particle_num_;
 	max_iter_num_ = pso_para->max_iter_num_;
 	dim_ = pso_para->dim_;

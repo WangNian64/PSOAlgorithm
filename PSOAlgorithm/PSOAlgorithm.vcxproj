@@ -129,11 +129,14 @@
   <ItemGroup>
     <ClCompile Include="Archive.cpp" />
     <ClCompile Include="AStar.cpp" />
-    <ClCompile Include="main.cpp" />
+    <CudaCompile Include="main.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <ClCompile Include="Pareto.cpp" />
     <ClCompile Include="PSO.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="APoint.h" />
     <ClInclude Include="Archive.h" />
     <ClInclude Include="AStar.h" />
     <ClInclude Include="DevicePara.h" />

@@ -190,7 +190,7 @@ struct PointInfo
 	int vertDirNum;//点的垂直连线数目
 	int horiDirNum;//点的水平连线数目
 	bool isKeep;//是否保留
-	PointInfo() = default;
+	PointInfo();
 	PointInfo(Vector2Int pointAxis, int vDirNum, int hDirNum, bool iK) 
 	{
 		this->pointAxis = pointAxis;
@@ -402,7 +402,7 @@ struct SegPath
 	{
 		this->p1 = p1;
 		this->p2 = p2;
-		if (getAbs(p1.x - p2.x) > getAbs(p1.y - p2.y)) {
+		if (abs(p1.x - p2.x) > abs(p1.y - p2.y)) {
 			direct = PathPointDirect::Hori;
 		}
 		else {
@@ -428,10 +428,6 @@ struct SegPath
 				return this->p1 > sg.p1;
 			}
 		}
-	}
-	bool ABigEqualB(const SegPath& sg) //A>=B
-	{
-		return this->AEqualB(sg) || this->ABigB(sg);
 	}
 	bool ABigEqualB(const SegPath& sg) //A>=B
 	{
@@ -468,10 +464,6 @@ struct SegPath
 				return this->p1 > sg.p1;
 			}
 		}
-	}
-	__device__ bool ABigEqualB(const SegPath& sg, int i) //A>=B
-	{
-		return this->AEqualB(sg, i) || this->ABigB(sg, i);
 	}
 	__device__ bool ABigEqualB(const SegPath& sg, int i) //A>=B
 	{
@@ -514,7 +506,7 @@ struct StraightConveyorInfo
 	int startHnum;
 	int endVnum;
 	int endHnum;
-	StraightConveyorInfo() = default;
+	StraightConveyorInfo();
 	StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos)
 	{
 		startPos = sPos;
