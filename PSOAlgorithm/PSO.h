@@ -8,6 +8,7 @@
 #include <cuda_runtime.h>//几个cuda的API
 #include <cuda_runtime_api.h>
 #include "device_launch_parameters.h"
+#include <device_functions.h>
 #include <curand.h>
 #include <curand_kernel.h>
 // 适应度是越大越好还是越小越好
@@ -29,9 +30,9 @@ struct PSOPara
 	double C1_;									// 加速度因子1
 	double C2_;									// 加速度因子2
 
-	double* lower_bound_;				// position搜索范围下限
-	double* upper_bound_;				// position搜索范围上限
-	double* range_interval_;			// position搜索区间长度
+	double* lower_bound_;						// position搜索范围下限
+	double* upper_bound_;						// position搜索范围上限
+	double* range_interval_;					// position搜索区间长度
 
 	int archive_max_count;						// pareto最优解数组的最大值
 	ProblemParas problemParas;					// 和粒子对应的设备布局参数 全局参数

@@ -247,13 +247,13 @@ static int PointInfo_Unique(PointInfo* objArray, int start, int end)
 	return l + 1;
 }
 //计算每个点水平和垂直方向的连线数目&去重
-static int PointInfo_CalcuAndUnique(PointInfo* objArray, int start, int end)
+static __device__ int PointInfo_CalcuAndUnique(PointInfo* objArray, int start, int end)
 {
 	int l = 0;
 	int r = 1;
 	while (r <= end)
 	{
-		if (!objArray[r].AEqualB(objArray[l]))//两者不相等
+		if (!objArray[r].AEqualB(objArray[l], -1))//两者不相等
 		{
 			l++;
 			objArray[l] = objArray[r];
@@ -277,12 +277,12 @@ static __device__ PointInfo FindPointInfo(PointInfo* pointInfoList, int start, i
 	while (start <= end)
 	{
 		int mid = (start + end) >> 1;
-		if (pointInfoList[mid].pointAxis == point)
+		if (pointInfoList[mid].pointAxis.AEqualB(point, -1))
 		{
 			res = pointInfoList[mid];
 			break;
 		}
-		else if (pointInfoList[mid].pointAxis < point)
+		else if (pointInfoList[mid].pointAxis.ASmallB(point, -1))
 		{
 			mid = left + 1;
 		}

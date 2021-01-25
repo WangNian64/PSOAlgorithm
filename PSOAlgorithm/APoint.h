@@ -33,7 +33,7 @@ public:
 	double g;
 	double h;
 	APoint* parent;
-	bool operator == (const APoint& po)
+	bool AEqualB(const APoint& po)
 	{
 		if (x == po.x && y == po.y)
 		{
@@ -41,11 +41,15 @@ public:
 		}
 		return false;
 	}
-	bool AEqualB()
+	__device__ bool AEqualB(const APoint& po, int i)
 	{
-
+		if (x == po.x && y == po.y)
+		{
+			return true;
+		}
+		return false;
 	}
-	double CalcuPointDist(const APoint& point)
+	__device__ double CalcuPointDist(const APoint& point)
 	{
 		return abs(this->y - point.y) + abs(this->x - point.x);
 	}

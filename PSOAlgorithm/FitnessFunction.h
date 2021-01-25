@@ -3,8 +3,7 @@
 #include "AStar.h"
 #include <algorithm>
 #include <math.h> 
-const int particleNum1 = 100;
-
+const int ParticleNum = 100;
 #pragma region 判断两个坐标的上下或者左右关系
 __device__ bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
@@ -974,7 +973,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 			for (int pointIndex = 0; pointIndex < adjPInCount[i]; ++pointIndex)
 			{
 				AdjPoint& point = adjPointsIn[accumAdjPInCount[i] + pointIndex];
-				InoutPoint ioPoint;
+				InoutPoint ioPoint;//
 				ioPoint.pointDirect = point.direct;
 				Vector2 axis(point.pos.x + position_GPU[index * dim + 3 * i], point.pos.y + position_GPU[index * dim + 3 * i + 1], -1);
 				ioPoint.pointAxis = axis;
@@ -1423,7 +1422,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 			{
 				Vector2Int p1 = Multi10000ToInt(copyPLinks[i].points[j]);
 				Vector2Int p2 = Multi10000ToInt(copyPLinks[i].points[j - 1]);
-				if (p1 != p2)//坐标不能一样
+				if (p1.ANEqualB(p2, -1))//坐标不能一样
 				{
 					SegPath temp(p1, p2, -1);
 					segPathSet[segPathSet_CurIndex++] = temp;
@@ -1503,7 +1502,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 				PointInfo pPathPoint = FindPointInfo(pathPointInfoMap, 0, pathPointInfoMap_UniqueSum - 1, p);
 				if (pPathPoint.isKeep == true) {//这里会出现重复的
 					//先更新直线输送机
-					if (tempStrInfo.startPos != p) {
+					if (tempStrInfo.startPos.ANEqualB(p, -1)) {
 						tempStrInfo.endPos = p;
 						//if (curIterNum != 0)
 						if (tempStrInfo.startPos.Distance(tempStrInfo.endPos) < conveyMinDist)
@@ -1550,7 +1549,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		//上面相当于计算出了可能的最佳输送线，现在需要更新bestPathInfoList
 		//根据适应度是否升级选择更新BestPathInfoList
 		//一个可以并行计算最大值的归约算法
-		__shared__ int particleIndexList[particleNum1];
+		__shared__ int particleIndexList[ParticleNum];
 		//为其赋值
 		particleIndexList[index] = index;
 		//等待每个线程赋值完成

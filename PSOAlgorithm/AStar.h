@@ -132,7 +132,7 @@ static __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection be
 		//cout << "ÖÕµãÊÇÕÏ°­" << endl;
 		return nullptr;
 	}
-	if (*_endPoint == *beginPoint)
+	if (_endPoint->AEqualB(*beginPoint, -1))
 	{
 		_curPoint = beginPoint;
 		_curPoint->parent = _endPoint;
@@ -160,7 +160,7 @@ static __device__ APoint* findWay(PathDirection* curPathDirect, PathDirection be
 		_curPoint->type = AType::ATYPE_CLOSED;
 		_closeList[closeList_CurSize[0]++] = _curPoint;
 
-		if (*_curPoint == *_endPoint)
+		if (_curPoint->AEqualB(*_endPoint, -1))
 		{
 			//cout << "have find way" << endl;
 			return _curPoint;
