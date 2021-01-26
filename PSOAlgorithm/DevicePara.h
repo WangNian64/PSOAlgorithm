@@ -8,7 +8,7 @@ public:
 	double x;
 	double y;
 	//Vector2(){}
-	__device__ Vector2(){}
+	__host__ __device__ Vector2(){}
 	Vector2(double x, double y)
 	{
 		this->x = x;
@@ -59,7 +59,7 @@ struct Vector2Int
 public:
 	int x;
 	int y;
-	__device__ Vector2Int() {}
+	__host__ __device__ Vector2Int() {}
 	Vector2Int(int i) {}
 	Vector2Int(int x, int y)
 	{
@@ -387,7 +387,7 @@ struct InoutPoint
 {
 	int pointDirect;//0表示垂直，1表示水平
 	Vector2 pointAxis;//点坐标
-	__device__ InoutPoint() {}//默认的是__device__
+	__host__ __device__ InoutPoint() {}//默认的是__device__
 	InoutPoint(int i) {}
 	InoutPoint(int pointDirect, Vector2 pointAxis)
 	{
@@ -524,7 +524,7 @@ struct StraightConveyorInfo
 	int startHnum;
 	int endVnum;
 	int endHnum;
-	__device__ StraightConveyorInfo() {};
+	__host__ __device__ StraightConveyorInfo() {};
 	StraightConveyorInfo(int i) {};
 	StraightConveyorInfo(Vector2Int sPos, Vector2Int ePos)
 	{
