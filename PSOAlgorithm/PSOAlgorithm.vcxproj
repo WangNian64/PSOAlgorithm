@@ -127,25 +127,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Archive.cpp" />
-    <ClCompile Include="AStar.cpp" />
+    <CudaCompile Include="Archive.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="AStar.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <CudaCompile Include="main.cu">
       <FileType>Document</FileType>
     </CudaCompile>
-    <ClCompile Include="Pareto.cpp" />
-    <ClCompile Include="PSO.cpp" />
+    <CudaCompile Include="Pareto.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="PSO.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="APoint.h" />
-    <ClInclude Include="Archive.h" />
-    <ClInclude Include="AStar.h" />
-    <ClInclude Include="DevicePara.h" />
-    <ClInclude Include="FitnessFunction.h" />
+    <ClInclude Include="APoint.cuh" />
+    <ClInclude Include="Archive.cuh" />
+    <ClInclude Include="AStar.cuh" />
+    <ClInclude Include="DevicePara.cuh" />
+    <ClInclude Include="FitnessFunction.cuh" />
     <ClInclude Include="Graph.h" />
-    <ClInclude Include="Pareto.h" />
-    <ClInclude Include="ProblemParas.h" />
-    <ClInclude Include="PSO.h" />
-    <ClInclude Include="Tools.h" />
+    <ClInclude Include="Pareto.cuh" />
+    <ClInclude Include="ProblemParas.cuh" />
+    <ClInclude Include="PSO.cuh" />
+    <ClInclude Include="Tools.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

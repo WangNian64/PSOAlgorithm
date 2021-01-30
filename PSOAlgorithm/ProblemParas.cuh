@@ -2,8 +2,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include "DevicePara.h"
-#include "Tools.h"
+#include "DevicePara.cuh"
+#include "Tools.cuh"
 using namespace std;
 //成本计算参数
 struct CostPara {

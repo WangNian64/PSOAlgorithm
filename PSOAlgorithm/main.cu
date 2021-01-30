@@ -4,7 +4,7 @@
 #include <string>
 #include <iomanip>
 #include <ctime>
-#include "FitnessFunction.h"
+#include "FitnessFunction.cuh"
 int main()
 {
 	int problemSum = 1;//问题的数目

@@ -19,8 +19,8 @@
 
 #include <stdio.h>
 #include <iostream>
-#include "APoint.h"
-#include "Tools.h"
+#include "APoint.cuh"
+#include "Tools.cuh"
 using namespace std;
 
 enum PathDirection

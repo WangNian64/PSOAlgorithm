@@ -2,7 +2,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <math.h>
-enum class AType
+enum AType
 {
 	ATYPE_UNKNOWN,
 	ATYPE_CLOSED,

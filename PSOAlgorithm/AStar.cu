@@ -8,7 +8,7 @@
 //  上下左右走一格花销为10，斜着走一格花销为14，以方便计算
 //  即格子宽高为10 对角线为14
 #pragma once
-#include "AStar.h"
+#include "AStar.cuh"
 //自定义排序函数
 //bool mySort(const APoint* p1, const APoint* p2)
 //{

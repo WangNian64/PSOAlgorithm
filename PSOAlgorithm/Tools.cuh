@@ -4,8 +4,8 @@
 #include <string>
 #include <algorithm>
 #include <Windows.h>
-#include "DevicePara.h"
-#include "APoint.h"
+#include "DevicePara.cuh"
+#include "APoint.cuh"
 #include <curand.h>
 #include <curand_kernel.h>
 
@@ -29,7 +29,7 @@ static __device__ double getMin(double a, double b)
 	return a < b ? a : b;
 }
 //判断两个区间是否重叠
-static __device__ bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {
+static __host__ __device__ bool IsRangeOverlap(double low1, double upper1, double low2, double upper2) {
 	if (getMax(low1, low2) <= getMin(upper1, upper2)) {
 		return true;
 	}

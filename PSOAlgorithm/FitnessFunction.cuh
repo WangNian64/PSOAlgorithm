@@ -1,6 +1,6 @@
 #pragma once
-#include "PSO.h"
-#include "AStar.h"
+#include "PSO.cuh"
+#include "AStar.cuh"
 #include <algorithm>
 #include <math.h> 
 const int ParticleNum = 100;

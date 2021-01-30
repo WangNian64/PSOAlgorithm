@@ -1,9 +1,7 @@
 #pragma once
 #include <vector>
-#include <set>
-#include <map>
 #include <random>
-#include "ProblemParas.h"
+#include "ProblemParas.cuh"
 
 #include <cuda_runtime.h>//¼¸¸öcudaµÄAPI
 #include <cuda_runtime_api.h>
