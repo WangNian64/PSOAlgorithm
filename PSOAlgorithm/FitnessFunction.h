@@ -1,29 +1,29 @@
 #pragma once
-#include "PSO.cuh"
-#include "AStar.cuh"
 #include <algorithm>
 #include <math.h> 
-const int ParticleNum = 100;
+#include "Tools.h"
+#include "AStar.h"
+#include "PSO.h"
 #pragma region 判断两个坐标的上下或者左右关系
-__device__ bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
+static __device__ bool IsInLeft2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x <= outPos.x;
 }
-__device__ bool IsInRight2Out(Vector2 inPos, Vector2 outPos)
+static __device__ bool IsInRight2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.x >= outPos.x;
 }
-__device__ bool IsInUp2Out(Vector2 inPos, Vector2 outPos)
+static __device__ bool IsInUp2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.y >= outPos.y;
 }
-__device__ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
+static __device__ bool IsInDown2Out(Vector2 inPos, Vector2 outPos)
 {
 	return inPos.y <= outPos.y;
 }
 
 #pragma endregion
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
+static __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
 	/*ProblemParas proParas, 固定参数的，不用管*/
 	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
 	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
@@ -44,17 +44,16 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 
 double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas);
 //double CalcuDeviceDist(Vector2 pos1, Vector2 pos2);
-
-__device__ int FindAxisIndex(double axis, const double* axisList, int axisCount);
+static __device__ int FindAxisIndex(double axis, const double* axisList, int axisCount);
 
 //顺时针旋转后的坐标
-__device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
+static __device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle);
 //对一个数字*10000然后四舍五入到int
-__device__ int Multi10000ToInt(double num);
+static __device__ int Multi10000ToInt(double num);
 
-__device__ Vector2Int Multi10000ToInt(Vector2 v);
+static __device__ Vector2Int Multi10000ToInt(Vector2 v);
 //适应度计算函数 GPU
-__global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
+static __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum, int* bestParticleIndex,
 	/*ProblemParas proParas, 固定参数的，不用管*/
 	int DeviceSum, int fixedLinkPointSum, int fixedUniqueLinkPointSum, int vertPointCount, int horiPointCount, double workShopLength, double workShopWidth, double convey2DeviceDist, /*double conveyWidth, */
 	double strConveyorUnitCost, double curveConveyorUnitCost, double conveyMinDist, /*double conveyMinLength, */double conveySpeed, Vector2 entrancePos, Vector2 exitPos,
@@ -1549,6 +1548,7 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 		//上面相当于计算出了可能的最佳输送线，现在需要更新bestPathInfoList
 		//根据适应度是否升级选择更新BestPathInfoList
 		//一个可以并行计算最大值的归约算法
+		const int ParticleNum = 100;
 		__shared__ int particleIndexList[ParticleNum];
 		//为其赋值
 		particleIndexList[index] = index;
@@ -1603,14 +1603,14 @@ __global__ void FitnessFunction(int curIterNum, int maxIterNum, int particleNum,
 	return;
 }
 //顺时针旋转后的坐标
-__device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle)
+static __device__ Vector2 Rotate(Vector2 pointPos, Vector2 centerPos, float rotateAngle)
 {
 	float xx = (pointPos.x - centerPos.x) * cos(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * sin(rotateAngle * (PI / 180)) + centerPos.x;
 	float yy = -(pointPos.x - centerPos.x) * sin(rotateAngle * (PI / 180)) + (pointPos.y - centerPos.y) * cos(rotateAngle * (PI / 180)) + centerPos.y;
 	Vector2 result(xx, yy, -1);
 	return result;
 }
-__device__ int FindAxisIndex(double axis, const double* axisList, int axisCount)
+static __device__ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 {
 	//用二分法更快
 	int low = 0;
@@ -1635,31 +1635,31 @@ __device__ int FindAxisIndex(double axis, const double* axisList, int axisCount)
 	}
 	return result;
 }
-//计算占地面积
-double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
-	double area = 0;
-	double min_X, min_Y, max_X, max_Y;
-	min_X = min_Y = INT_MAX;
-	max_X = max_Y = -INT_MAX;
-	for (int i = 0; i < particle.dim_; i += 3) {
-		double outSizeLength = copyDeviceParas[i / 3].size.x * 0.5 + copyDeviceParas[i / 3].spaceLength;
-		double outSizeWidth = copyDeviceParas[i / 3].size.y * 0.5 + copyDeviceParas[i / 3].spaceLength;
-		min_X = min(min_X, particle.position_[i] - outSizeLength);
-		max_X = max(max_X, particle.position_[i] + outSizeLength);
-		min_Y = min(min_Y, particle.position_[i + 1] - outSizeWidth);
-		max_Y = max(max_Y, particle.position_[i + 1] + outSizeWidth);
-	}
-	//计算总面积
-	area = (max_X - min_X) * (max_Y - min_Y);
-	return area;
-}
+////计算占地面积
+//double CalcuTotalArea(Particle& particle, DevicePara* copyDeviceParas) {
+//	double area = 0;
+//	double min_X, min_Y, max_X, max_Y;
+//	min_X = min_Y = INT_MAX;
+//	max_X = max_Y = -INT_MAX;
+//	for (int i = 0; i < particle.dim_; i += 3) {
+//		double outSizeLength = copyDeviceParas[i / 3].size.x * 0.5 + copyDeviceParas[i / 3].spaceLength;
+//		double outSizeWidth = copyDeviceParas[i / 3].size.y * 0.5 + copyDeviceParas[i / 3].spaceLength;
+//		min_X = min(min_X, particle.position_[i] - outSizeLength);
+//		max_X = max(max_X, particle.position_[i] + outSizeLength);
+//		min_Y = min(min_Y, particle.position_[i + 1] - outSizeWidth);
+//		max_Y = max(max_Y, particle.position_[i + 1] + outSizeWidth);
+//	}
+//	//计算总面积
+//	area = (max_X - min_X) * (max_Y - min_Y);
+//	return area;
+//}
 //先乘以10000，然后四舍五入到Int
-__device__ int Multi10000ToInt(double num)
+static __device__ int Multi10000ToInt(double num)
 {
 	//使用自定义的Round函数
 	return MyRound(num * 10000);
 }
-__device__ Vector2Int Multi10000ToInt(Vector2 v)
+static __device__ Vector2Int Multi10000ToInt(Vector2 v)
 {
 	return Vector2Int(Multi10000ToInt(v.x), Multi10000ToInt(v.y), -1);
 }

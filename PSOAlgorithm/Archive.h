@@ -1,6 +1,6 @@
 #pragma once
-#include <iostream>
-#include "PSO.cuh"
+
+#include "PSO.h"
 class MeshCrowd
 {
 public:

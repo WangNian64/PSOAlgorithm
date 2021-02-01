@@ -4,7 +4,8 @@
 #include <string>
 #include <iomanip>
 #include <ctime>
-#include "FitnessFunction.cuh"
+
+#include "FitnessFunction.h"
 int main()
 {
 	int problemSum = 1;//问题的数目
@@ -19,13 +20,13 @@ int main()
 
 		//CPU
 		ProblemParas proParas(inputFile);					// 初始化所有设备相关参数 
-
+		cout << "文件读取成功" << endl;
 		int ThreadsPerBlock = 100;							// 一个Block中100个thread
 		int BlockSum = 1;									// Block的数目
 		int dim = proParas.DeviceSum * 3;					// 总维度=设备数*3(x,y,朝向)
 		//CPU
 		PSOPara psopara(dim);					
-
+		cout << "eee" << endl;
 		psopara.mesh_div_count = 4;							// 网格划分数目
 		psopara.problemParas = proParas;					// 布局问题的参数
 		psopara.particle_num_ = ThreadsPerBlock * BlockSum;	// 粒子个数

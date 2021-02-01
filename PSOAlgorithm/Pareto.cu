@@ -1,5 +1,5 @@
 #pragma once
-#include "Pareto.cuh"
+#include "Pareto.h"
 static bool Judge_ParetoOptimal(Particle curParticle, vector<Particle> particles, int cursor);
 
 static bool CompareFitness(Particle curParticle, Particle otherParticle);

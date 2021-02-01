@@ -1,8 +1,8 @@
 #pragma once
-#include "Pareto.cuh"
-#include "Archive.cuh"
-#include "FitnessFunction.cuh"
-#include "Tools.cuh"
+#include "Pareto.h"
+#include "Archive.h"
+#include "FitnessFunction.h"
+#include "Tools.h"
 #include <ctime>
 
 

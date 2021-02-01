@@ -144,16 +144,16 @@
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="APoint.cuh" />
-    <ClInclude Include="Archive.cuh" />
-    <ClInclude Include="AStar.cuh" />
-    <ClInclude Include="DevicePara.cuh" />
-    <ClInclude Include="FitnessFunction.cuh" />
+    <ClInclude Include="APoint.h" />
+    <ClInclude Include="Archive.h" />
+    <ClInclude Include="AStar.h" />
+    <ClInclude Include="DevicePara.h" />
+    <ClInclude Include="FitnessFunction.h" />
     <ClInclude Include="Graph.h" />
-    <ClInclude Include="Pareto.cuh" />
-    <ClInclude Include="ProblemParas.cuh" />
-    <ClInclude Include="PSO.cuh" />
-    <ClInclude Include="Tools.cuh" />
+    <ClInclude Include="Pareto.h" />
+    <ClInclude Include="ProblemParas.h" />
+    <ClInclude Include="PSO.h" />
+    <ClInclude Include="Tools.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

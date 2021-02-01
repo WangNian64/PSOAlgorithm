@@ -17,11 +17,51 @@
 #ifndef __Astar__CAstar__
 #define __Astar__CAstar__
 
-#include <stdio.h>
-#include <iostream>
-#include "APoint.cuh"
-#include "Tools.cuh"
+//#include "Tools.h"
+#include "APoint.h"
 using namespace std;
+
+//归并排序(APoint版本)
+//注意排序规则，是按照APoint的f值进行比较
+static __device__ void Merge(APoint** objArray, int start, int middle, int end, APoint** tempArray)
+{
+	int i = start;
+	int j = middle + 1;
+	int index = 0;
+	while (i <= middle && j <= end)
+	{
+		if (objArray[i]->f <= objArray[j]->f) {//排序规则
+			tempArray[index++] = objArray[i++];
+		}
+		else {
+			tempArray[index++] = objArray[j++];
+		}
+	}
+	while (i <= middle) {
+		tempArray[index++] = objArray[i++];
+	}
+	while (j <= end) {
+		tempArray[index++] = objArray[j++];
+	}
+	for (int i = 0; i < index; i++) {
+		objArray[start + i] = tempArray[i];
+	}
+}
+
+//使用归并排序实现稳定的sort(APoint)
+static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray)
+{
+	if (start < end)
+	{
+		int middle = (start + end) / 2;
+		StableSort_APoint(objArray, start, middle, tempArray);
+		StableSort_APoint(objArray, middle + 1, end, tempArray);
+		Merge(objArray, start, middle, end, tempArray);
+	}
+}
+
+
+
 
 enum PathDirection
 {

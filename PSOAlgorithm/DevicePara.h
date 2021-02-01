@@ -1,5 +1,8 @@
 #pragma once
 #include <cuda_runtime.h>
+#include <math.h>
+#include <string>
+#include <vector>
 using namespace std;
 //表示一个坐标
 struct Vector2

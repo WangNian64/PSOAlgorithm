@@ -18,31 +18,31 @@
     <ClInclude Include="Graph.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="PSO.cuh">
+    <ClInclude Include="APoint.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Tools.cuh">
+    <ClInclude Include="Archive.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="AStar.cuh">
+    <ClInclude Include="AStar.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Archive.cuh">
+    <ClInclude Include="DevicePara.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DevicePara.cuh">
+    <ClInclude Include="FitnessFunction.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FitnessFunction.cuh">
+    <ClInclude Include="Pareto.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Pareto.cuh">
+    <ClInclude Include="ProblemParas.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ProblemParas.cuh">
+    <ClInclude Include="PSO.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="APoint.cuh">
+    <ClInclude Include="Tools.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

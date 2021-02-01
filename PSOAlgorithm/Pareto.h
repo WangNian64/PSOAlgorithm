@@ -1,5 +1,5 @@
 #pragma once
-#include "PSO.cuh"
+#include "PSO.h"
 class Pareto 
 {
 public:

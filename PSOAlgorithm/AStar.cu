@@ -8,7 +8,7 @@
 //  上下左右走一格花销为10，斜着走一格花销为14，以方便计算
 //  即格子宽高为10 对角线为14
 #pragma once
-#include "AStar.cuh"
+#include "AStar.h"
 //自定义排序函数
 //bool mySort(const APoint* p1, const APoint* p2)
 //{
@@ -18,9 +18,8 @@
 
 APoint::~APoint()//只存在于FitnessFunc内部
 {
-    if (parent) { delete[] parent; }
+	if (parent) { delete[] parent; }
 }
-
 
 #pragma mark------CAstar-------
 CAstar::~CAstar()//只存在于FitnessFunc内部

@@ -4,10 +4,12 @@
 #include <string>
 #include <algorithm>
 #include <Windows.h>
-#include "DevicePara.cuh"
-#include "APoint.cuh"
 #include <curand.h>
 #include <curand_kernel.h>
+
+
+#include "DevicePara.h"
+//#include "APoint.h"
 
 
 #define PI 3.14159265358979
@@ -17,14 +19,14 @@ using namespace std;
 //生成一个随机数
 __device__ float createARandomNum(curandState* globalState, int index);
 //使用归并排序实现稳定的sort(APoint)
-static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray);
+//static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray);
 
-static __device__ double getMax(double a, double b)
+static __host__ __device__ double getMax(double a, double b)
 {
 	return a > b ? a : b;
 }
 
-static __device__ double getMin(double a, double b)
+static __host__ __device__ double getMin(double a, double b)
 {
 	return a < b ? a : b;
 }
@@ -38,28 +40,6 @@ static __host__ __device__ bool IsRangeOverlap(double low1, double upper1, doubl
 		return false;
 	}
 }
-//字符串分割函数
-static vector<string> split(const string& str, const string& pattern)
-{
-	vector<string> res;
-	if ("" == str)
-		return res;
-
-	string strs = str + pattern;
-
-	size_t pos = strs.find(pattern);
-	size_t size = strs.size();
-
-	while (pos != string::npos)
-	{
-		string x = strs.substr(0, pos);
-		res.push_back(x);//stoi(x)转整型
-		strs = strs.substr(pos + 1, size);
-		pos = strs.find(pattern);
-	}
-	return res;
-}
-
 // 获取双精度随机数(返回一个0-1之间的小数,不包含1）
 static double GetDoubleRand(int N = 99)
 {
@@ -81,7 +61,7 @@ static unsigned GetRamdonSeed()
 	}
 	return res;
 }
-__device__ int DeviceIDSize_Partition(DeviceIDSize* sizeArray, int start, int end)
+static __device__ int DeviceIDSize_Partition(DeviceIDSize* sizeArray, int start, int end)
 {
 	DeviceIDSize& temp = sizeArray[start];//引用可以使用吗？？？
 	double tempSize = temp.size.x * temp.size.y;
@@ -158,7 +138,7 @@ static __device__ int MyRound(double num)
 }
 
 //快速排序（SegPath版本）
-__device__ int SegPath_Partition(SegPath* objArray, int start, int end)
+static __device__ int SegPath_Partition(SegPath* objArray, int start, int end)
 {
 	SegPath& temp = objArray[start];
 	int i = start;
@@ -294,54 +274,15 @@ static __device__ PointInfo FindPointInfo(PointInfo* pointInfoList, int start, i
 	return res;
 }
 
-//归并排序(APoint版本)
-//注意排序规则，是按照APoint的f值进行比较
-__device__ void Merge(APoint** objArray, int start, int middle, int end, APoint** tempArray)
-{
-	int i = start;
-	int j = middle + 1;
-	int index = 0;
-	while (i <= middle && j <= end)
-	{
-		if (objArray[i]->f <= objArray[j]->f) {//排序规则
-			tempArray[index++] = objArray[i++];
-		}
-		else {
-			tempArray[index++] = objArray[j++];
-		}
-	}
-	while (i <= middle) {
-		tempArray[index++] = objArray[i++];
-	}
-	while (j <= end) {
-		tempArray[index++] = objArray[j++];
-	}
-	for (int i = 0; i < index; i++) {
-		objArray[start + i] = tempArray[i];
-	}
-}
-
-//使用归并排序实现稳定的sort(APoint)
-static __device__ void StableSort_APoint(APoint** objArray, int start, int end, APoint** tempArray)
-{
-	if (start < end)
-	{
-		int middle = (start + end) / 2;
-		StableSort_APoint(objArray, start, middle, tempArray);
-		StableSort_APoint(objArray, middle + 1, end, tempArray);
-		Merge(objArray, start, middle, end, tempArray);
-	}
-}
-
 //生成随机数相关代码 GPU
 //初始化随机数生成器
-__global__ void initRandomGenerator(curandState* state, unsigned long seed)
+static __global__ void initRandomGenerator(curandState* state, unsigned long seed)
 {
 	int id = threadIdx.x;
 	curand_init(seed, id, 0, &state[id]);
 }
 //生成一个随机数
-__device__ float createARandomNum(curandState* globalState, int index)
+static __device__ float createARandomNum(curandState* globalState, int index)
 {
 	curandState localState = globalState[index];
 	float RANDOM = curand_uniform(&localState);

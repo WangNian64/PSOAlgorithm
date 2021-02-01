@@ -1,10 +1,33 @@
 #pragma once
 #include <iostream>
+#include <vector>
 #include <string>
 #include <fstream>
-#include "DevicePara.cuh"
-#include "Tools.cuh"
+#include "DevicePara.h"
 using namespace std;
+//字符串分割函数
+static vector<string> split(const string& str, const string& pattern)
+{
+	vector<string> res;
+	if ("" == str)
+		return res;
+
+	string strs = str + pattern;
+
+	size_t pos = strs.find(pattern);
+	size_t size = strs.size();
+
+	while (pos != string::npos)
+	{
+		string x = strs.substr(0, pos);
+		res.push_back(x);//stoi(x)转整型
+		strs = strs.substr(pos + 1, size);
+		pos = strs.find(pattern);
+	}
+	return res;
+}
+
+
 //成本计算参数
 struct CostPara {
 	double MatFlow;		//物流总量
@@ -30,9 +53,9 @@ struct ProblemParas
 	int* accumAdjPInCount;					//adjPointIn数目的累加数组
 	int* accumAdjPOutCount;					//adjPointOut数目的累加数组
 
+	//出入口点的数组（会影响输送线的布局）
 	int totalInPoint;						//入口点的总数目
 	int totalOutPoint;						//出口点的总数目
-	//出入口点的数组（会影响输送线的布局）
 	AdjPoint* adjPointsIn;	//入口
 	AdjPoint* adjPointsOut;	//出口
 
@@ -78,6 +101,7 @@ struct ProblemParas
 	{
 		//读取参数
 		string line;
+		cout << "3333" << endl;
 		if (inputFile) // 有该文件
 		{
 			horiPointCount = 0;
@@ -141,15 +165,11 @@ struct ProblemParas
 			spaceLength = new double[DeviceSum];	//空隙（为了实现距离约束）
 
 			//和adjPoint数目有关的数组
-			int* adjPInCount;						//adjPointIn数组的数目数组
-			int* adjPOutCount;						//adjPointOut数组的数目数组
+			adjPInCount = new int[DeviceSum];						//adjPointIn数组的数目数组
+			adjPOutCount = new int[DeviceSum];						//adjPointOut数组的数目数组
 
-			int* accumAdjPInCount;					//adjPointIn数目的累加数组
-			int* accumAdjPOutCount;					//adjPointOut数目的累加数组
-
-			//出入口点的数组（会影响输送线的布局）
-			AdjPoint* adjPointsIn;	//入口
-			AdjPoint* adjPointsOut;	//出口
+			accumAdjPInCount = new int[DeviceSum];					//adjPointIn数目的累加数组
+			accumAdjPOutCount = new int[DeviceSum];					//adjPointOut数目的累加数组
 
 			totalInPoint = totalOutPoint = 0;//需要累加
 
@@ -159,8 +179,8 @@ struct ProblemParas
 			vector<AdjPoint> tempAdjPOutList;
 			for (int i = 0; i < DeviceSum; i++)
 			{
-				int curAdjInCount = 0; //这一轮的AdjIn的数目
-				int curAdjOutCount = 0;//这一轮的AdjOut的数目 
+				//int curAdjInCount = 0; //这一轮的AdjIn的数目
+				//int curAdjOutCount = 0;//这一轮的AdjOut的数目 
 				//用temp vector中转
 				//vector<AdjPoint> tempAdjPInList;
 				//vector<AdjPoint> tempAdjPOutList;
@@ -207,6 +227,12 @@ struct ProblemParas
 					totalOutPoint = totalOutPoint + adjPOutCount[i];
 				}
 			}
+			//出入口点的数组（会影响输送线的布局）
+			adjPointsIn = new AdjPoint[totalInPoint];	//入口
+			cout << totalInPoint << endl;
+			adjPointsOut = new AdjPoint[totalOutPoint];	//出口
+			cout << totalOutPoint << endl;
+
 			//把vector的点复制到*数组
 			for (int i = 0; i < tempAdjPInList.size(); i++)
 			{
@@ -252,7 +278,6 @@ struct ProblemParas
 			vertPointCount = vertPointCount + 4 * DeviceSum;
 			#pragma endregion
 
-			
 			#pragma endregion
 
 			#pragma region 输送线参数
@@ -273,16 +298,20 @@ struct ProblemParas
 			getline(inputFile, line);
 			CargoTypeNum = atoi(line.c_str());//物料类型数目
 
+			cout << CargoTypeNum << endl;
+
 			//cargoTypeList = new CargoType[CargoTypeNum];
+			deviceSum = new int[CargoTypeNum];							//经过的设备数目
+			linkSum = new int[CargoTypeNum];							//设备配对的数目
+			accumLinkSum = new int[CargoTypeNum];						//linkSum的累加数目
+			totalVolume = new double[CargoTypeNum];					//该物料的总物流量
+
 			vector<CargoType> tempCargoTypeList;
-			//先统计totalLinkSum和accumLinkSum
-			for (int i = 0; i < CargoTypeNum; i++)
-			{
-				accumLinkSum[i] = totalLinkSum;
-				totalLinkSum += linkSum[i];
-			}
-			deviceLinkList = new DeviceLink[totalLinkSum];
-			int curLinkSum_Index = 0;
+			totalLinkSum = 0;
+
+
+			cout << "111" << endl;
+			vector<DeviceLink> tempDeviceLinkList;
 			for (int i = 0; i < CargoTypeNum; i++)
 			{
 
@@ -290,39 +319,51 @@ struct ProblemParas
 				vector<string> strSplit = split(line, " ");
 				linkSum[i] = atoi(strSplit[0].c_str());
 				deviceSum[i] = linkSum[i] + 1;
+
+				accumLinkSum[i] = totalLinkSum;
 				//deviceLinkList = new DeviceLink[cargoTypeList[i].linkSum];
 
 				for (int j = 0; j < linkSum[i]; j++)
 				{
+					DeviceLink tempLink = DeviceLink();
 					vector<string> deviceLinkStr = split(strSplit[j + 1], "-");
 					//分为入口和出口
 					if (deviceLinkStr[0] == "ENTER")//说明是仓库入口
 					{
-						deviceLinkList[curLinkSum_Index].outDeviceIndex = -1;
+						tempLink.outDeviceIndex = -1;
 					}
 					else
 					{
 						vector<string> devicePointStr = split(deviceLinkStr[0], ",");
-						deviceLinkList[curLinkSum_Index].outDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
-						deviceLinkList[curLinkSum_Index].outPointIndex = atoi(devicePointStr[1].c_str()) - 1;
+						tempLink.outDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						tempLink.outPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
 					if (deviceLinkStr[1] == "EXIT")//说明是仓库出口
 					{
-						deviceLinkList[curLinkSum_Index].inDeviceIndex = -2;
+						tempLink.inDeviceIndex = -2;
 					}
 					else
 					{
 						vector<string> devicePointStr = split(deviceLinkStr[1], ",");
-						deviceLinkList[curLinkSum_Index].inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
-						deviceLinkList[curLinkSum_Index].inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
+						tempLink.inDeviceIndex = atoi(devicePointStr[0].c_str()) - 1;
+						tempLink.inPointIndex = atoi(devicePointStr[1].c_str()) - 1;
 					}
-					curLinkSum_Index++;
+					tempDeviceLinkList.push_back(tempLink);
 				}
-				totalVolume[i] = atof(strSplit[strSplit.size() - 1].c_str());
+				totalVolume[i] = atof(strSplit[                                                                                                                                                                                                               strSplit.size() - 1].c_str());
 			}
+			totalLinkSum = tempDeviceLinkList.size();
+			cout << totalLinkSum << endl;
+			deviceLinkList = new DeviceLink[totalLinkSum];
+			for (int i = 0; i < tempDeviceLinkList.size(); i++)
+			{
+				deviceLinkList[i] = tempDeviceLinkList[i];
+			}
+			//vector拷贝到*数组
 			#pragma endregion
 
 
+			cout << "111" << endl;
 
 
 			#pragma region 单位距离的物流成本数组
@@ -398,7 +439,9 @@ struct ProblemParas
 		//}
 		//deviceGraph.ShowGraph();
 		#pragma endregion
-	
+		cout << "读取完成" << endl;
+
+		cout << "111" << endl;
 	}
 
 	//ProblemParas(const ProblemParas & para)
